@@ -1,0 +1,19 @@
+FROM maven:3.9.6-eclipse-temurin-21-alpine AS builder
+WORKDIR /app
+COPY backend/pom.xml ./pom.xml
+COPY backend/shared ./shared
+COPY backend/api-gateway/pom.xml ./api-gateway/pom.xml
+COPY backend/config-server/pom.xml ./config-server/pom.xml
+COPY backend/microservices ./microservices
+COPY backend/service-discovery ./service-discovery
+RUN mvn package -pl service-discovery -am -DskipTests -B -q
+
+FROM eclipse-temurin:21-jre-alpine
+RUN addgroup -S bearerp && adduser -S bearerp -G bearerp
+WORKDIR /app
+COPY --from=builder /app/service-discovery/target/*.jar app.jar
+RUN chown -R bearerp:bearerp /app
+USER bearerp
+HEALTHCHECK --interval=15s --timeout=5s --retries=5 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8761/actuator/health || exit 1
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]

@@ -1,0 +1,55 @@
+server:
+  port: 8112
+
+spring:
+  application:
+    name: certificado-service
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/bear_erp_certificado}
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+bear:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:bear-erp-jwt-secret-key-minimum-256-bits-for-hmac-sha256-algorithm}
+    encryption:
+      aes-key: ${AES_KEY:YmVhci1lcnAtYWVzMjU2LWtleS0zMmJ5dGVzLW9rISE=}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    br.com.bearerp: DEBUG

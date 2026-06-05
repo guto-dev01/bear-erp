@@ -1,0 +1,208 @@
+<div class="page-container">
+  <!-- Page Header -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-header__title">Empresas</h1>
+      <p class="page-header__subtitle">Gerencie as empresas do seu escritório</p>
+    </div>
+    <div class="page-header__actions">
+      <div class="search-box">
+        <span class="material-symbols-rounded search-box__icon">search</span>
+        <input class="search-box__input" placeholder="Buscar empresa..."
+               [value]="searchTerm()" (input)="searchTerm.set($any($event.target).value)">
+      </div>
+      <button class="bear-btn bear-btn--primary" style="padding: 0.5rem 1.25rem; font-size: 0.875rem;"
+              (click)="openForm()">
+        <span class="material-symbols-rounded text-lg mr-1.5">add</span>
+        Nova Empresa
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading skeleton -->
+  @if (loading()) {
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      @for (i of [1,2,3,4,5,6]; track i) {
+        <div class="bear-card p-5">
+          <div class="flex items-start justify-between mb-4">
+            <div class="skeleton skeleton--avatar"></div>
+            <div class="skeleton" style="width: 80px; height: 24px;"></div>
+          </div>
+          <div class="skeleton skeleton--title mb-2"></div>
+          <div class="skeleton skeleton--text mb-1"></div>
+          <div class="skeleton skeleton--text" style="width: 40%;"></div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Empty state -->
+  @if (!loading() && filteredEmpresas().length === 0 && !showForm()) {
+    <div class="empty-state">
+      <div class="empty-state__icon">
+        <span class="material-symbols-rounded">apartment</span>
+      </div>
+      <h3 class="empty-state__title">
+        {{ searchTerm() ? 'Nenhuma empresa encontrada' : 'Nenhuma empresa cadastrada' }}
+      </h3>
+      <p class="empty-state__description">
+        {{ searchTerm() ? 'Tente buscar por outro termo' : 'Comece adicionando a primeira empresa do seu escritório' }}
+      </p>
+      @if (!searchTerm()) {
+        <button class="bear-btn bear-btn--primary mt-4" style="padding: 0.5rem 1.25rem; font-size: 0.875rem;"
+                (click)="openForm()">
+          <span class="material-symbols-rounded text-lg mr-1.5">add</span>
+          Adicionar Empresa
+        </button>
+      }
+    </div>
+  }
+
+  <!-- Empresas Grid -->
+  @if (!loading() && filteredEmpresas().length > 0 && !showForm()) {
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      @for (empresa of filteredEmpresas(); track empresa.$id; let i = $index) {
+        <div class="empresa-card animate-fade-in-up" [style.animation-delay]="(i * 50) + 'ms'">
+          <div class="empresa-card__header">
+            <div class="empresa-card__avatar">
+              {{ (empresa.nomeFantasia || empresa.razaoSocial || '?').charAt(0) }}
+            </div>
+            <span class="badge badge--{{ getRegimeColor(empresa.regimeTributario) }}">
+              {{ getRegimeLabel(empresa.regimeTributario) }}
+            </span>
+          </div>
+
+          <h3 class="empresa-card__name">{{ empresa.nomeFantasia || empresa.razaoSocial }}</h3>
+          <p class="empresa-card__razao">{{ empresa.razaoSocial }}</p>
+
+          <div class="empresa-card__info">
+            <div class="empresa-card__info-item">
+              <span class="material-symbols-rounded text-sm">badge</span>
+              <span>{{ formatCnpj(empresa.cnpj) }}</span>
+            </div>
+            @if (empresa.email) {
+              <div class="empresa-card__info-item">
+                <span class="material-symbols-rounded text-sm">mail</span>
+                <span>{{ empresa.email }}</span>
+              </div>
+            }
+            @if (empresa.cidade && empresa.estado) {
+              <div class="empresa-card__info-item">
+                <span class="material-symbols-rounded text-sm">location_on</span>
+                <span>{{ empresa.cidade }}/{{ empresa.estado }}</span>
+              </div>
+            }
+          </div>
+
+          <div class="empresa-card__actions">
+            <button class="empresa-card__action" matTooltip="Editar" (click)="openForm(empresa)">
+              <span class="material-symbols-rounded">edit</span>
+            </button>
+            <button class="empresa-card__action empresa-card__action--danger" matTooltip="Excluir" (click)="delete(empresa)">
+              <span class="material-symbols-rounded">delete</span>
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Form -->
+  @if (showForm()) {
+    <div class="bear-card p-6 max-w-3xl animate-fade-in-up">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-heading text-lg">{{ editingId() ? 'Editar Empresa' : 'Nova Empresa' }}</h2>
+        <button class="bear-btn bear-btn--ghost" style="padding: 0.375rem;" (click)="closeForm()">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+
+      <form [formGroup]="empresaForm" (ngSubmit)="save()">
+        <div class="form-section">
+          <h3 class="form-section__title">Dados da Empresa</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <mat-form-field appearance="outline" class="md:col-span-2">
+              <mat-label>Razão Social</mat-label>
+              <input matInput formControlName="razaoSocial">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Nome Fantasia</mat-label>
+              <input matInput formControlName="nomeFantasia">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>CNPJ</mat-label>
+              <input matInput formControlName="cnpj" maxlength="14">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Inscrição Estadual</mat-label>
+              <input matInput formControlName="inscricaoEstadual">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Inscrição Municipal</mat-label>
+              <input matInput formControlName="inscricaoMunicipal">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Regime Tributário</mat-label>
+              <mat-select formControlName="regimeTributario">
+                <mat-option value="SIMPLES_NACIONAL">Simples Nacional</mat-option>
+                <mat-option value="LUCRO_PRESUMIDO">Lucro Presumido</mat-option>
+                <mat-option value="LUCRO_REAL">Lucro Real</mat-option>
+                <mat-option value="MEI">MEI</mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3 class="form-section__title">Contato</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <mat-form-field appearance="outline">
+              <mat-label>Email</mat-label>
+              <input matInput formControlName="email" type="email">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Telefone</mat-label>
+              <input matInput formControlName="telefone">
+            </mat-form-field>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3 class="form-section__title">Endereço</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <mat-form-field appearance="outline" class="md:col-span-2">
+              <mat-label>Endereço</mat-label>
+              <input matInput formControlName="endereco">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Cidade</mat-label>
+              <input matInput formControlName="cidade">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Estado</mat-label>
+              <mat-select formControlName="estado">
+                @for (uf of ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']; track uf) {
+                  <mat-option [value]="uf">{{ uf }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>CEP</mat-label>
+              <input matInput formControlName="cep" maxlength="8">
+            </mat-form-field>
+          </div>
+        </div>
+
+        <div class="flex gap-3 justify-end mt-6">
+          <button type="button" class="bear-btn bear-btn--outline" style="padding: 0.5rem 1.5rem;"
+                  (click)="closeForm()">Cancelar</button>
+          <button type="submit" class="bear-btn bear-btn--primary" style="padding: 0.5rem 1.5rem;"
+                  [disabled]="empresaForm.invalid">
+            <span class="material-symbols-rounded text-lg mr-1">{{ editingId() ? 'save' : 'add' }}</span>
+            {{ editingId() ? 'Salvar' : 'Criar Empresa' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+</div>

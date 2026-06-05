@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:'Segoe UI',Roboto,sans-serif;background:#f1f5f9">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#fff">
+  <tr><td style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:32px;text-align:center">
+    <h1 style="color:#fff;margin:0;font-size:24px">Bear ERP</h1>
+    <p style="color:#e0e7ff;margin:8px 0 0;font-size:14px">Nota Fiscal Eletrônica</p>
+  </td></tr>
+  <tr><td style="padding:32px">
+    <h2 style="color:#1e293b;margin:0 0 16px">NF-e Autorizada com Sucesso</h2>
+    <p style="color:#475569;line-height:1.6">Sua Nota Fiscal Eletrônica foi autorizada pela SEFAZ.</p>
+    <table style="width:100%;border-collapse:collapse;margin:24px 0">
+      <tr><td style="padding:12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;color:#374151;width:40%">Número NF-e</td>
+          <td style="padding:12px;border:1px solid #e2e8f0;color:#1e293b" th:text="${numero}"></td></tr>
+      <tr><td style="padding:12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;color:#374151">Chave de Acesso</td>
+          <td style="padding:12px;border:1px solid #e2e8f0;color:#1e293b;font-family:monospace;font-size:12px" th:text="${chaveAcesso}"></td></tr>
+      <tr><td style="padding:12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;color:#374151">Valor Total</td>
+          <td style="padding:12px;border:1px solid #e2e8f0;color:#059669;font-weight:600" th:text="'R$ ' + ${valor}"></td></tr>
+    </table>
+    <p style="color:#64748b;font-size:13px">O DANFE está disponível para download no sistema.</p>
+  </td></tr>
+  <tr><td style="background:#f8fafc;padding:24px;text-align:center;border-top:1px solid #e2e8f0">
+    <p style="color:#94a3b8;font-size:12px;margin:0">Bear ERP - Sistema de Gestão Contábil<br>Este é um email automático, não responda.</p>
+  </td></tr>
+</table>
+</body></html>

@@ -1,0 +1,65 @@
+server:
+  port: 8096
+
+spring:
+  application:
+    name: financeiro-service
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/bear_erp_financeiro}
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+bear:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:bear-erp-jwt-secret-key-minimum-256-bits-for-hmac-sha256-algorithm}
+    encryption:
+      aes-key: ${AES_KEY:YmVhci1lcnAtYWVzMjU2LWtleS0zMmJ5dGVzLW9rISE=}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+banking:
+  open-finance:
+    client-id: ${OPEN_FINANCE_CLIENT_ID:sandbox-client-id}
+    client-secret: ${OPEN_FINANCE_CLIENT_SECRET:sandbox-client-secret}
+    redirect-uri: ${OPEN_FINANCE_REDIRECT_URI:http://localhost:4200/callback/openfinance}
+    sandbox: true
+  pix:
+    chave: ${PIX_CHAVE:bearerp@pix.com.br}
+    certificado-path: ${PIX_CERT_PATH:/certs/pix-cert.pem}
+    sandbox: true
+  boleto:
+    api-key: ${BOLETO_API_KEY:sandbox-api-key}
+    sandbox: true
+
+logging:
+  level:
+    br.com.bearerp: DEBUG

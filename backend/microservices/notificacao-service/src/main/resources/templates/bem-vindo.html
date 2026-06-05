@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="pt-BR">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:'Segoe UI',Roboto,sans-serif;background:#f1f5f9">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#fff">
+  <tr><td style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:40px;text-align:center">
+    <h1 style="color:#fff;margin:0;font-size:28px">Bem-vindo ao Bear ERP!</h1>
+    <p style="color:#e0e7ff;margin:12px 0 0;font-size:16px">O ERP contábil mais completo do Brasil</p>
+  </td></tr>
+  <tr><td style="padding:32px">
+    <h2 style="color:#1e293b;margin:0 0 16px">Olá, <span th:text="${nome}"></span>!</h2>
+    <p style="color:#475569;line-height:1.6">Sua conta foi criada com sucesso. Agora você tem acesso completo ao Bear ERP.</p>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:20px;margin:24px 0">
+      <p style="color:#166534;margin:0;font-weight:600">Suas credenciais:</p>
+      <p style="color:#15803d;margin:8px 0 0">Email: <strong th:text="${email}"></strong></p>
+      <p style="color:#15803d;margin:4px 0 0;font-size:13px">Use a senha que foi definida durante o cadastro.</p>
+    </div>
+    <p style="color:#475569;line-height:1.6">Com o Bear ERP você pode:</p>
+    <ul style="color:#475569;line-height:2">
+      <li>Emitir NF-e, NFS-e e CT-e</li>
+      <li>Gerenciar a contabilidade completa</li>
+      <li>Processar folha de pagamento</li>
+      <li>Controlar obrigações acessórias</li>
+      <li>Gerar relatórios contábeis em PDF</li>
+    </ul>
+  </td></tr>
+  <tr><td style="background:#f8fafc;padding:24px;text-align:center;border-top:1px solid #e2e8f0">
+    <p style="color:#94a3b8;font-size:12px;margin:0">Bear ERP - Sistema de Gestão Contábil<br>Transformando a contabilidade brasileira.</p>
+  </td></tr>
+</table>
+</body></html>

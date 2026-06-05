@@ -1,0 +1,42 @@
+# === Build Stage ===
+FROM maven:3.9.6-eclipse-temurin-21-alpine AS builder
+
+WORKDIR /app
+
+# Copy parent POM
+COPY backend/pom.xml ./pom.xml
+
+# Copy shared modules entirely
+COPY backend/shared ./shared
+
+# Copy infra module POMs (needed for Maven reactor)
+COPY backend/api-gateway/pom.xml ./api-gateway/pom.xml
+COPY backend/service-discovery/pom.xml ./service-discovery/pom.xml
+COPY backend/config-server/pom.xml ./config-server/pom.xml
+
+# Copy ALL microservice POMs (Maven needs them for reactor resolution)
+COPY backend/microservices ./microservices
+
+# Build shared libs + target service
+ARG SERVICE_NAME
+RUN mvn package -pl shared/common-lib,shared/security-lib,microservices/${SERVICE_NAME} -am -DskipTests -Dmaven.test.skip=true -B -q
+
+# === Runtime Stage ===
+FROM eclipse-temurin:21-jre-alpine
+
+RUN addgroup -S bearerp && adduser -S bearerp -G bearerp
+
+WORKDIR /app
+
+ARG SERVICE_NAME
+COPY --from=builder /app/microservices/${SERVICE_NAME}/target/*.jar app.jar
+
+RUN chown -R bearerp:bearerp /app
+
+USER bearerp
+
+ENTRYPOINT ["java", \
+  "-XX:+UseContainerSupport", \
+  "-XX:MaxRAMPercentage=75.0", \
+  "-Djava.security.egd=file:/dev/./urandom", \
+  "-jar", "app.jar"]

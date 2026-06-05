@@ -1,0 +1,133 @@
+global:
+  namespace: bear-erp
+  registry: ghcr.io
+  imagePullPolicy: IfNotPresent
+
+mongodb:
+  replicas: 3
+  storage: 50Gi
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+    limits:
+      memory: 2Gi
+      cpu: "1"
+
+redis:
+  replicas: 3
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+kafka:
+  replicas: 3
+  storage: 20Gi
+
+services:
+  authService:
+    name: auth-service
+    port: 8081
+    replicas: 2
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 100m
+      limits:
+        memory: 1Gi
+        cpu: 500m
+
+  tenantService:
+    name: tenant-service
+    port: 8082
+    replicas: 2
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 100m
+      limits:
+        memory: 1Gi
+        cpu: 500m
+
+  empresaService:
+    name: empresa-service
+    port: 8083
+    replicas: 2
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 100m
+      limits:
+        memory: 1Gi
+        cpu: 500m
+
+  contabilidadeService:
+    name: contabilidade-service
+    port: 8084
+    replicas: 3
+    resources:
+      requests:
+        memory: 512Mi
+        cpu: 200m
+      limits:
+        memory: 2Gi
+        cpu: "1"
+
+  fiscalService:
+    name: fiscal-service
+    port: 8085
+    replicas: 3
+    resources:
+      requests:
+        memory: 512Mi
+        cpu: 200m
+      limits:
+        memory: 2Gi
+        cpu: "1"
+
+  financeiroService:
+    name: financeiro-service
+    port: 8086
+    replicas: 2
+
+  folhaService:
+    name: folha-service
+    port: 8087
+    replicas: 2
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: app.bearerp.com.br
+      paths:
+        - path: /
+          service: frontend
+          port: 80
+    - host: api.bearerp.com.br
+      paths:
+        - path: /
+          service: api-gateway
+          port: 8080
+  tls:
+    - secretName: bear-erp-tls
+      hosts:
+        - app.bearerp.com.br
+        - api.bearerp.com.br
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPU: 70
+  targetMemory: 80
+
+monitoring:
+  prometheus:
+    enabled: true
+  grafana:
+    enabled: true
