@@ -907,19 +907,31 @@ const collections = [
 // CRIAR COLLECTIONS E ATRIBUTOS
 // ============================================================
 
+// Permissões: apenas usuários autenticados (Appwrite Auth) podem ler/gravar.
+// NÃO mais Role.any() (que liberava acesso a qualquer um na internet).
+// Obs.: isolamento total por tenant é um passo seguinte (via Teams ou
+// permissões por documento) — aqui garantimos a base "somente logados".
+const COLLECTION_PERMISSIONS = [
+  Permission.read(Role.users()),
+  Permission.create(Role.users()),
+  Permission.update(Role.users()),
+  Permission.delete(Role.users()),
+];
+
 async function createCollections() {
   for (const col of collections) {
     try {
-      await db.createCollection(DB_ID, col.id, col.name, [
-        Permission.read(Role.any()),
-        Permission.create(Role.any()),
-        Permission.update(Role.any()),
-        Permission.delete(Role.any()),
-      ]);
+      await db.createCollection(DB_ID, col.id, col.name, COLLECTION_PERMISSIONS);
       console.log(`✓ Collection: ${col.name}`);
     } catch (e) {
       if (e.message?.includes('already exists')) {
-        console.log(`~ Collection já existe: ${col.name}`);
+        // Coleção já existe: atualiza as permissões para o modelo seguro.
+        try {
+          await db.updateCollection(DB_ID, col.id, col.name, COLLECTION_PERMISSIONS);
+          console.log(`~ Collection já existe (permissões atualizadas): ${col.name}`);
+        } catch (ue) {
+          console.error(`✗ Erro ao atualizar permissões ${col.name}:`, ue.message);
+        }
       } else {
         console.error(`✗ Erro collection ${col.name}:`, e.message);
         continue;
@@ -955,9 +967,43 @@ async function createCollections() {
 // POPULAR DADOS
 // ============================================================
 
+// Conta no Appwrite Auth (login nativo). Idempotente.
+async function ensureAuthUser(email, senha) {
+  try {
+    await users.create(ID.unique(), email, undefined, senha, 'Administrador Bear ERP');
+    console.log('  ✓ Conta Appwrite Auth criada:', email);
+  } catch (e) {
+    if (e.message?.includes('already exists') || e.code === 409) {
+      console.log('  ~ Conta Appwrite Auth já existe:', email);
+    } else {
+      console.error('  ✗ Erro ao criar conta Auth:', e.message);
+    }
+  }
+}
+
+async function safeCount(colId) {
+  try {
+    return (await db.listDocuments(DB_ID, colId, [Query.limit(1)])).total;
+  } catch {
+    return 0;
+  }
+}
+
 async function populateData() {
   const now = new Date().toISOString();
   const TENANT = 'default';
+  const ADMIN_EMAIL = 'admin@bearerp.com.br';
+  const ADMIN_SENHA = process.env.ADMIN_SENHA || 'Bear@2024!';
+
+  // Idempotência: se o banco já foi semeado, NÃO recria dados (evita duplicatas).
+  // Apenas garante a conta no Appwrite Auth (necessária para o login nativo).
+  if ((await safeCount('roles')) > 0 || (await safeCount('usuarios')) > 0) {
+    console.log('\n⏭️  Dados já existentes — pulando seed para não duplicar.');
+    console.log('👤 Garantindo conta no Appwrite Auth...');
+    await ensureAuthUser(ADMIN_EMAIL, ADMIN_SENHA);
+    console.log(`  → Login: ${ADMIN_EMAIL} / ${ADMIN_SENHA}`);
+    return;
+  }
 
   // --- ROLES ---
   console.log('\n📦 Populando Roles...');
@@ -984,22 +1030,7 @@ async function populateData() {
 
   // --- USUARIO ADMIN ---
   console.log('\n👤 Populando Usuário Admin...');
-  const ADMIN_EMAIL = 'admin@bearerp.com.br';
-  const ADMIN_SENHA = process.env.ADMIN_SENHA || 'Bear@2024!';
-
-  // Conta no Appwrite Auth (login nativo). A senha é gerenciada pelo Appwrite.
-  let authUserId = ID.unique();
-  try {
-    const authUser = await users.create(authUserId, ADMIN_EMAIL, undefined, ADMIN_SENHA, 'Administrador Bear ERP');
-    authUserId = authUser.$id;
-    console.log('  ✓ Conta Appwrite Auth criada');
-  } catch (e) {
-    if (e.message?.includes('already exists') || e.code === 409) {
-      console.log('  ~ Conta Appwrite Auth já existe');
-    } else {
-      console.error('  ✗ Erro ao criar conta Auth:', e.message);
-    }
-  }
+  await ensureAuthUser(ADMIN_EMAIL, ADMIN_SENHA);
 
   // Perfil do usuário (tenant/roles/permissões) na coleção `usuarios`.
   await db.createDocument(DB_ID, 'usuarios', ID.unique(), {
