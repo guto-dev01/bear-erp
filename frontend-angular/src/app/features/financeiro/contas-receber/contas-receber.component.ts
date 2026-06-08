@@ -54,28 +54,28 @@ import { FinanceiroService } from '../financeiro.service';
         <!-- KPI Summary -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div class="stat-card animate-fade-in-up">
-            <div class="stat-card__icon" style="background: #eff6ff; color: #3b82f6;">
+            <div class="stat-card__icon" style="background: #E5F1FF; color: #007AFF;">
               <span class="material-symbols-rounded">receipt_long</span>
             </div>
             <span class="stat-card__value">{{ totalContas() }}</span>
             <span class="stat-card__label">Total</span>
           </div>
           <div class="stat-card animate-fade-in-up" style="animation-delay: 60ms">
-            <div class="stat-card__icon" style="background: #fffbeb; color: #f59e0b;">
+            <div class="stat-card__icon" style="background: #FFF4E5; color: #FF9500;">
               <span class="material-symbols-rounded">pending</span>
             </div>
             <span class="stat-card__value">{{ contasAbertas() }}</span>
             <span class="stat-card__label">Abertas</span>
           </div>
           <div class="stat-card animate-fade-in-up" style="animation-delay: 120ms">
-            <div class="stat-card__icon" style="background: #fef2f2; color: #ef4444;">
+            <div class="stat-card__icon" style="background: #FFECEB; color: #FF3B30;">
               <span class="material-symbols-rounded">warning</span>
             </div>
             <span class="stat-card__value">{{ contasVencidas() }}</span>
             <span class="stat-card__label">Vencidas</span>
           </div>
           <div class="stat-card animate-fade-in-up" style="animation-delay: 180ms">
-            <div class="stat-card__icon" style="background: #ecfdf5; color: #10b981;">
+            <div class="stat-card__icon" style="background: #E9FAEF; color: #34C759;">
               <span class="material-symbols-rounded">check_circle</span>
             </div>
             <span class="stat-card__value">{{ contasRecebidas() }}</span>

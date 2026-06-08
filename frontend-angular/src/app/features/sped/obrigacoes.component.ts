@@ -74,7 +74,7 @@ import { environment } from '@env/environment';
               <ng-container matColumnDef="protocolo"><th mat-header-cell *matHeaderCellDef class="text-label">Protocolo</th><td mat-cell *matCellDef="let o">{{ o.protocoloRecibo || '-' }}</td></ng-container>
               <ng-container matColumnDef="retificacao"><th mat-header-cell *matHeaderCellDef class="text-label">Retificação</th>
                 <td mat-cell *matCellDef="let o">
-                  <span class="material-symbols-rounded text-base" [style.color]="o.retificacao ? '#ea580c' : 'var(--text-secondary)'">
+                  <span class="material-symbols-rounded text-base" [style.color]="o.retificacao ? '#FF9500' : 'var(--text-secondary)'">
                     {{ o.retificacao ? 'check_circle' : 'remove_circle_outline' }}
                   </span>
                 </td>

@@ -35,68 +35,68 @@ import { environment } from '@env/environment';
       @if (dashboard()) {
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
           <div class="bear-card p-4 flex flex-col gap-1">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #ecfdf5;">
-              <span class="material-symbols-rounded text-lg" style="color: #059669;">trending_up</span>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #E9FAEF;">
+              <span class="material-symbols-rounded text-lg" style="color: #34C759;">trending_up</span>
             </div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Receita Bruta</p>
-            <p class="text-lg font-bold" style="color: #059669;">{{ dashboard().receitaBruta | currency:'BRL' }}</p>
+            <p class="text-lg font-bold" style="color: #34C759;">{{ dashboard().receitaBruta | currency:'BRL' }}</p>
           </div>
           <div class="bear-card p-4 flex flex-col gap-1">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #fef2f2;">
-              <span class="material-symbols-rounded text-lg" style="color: #dc2626;">trending_down</span>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #FFECEB;">
+              <span class="material-symbols-rounded text-lg" style="color: #FF3B30;">trending_down</span>
             </div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Despesas</p>
-            <p class="text-lg font-bold" style="color: #dc2626;">{{ dashboard().despesasTotais | currency:'BRL' }}</p>
+            <p class="text-lg font-bold" style="color: #FF3B30;">{{ dashboard().despesasTotais | currency:'BRL' }}</p>
           </div>
           <div class="bear-card p-4 flex flex-col gap-1">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #eef2ff;">
-              <span class="material-symbols-rounded text-lg" style="color: #4f46e5;">account_balance_wallet</span>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #ECEBFB;">
+              <span class="material-symbols-rounded text-lg" style="color: #007AFF;">account_balance_wallet</span>
             </div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Lucro Líquido</p>
-            <p class="text-lg font-bold" style="color: #4f46e5;">{{ dashboard().lucroLiquido | currency:'BRL' }}</p>
+            <p class="text-lg font-bold" style="color: #007AFF;">{{ dashboard().lucroLiquido | currency:'BRL' }}</p>
           </div>
           <div class="bear-card p-4 flex flex-col gap-1">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #eff6ff;">
-              <span class="material-symbols-rounded text-lg" style="color: #2563eb;">analytics</span>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #E5F1FF;">
+              <span class="material-symbols-rounded text-lg" style="color: #007AFF;">analytics</span>
             </div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Margem Lucro</p>
-            <p class="text-lg font-bold" style="color: #2563eb;">{{ dashboard().margemLucro }}%</p>
+            <p class="text-lg font-bold" style="color: #007AFF;">{{ dashboard().margemLucro }}%</p>
           </div>
           <div class="bear-card p-4 flex flex-col gap-1">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #faf5ff;">
-              <span class="material-symbols-rounded text-lg" style="color: #7c3aed;">account_balance</span>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #F2EBFB;">
+              <span class="material-symbols-rounded text-lg" style="color: #5856D6;">account_balance</span>
             </div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Saldo Bancário</p>
-            <p class="text-lg font-bold" style="color: #7c3aed;">{{ dashboard().saldoBancario | currency:'BRL' }}</p>
+            <p class="text-lg font-bold" style="color: #5856D6;">{{ dashboard().saldoBancario | currency:'BRL' }}</p>
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #fef2f2;">
-              <span class="material-symbols-rounded" style="color: #dc2626;">money_off</span>
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #FFECEB;">
+              <span class="material-symbols-rounded" style="color: #FF3B30;">money_off</span>
             </div>
             <div>
               <p class="text-xs font-medium" style="color: var(--text-secondary);">Contas a Pagar Vencidas</p>
-              <p class="text-2xl font-bold" style="color: #dc2626;">{{ dashboard().contasPagarVencidas }}</p>
+              <p class="text-2xl font-bold" style="color: #FF3B30;">{{ dashboard().contasPagarVencidas }}</p>
             </div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #fff7ed;">
-              <span class="material-symbols-rounded" style="color: #ea580c;">attach_money</span>
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #FFF4E5;">
+              <span class="material-symbols-rounded" style="color: #FF9500;">attach_money</span>
             </div>
             <div>
               <p class="text-xs font-medium" style="color: var(--text-secondary);">Contas a Receber Vencidas</p>
-              <p class="text-2xl font-bold" style="color: #ea580c;">{{ dashboard().contasReceberVencidas }}</p>
+              <p class="text-2xl font-bold" style="color: #FF9500;">{{ dashboard().contasReceberVencidas }}</p>
             </div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #eff6ff;">
-              <span class="material-symbols-rounded" style="color: #2563eb;">badge</span>
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #E5F1FF;">
+              <span class="material-symbols-rounded" style="color: #007AFF;">badge</span>
             </div>
             <div>
               <p class="text-xs font-medium" style="color: var(--text-secondary);">Total Funcionários</p>
-              <p class="text-2xl font-bold" style="color: #2563eb;">{{ dashboard().totalFuncionarios }}</p>
+              <p class="text-2xl font-bold" style="color: #007AFF;">{{ dashboard().totalFuncionarios }}</p>
             </div>
           </div>
         </div>

@@ -25,7 +25,8 @@ export class ThemeService {
 
   private getInitialTheme(): Theme {
     const stored = localStorage.getItem(this.storageKey) as Theme | null;
-    if (stored) return stored;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    if (stored === 'light' || stored === 'dark') return stored;
+    // Default to the dark Apple aesthetic (the agreed design target)
+    return 'dark';
   }
 }

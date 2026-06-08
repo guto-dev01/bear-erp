@@ -40,30 +40,30 @@ import { environment } from '@env/environment';
       <!-- KPI Cards -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #ecfdf5;">
-            <span class="material-symbols-rounded" style="color: #059669;">check_circle</span>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #E9FAEF;">
+            <span class="material-symbols-rounded" style="color: #34C759;">check_circle</span>
           </div>
           <div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Ativas</p>
-            <p class="text-2xl font-bold" style="color: #059669;">{{ contarPorStatus('ATIVA') }}</p>
+            <p class="text-2xl font-bold" style="color: #34C759;">{{ contarPorStatus('ATIVA') }}</p>
           </div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #fffbeb;">
-            <span class="material-symbols-rounded" style="color: #d97706;">settings</span>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #FFF4E5;">
+            <span class="material-symbols-rounded" style="color: #FF9500;">settings</span>
           </div>
           <div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Configurando</p>
-            <p class="text-2xl font-bold" style="color: #d97706;">{{ contarPorStatus('CONFIGURANDO') }}</p>
+            <p class="text-2xl font-bold" style="color: #FF9500;">{{ contarPorStatus('CONFIGURANDO') }}</p>
           </div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #fef2f2;">
-            <span class="material-symbols-rounded" style="color: #dc2626;">error</span>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #FFECEB;">
+            <span class="material-symbols-rounded" style="color: #FF3B30;">error</span>
           </div>
           <div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Com Erro</p>
-            <p class="text-2xl font-bold" style="color: #dc2626;">{{ contarPorStatus('ERRO') }}</p>
+            <p class="text-2xl font-bold" style="color: #FF3B30;">{{ contarPorStatus('ERRO') }}</p>
           </div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
@@ -103,7 +103,7 @@ import { environment } from '@env/environment';
                 <p class="text-xs mb-1" style="color: var(--text-secondary);">Última sync: {{ i.ultimaSincronizacao | date:'dd/MM/yyyy HH:mm' }}</p>
               }
               @if (i.ultimoErro) {
-                <p class="text-xs mt-1" style="color: #dc2626;">Erro: {{ i.ultimoErro }}</p>
+                <p class="text-xs mt-1" style="color: #FF3B30;">Erro: {{ i.ultimoErro }}</p>
               }
               <div class="flex gap-2 mt-4 pt-3 border-t" style="border-color: var(--border-subtle);">
                 @if (i.status === 'ATIVA' || i.status === 'CONFIGURANDO') {
@@ -124,7 +124,7 @@ import { environment } from '@env/environment';
                   <span class="material-symbols-rounded text-sm mr-1">history</span> Logs
                 </button>
                 <button class="bear-btn bear-btn--ghost p-2 ml-auto" title="Excluir" (click)="excluir(i.id)">
-                  <span class="material-symbols-rounded text-base" style="color: #dc2626;">delete</span>
+                  <span class="material-symbols-rounded text-base" style="color: #FF3B30;">delete</span>
                 </button>
               </div>
             </div>
@@ -280,12 +280,12 @@ export class IntegracoesComponent implements OnInit {
   }
 
   getIconBg(status: string): string {
-    const map: Record<string, string> = { ATIVA: '#ecfdf5', INATIVA: 'var(--surface-2)', ERRO: '#fef2f2', CONFIGURANDO: '#fffbeb' };
+    const map: Record<string, string> = { ATIVA: '#E9FAEF', INATIVA: 'var(--surface-2)', ERRO: '#FFECEB', CONFIGURANDO: '#FFF4E5' };
     return map[status] || 'var(--surface-2)';
   }
 
   getIconColorHex(status: string): string {
-    const map: Record<string, string> = { ATIVA: '#059669', INATIVA: 'var(--text-secondary)', ERRO: '#dc2626', CONFIGURANDO: '#d97706' };
+    const map: Record<string, string> = { ATIVA: '#34C759', INATIVA: 'var(--text-secondary)', ERRO: '#FF3B30', CONFIGURANDO: '#FF9500' };
     return map[status] || 'var(--text-secondary)';
   }
 

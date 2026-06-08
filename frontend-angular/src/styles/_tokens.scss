@@ -1,0 +1,271 @@
+// ═══════════════════════════════════════════════════════════════════════════════
+// BEAR ERP — DESIGN TOKENS  ·  "Cupertino"
+// Single source of truth. Apple Human Interface Guidelines (iOS / macOS).
+// Every page consumes these via var(--token); no loose colors elsewhere.
+//
+// Naming: legacy names (--surface-0, --brand-primary, …) are preserved so all
+// existing components inherit automatically. New semantic aliases (--bg-canvas,
+// --surface-card, --text-title, --green, --red, --purple, --separator, --r-card…)
+// are added for the refreshed shared components.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// SF Pro on Apple platforms; Inter is the cross-platform fallback.
+$apple-font: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", system-ui, "Segoe UI", Roboto, sans-serif';
+$apple-mono: '"SF Mono", "JetBrains Mono", ui-monospace, "Fira Code", monospace';
+
+// ─── LIGHT (default) ─────────────────────────────────────────────────────────
+:root {
+  color-scheme: light;
+
+  // Surfaces — iOS grouped backgrounds
+  --bg-canvas: #f2f2f7;            // systemGroupedBackground (app canvas)
+  --surface-card: #ffffff;         // grouped card
+  --surface-raised: #ffffff;       // menus / popovers / sheets
+  --surface-0: #ffffff;
+  --surface-1: #f2f2f7;
+  --surface-2: #e5e5ea;
+  --surface-3: #d1d1d6;
+  --surface-4: #c7c7cc;
+  --surface-5: #aeaeb2;
+
+  // Separators — used sparingly; depth comes from light, not borders
+  --separator: rgba(60, 60, 67, 0.14);
+  --border-color: rgba(60, 60, 67, 0.14);
+  --border-subtle: rgba(60, 60, 67, 0.08);
+  --border-strong: rgba(60, 60, 67, 0.26);
+  --border-focus: #007aff;
+
+  // Text — white/black only for titles, gray for the rest
+  --text-title: #000000;
+  --text-primary: #1c1c1e;
+  --text-secondary: rgba(60, 60, 67, 0.60);
+  --text-tertiary: rgba(60, 60, 67, 0.30);
+  --text-quaternary: rgba(60, 60, 67, 0.18);
+  --text-inverse: #ffffff;
+  --text-on-brand: #ffffff;
+
+  // Brand — systemBlue
+  --brand: #007aff;
+  --brand-primary: #007aff;
+  --brand-primary-hover: #0071eb;
+  --brand-primary-active: #0062cc;
+  --brand-primary-light: rgba(0, 122, 255, 0.10);
+  --brand-primary-muted: rgba(0, 122, 255, 0.16);
+  --brand-primary-glow: rgba(0, 122, 255, 0.28);
+
+  // Accent — systemIndigo
+  --brand-accent: #5856d6;
+  --brand-accent-hover: #4d4bc4;
+  --brand-accent-active: #4240ad;
+  --brand-accent-light: rgba(88, 86, 214, 0.10);
+  --brand-accent-muted: rgba(88, 86, 214, 0.16);
+
+  // Indicators
+  --green: #34c759;
+  --red: #ff3b30;
+  --orange: #ff9500;
+  --purple: #af52de;
+  --teal: #5ac8fa;
+
+  // Semantic
+  --color-success: #34c759;
+  --color-success-light: rgba(52, 199, 89, 0.12);
+  --color-success-muted: rgba(52, 199, 89, 0.20);
+  --color-success-text: #248a3d;
+
+  --color-warning: #ff9500;
+  --color-warning-light: rgba(255, 149, 0, 0.12);
+  --color-warning-muted: rgba(255, 149, 0, 0.22);
+  --color-warning-text: #c93400;
+
+  --color-error: #ff3b30;
+  --color-error-light: rgba(255, 59, 48, 0.12);
+  --color-error-muted: rgba(255, 59, 48, 0.20);
+  --color-error-text: #d70015;
+
+  --color-info: #007aff;
+  --color-info-light: rgba(0, 122, 255, 0.12);
+  --color-info-muted: rgba(0, 122, 255, 0.20);
+  --color-info-text: #0040dd;
+
+  // Data viz — Apple system colors
+  --chart-1: #007aff;  --chart-2: #34c759;  --chart-3: #ff9500;  --chart-4: #5856d6;
+  --chart-5: #ff2d55;  --chart-6: #5ac8fa;  --chart-7: #af52de;  --chart-8: #ffcc00;
+  --chart-9: #ff3b30;  --chart-10: #30b0c7; --chart-11: #a2845e; --chart-12: #00c7be;
+
+  // Sidebar — vibrancy (light translucent)
+  --sidebar-bg: rgba(246, 246, 248, 0.80);
+  --sidebar-hover: rgba(60, 60, 67, 0.06);
+  --sidebar-active: rgba(0, 122, 255, 0.12);
+  --sidebar-active-border: #007aff;
+  --sidebar-text: rgba(60, 60, 67, 0.72);
+  --sidebar-text-hover: #000000;
+  --sidebar-text-active: #007aff;
+  --sidebar-border: rgba(60, 60, 67, 0.12);
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 72px;
+  --sidebar-section-label: rgba(60, 60, 67, 0.45);
+
+  // Toolbar / tab bar — vibrancy
+  --toolbar-height: 54px;
+  --toolbar-bg: rgba(249, 249, 251, 0.72);
+  --toolbar-border: rgba(60, 60, 67, 0.14);
+  --tabbar-bg: rgba(249, 249, 251, 0.80);
+
+  // Radius — generous, consistent (cards 14–18)
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+  --r-card: 16px;
+  --r-control: 12px;
+  --r-pill: 9999px;
+
+  // Shadows — soft & diffuse, no hard edges
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.08);
+  --shadow-xl: 0 16px 50px rgba(0, 0, 0, 0.10);
+  --shadow-2xl: 0 24px 70px rgba(0, 0, 0, 0.14);
+
+  // Focus ring
+  --ring-width: 2px;
+  --ring-offset: 2px;
+  --ring-color: rgba(0, 122, 255, 0.5);
+
+  // Spacing — a touch more generous for whitespace
+  --space-px: 1px;
+  --space-0-5: 2px;
+  --space-1: 4px;
+  --space-1-5: 6px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  // Motion — iOS curves
+  --ease-ios: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --transition-fast: 150ms var(--ease-ios);
+  --transition-base: 250ms var(--ease-ios);
+  --transition-slow: 400ms var(--ease-ios);
+  --transition-bounce: 500ms var(--ease-spring);
+
+  // Z-index
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-popover: 500;
+  --z-tooltip: 600;
+  --z-toast: 700;
+}
+
+// ─── DARK (refined — deep neutral black, elevated grouped cards) ───────────────
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg-canvas: #0a0a0c;            // near-black neutral canvas
+  --surface-card: #1c1c1e;         // grouped card
+  --surface-raised: #2c2c2e;       // menus / popovers / sheets
+  --surface-0: #1c1c1e;
+  --surface-1: #0a0a0c;
+  --surface-2: #2c2c2e;
+  --surface-3: #3a3a3c;
+  --surface-4: #48484a;
+  --surface-5: #636366;
+
+  --separator: rgba(84, 84, 88, 0.40);
+  --border-color: rgba(84, 84, 88, 0.40);
+  --border-subtle: rgba(84, 84, 88, 0.24);
+  --border-strong: rgba(84, 84, 88, 0.65);
+  --border-focus: #0a84ff;
+
+  --text-title: #ffffff;
+  --text-primary: rgba(235, 235, 245, 0.90);
+  --text-secondary: rgba(235, 235, 245, 0.60);
+  --text-tertiary: rgba(235, 235, 245, 0.30);
+  --text-quaternary: rgba(235, 235, 245, 0.18);
+  --text-inverse: #000000;
+
+  --brand: #0a84ff;
+  --brand-primary: #0a84ff;
+  --brand-primary-hover: #2b95ff;
+  --brand-primary-active: #0071eb;
+  --brand-primary-light: rgba(10, 132, 255, 0.16);
+  --brand-primary-muted: rgba(10, 132, 255, 0.24);
+  --brand-primary-glow: rgba(10, 132, 255, 0.30);
+
+  --brand-accent: #5e5ce6;
+  --brand-accent-hover: #7270ec;
+  --brand-accent-active: #4d4bc4;
+  --brand-accent-light: rgba(94, 92, 230, 0.16);
+  --brand-accent-muted: rgba(94, 92, 230, 0.24);
+
+  --green: #30d158;
+  --red: #ff453a;
+  --orange: #ff9f0a;
+  --purple: #bf5af2;
+  --teal: #64d2ff;
+
+  --color-success: #30d158;
+  --color-success-light: rgba(48, 209, 88, 0.16);
+  --color-success-muted: rgba(48, 209, 88, 0.24);
+  --color-success-text: #30d158;
+
+  --color-warning: #ff9f0a;
+  --color-warning-light: rgba(255, 159, 10, 0.16);
+  --color-warning-muted: rgba(255, 159, 10, 0.24);
+  --color-warning-text: #ff9f0a;
+
+  --color-error: #ff453a;
+  --color-error-light: rgba(255, 69, 58, 0.16);
+  --color-error-muted: rgba(255, 69, 58, 0.24);
+  --color-error-text: #ff453a;
+
+  --color-info: #0a84ff;
+  --color-info-light: rgba(10, 132, 255, 0.16);
+  --color-info-muted: rgba(10, 132, 255, 0.24);
+  --color-info-text: #0a84ff;
+
+  --chart-1: #0a84ff;  --chart-2: #30d158;  --chart-3: #ff9f0a;  --chart-4: #5e5ce6;
+  --chart-5: #ff375f;  --chart-6: #64d2ff;  --chart-7: #bf5af2;  --chart-8: #ffd60a;
+  --chart-9: #ff453a;  --chart-10: #40c8e0; --chart-11: #ac8e68; --chart-12: #66d4cf;
+
+  --sidebar-bg: rgba(28, 28, 30, 0.78);
+  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  --sidebar-active: rgba(10, 132, 255, 0.22);
+  --sidebar-active-border: #0a84ff;
+  --sidebar-text: rgba(235, 235, 245, 0.60);
+  --sidebar-text-hover: #ffffff;
+  --sidebar-text-active: #0a84ff;
+  --sidebar-border: rgba(84, 84, 88, 0.40);
+  --sidebar-section-label: rgba(235, 235, 245, 0.35);
+
+  --toolbar-bg: rgba(20, 20, 22, 0.72);
+  --toolbar-border: rgba(84, 84, 88, 0.40);
+  --tabbar-bg: rgba(20, 20, 22, 0.80);
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 16px 50px rgba(0, 0, 0, 0.7);
+  --shadow-2xl: 0 24px 70px rgba(0, 0, 0, 0.8);
+
+  --ring-color: rgba(10, 132, 255, 0.5);
+}

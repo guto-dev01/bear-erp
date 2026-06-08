@@ -28,7 +28,7 @@ import { FiscalService } from '../fiscal.service';
           <p class="page-header__subtitle">Gerencie DARF, DAS, GPS, GNRE e outras guias de recolhimento</p>
         </div>
         <div class="page-header__actions">
-          <button class="bear-btn bear-btn--outline" style="color: var(--status-error, #dc2626); border-color: var(--status-error, #dc2626);" (click)="loadVencidas()">
+          <button class="bear-btn bear-btn--outline" style="color: var(--status-error, #FF3B30); border-color: var(--status-error, #FF3B30);" (click)="loadVencidas()">
             <span class="material-symbols-rounded">warning</span> Vencidas
           </button>
           <button class="bear-btn bear-btn--primary" (click)="showForm.set(true); resetForm()">
@@ -58,7 +58,7 @@ import { FiscalService } from '../fiscal.service';
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div class="bear-card">
             <div class="flex items-center gap-3 p-4">
-              <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: var(--brand-primary-light, #e0e7ff);">
+              <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: var(--brand-primary-light, #DAD9F6);">
                 <span class="material-symbols-rounded" style="color: var(--brand-primary);">receipt</span>
               </div>
               <div>
@@ -80,8 +80,8 @@ import { FiscalService } from '../fiscal.service';
           </div>
           <div class="bear-card">
             <div class="flex items-center gap-3 p-4">
-              <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #dcfce7;">
-                <span class="material-symbols-rounded" style="color: #16a34a;">check_circle</span>
+              <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #DCF3E0;">
+                <span class="material-symbols-rounded" style="color: #34C759;">check_circle</span>
               </div>
               <div>
                 <p class="text-label">Pagas</p>
@@ -91,8 +91,8 @@ import { FiscalService } from '../fiscal.service';
           </div>
           <div class="bear-card">
             <div class="flex items-center gap-3 p-4">
-              <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #fef2f2;">
-                <span class="material-symbols-rounded" style="color: #dc2626;">error</span>
+              <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #FFECEB;">
+                <span class="material-symbols-rounded" style="color: #FF3B30;">error</span>
               </div>
               <div>
                 <p class="text-label">Vencidas</p>
@@ -138,7 +138,7 @@ import { FiscalService } from '../fiscal.service';
                   <button class="bear-btn bear-btn--ghost" (click)="pagar(g)" matTooltip="Marcar como paga">
                     <span class="material-symbols-rounded" style="font-size:18px;">paid</span>
                   </button>
-                  <button class="bear-btn bear-btn--ghost" (click)="cancelar(g)" matTooltip="Cancelar" style="color: var(--status-error, #dc2626);">
+                  <button class="bear-btn bear-btn--ghost" (click)="cancelar(g)" matTooltip="Cancelar" style="color: var(--status-error, #FF3B30);">
                     <span class="material-symbols-rounded" style="font-size:18px;">cancel</span>
                   </button>
                 }

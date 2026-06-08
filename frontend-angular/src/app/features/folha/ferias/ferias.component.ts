@@ -73,7 +73,7 @@ import { environment } from '@env/environment';
         @if (feriasVencidas().length > 0) {
           <div class="bear-card mb-4">
             <div class="p-5 border-b border-[var(--border-subtle)]">
-              <h2 class="text-heading" style="color: var(--color-warning, #b45309);">Férias Vencidas</h2>
+              <h2 class="text-heading" style="color: var(--color-warning, #C93400);">Férias Vencidas</h2>
             </div>
             <div class="p-0">
               <table mat-table [dataSource]="feriasVencidas()" class="w-full">

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Client, Databases, Query } from 'appwrite';
+import { Client, Databases, Account, Query } from 'appwrite';
 import { from, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
@@ -7,6 +7,7 @@ import { map } from 'rxjs/operators';
 export class AppwriteService {
   private client: Client;
   private databases: Databases;
+  private account_: Account;
   private readonly dbId = '69b52c820006ab36b33a';
 
   constructor() {
@@ -14,6 +15,12 @@ export class AppwriteService {
       .setEndpoint('https://cloud.appwrite.io/v1')
       .setProject('69b52c570036d92459ce');
     this.databases = new Databases(this.client);
+    this.account_ = new Account(this.client);
+  }
+
+  /** Account API do Appwrite (autenticação por sessão). */
+  get account(): Account {
+    return this.account_;
   }
 
   listDocuments<T>(collectionId: string, queries: string[] = []): Observable<T[]> {

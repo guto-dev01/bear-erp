@@ -1,4 +1,4 @@
-const { Client, Databases, ID, Permission, Role, Query } = require('node-appwrite');
+const { Client, Databases, Users, ID, Permission, Role, Query } = require('node-appwrite');
 
 const client = new Client()
   .setEndpoint('https://cloud.appwrite.io/v1')
@@ -6,6 +6,7 @@ const client = new Client()
   .setKey('standard_e04260ebac4f36c6d310aa4cf59c95a7a36fb75ff4960912cf2e0a492e82dde2e7d515b7da5cd401ede97665d987ab95ca0780ccff2b2b71a5b00ba48e1adc570ea5327d1977d173d800a8e51828f5fe584c2f9abe011760ae066fb9b27d0b809cfba0f047fbbadc14957ea1b1b1b9f7e0d2b1864df1ad6218e3544a0a871ee6');
 
 const db = new Databases(client);
+const users = new Users(client);
 const DB_ID = '69b52c820006ab36b33a';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -746,13 +747,26 @@ async function populateData() {
 
   // --- USUARIO ADMIN ---
   console.log('\n👤 Populando Usuário Admin...');
+  const adminEmail = 'admin@bearerp.com.br';
+  const adminPassword = 'Bear@2024!';
   await db.createDocument(DB_ID, 'usuarios', ID.unique(), {
-    nome: 'Administrador Bear ERP', email: 'admin@bearerp.com.br',
+    nome: 'Administrador Bear ERP', email: adminEmail,
     senha: '$2a$12$LJ3m4ys9PqKP7MfDLH.CQOQ7IhMCOWfMJLKR9OGaUx3VqL5Rq6Km', // Bear@2024!
     status: 'ATIVO', tenantId: TENANT, roleIds: [adminRole.$id],
     empresaIds: [], twoFactorEnabled: false, tentativasLogin: 0, createdAt: now,
   });
-  console.log('  ✓ admin@bearerp.com.br / Bear@2024!');
+
+  // Cria o usuário no Appwrite Authentication (usado pelo login do frontend)
+  // e copia roles/permissões/tenant para as prefs.
+  const authUser = await users.create(ID.unique(), adminEmail, undefined, adminPassword, 'Administrador Bear ERP');
+  await users.updatePrefs(authUser.$id, {
+    nome: 'Administrador Bear ERP',
+    tenantId: TENANT,
+    empresaAtualId: '',
+    roles: [adminRole.nome],
+    permissoes: adminRole.permissoes,
+  });
+  console.log(`  ✓ ${adminEmail} / ${adminPassword}`);
 
   // --- EMPRESAS EXEMPLO ---
   console.log('\n🏢 Populando Empresas...');
