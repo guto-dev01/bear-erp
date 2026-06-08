@@ -1,0 +1,14 @@
+{
+  "name": "bear-erp-integracoes-gov",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Camada de integrações gov (eSocial, FGTS Digital, DCTFWeb, SST) — Appwrite Functions (Node.js). Etapa 2: fundação (certificado + ambiente + truststore).",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "node-appwrite": "^22.1.3",
+    "node-forge": "^1.3.1"
+  }
+}
