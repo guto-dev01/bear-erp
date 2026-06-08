@@ -267,7 +267,7 @@ export class LoginComponent {
         this.loading.set(false);
         this.errorShake.set(true);
         setTimeout(() => this.errorShake.set(false), 600);
-        const message = err.error?.message ?? 'Erro ao realizar login';
+        const message = err?.message ?? err.error?.message ?? 'Erro ao realizar login';
         this.snackBar.open(message, 'Fechar', {
           duration: 5000,
           panelClass: ['error-snackbar'],

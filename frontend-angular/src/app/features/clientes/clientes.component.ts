@@ -55,15 +55,15 @@ interface Cliente {
       <!-- Stats -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#eef2ff"><span class="material-symbols-rounded" style="color:#4f46e5">people</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">people</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ clientes().length }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ecfdf5"><span class="material-symbols-rounded" style="color:#059669">check_circle</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">check_circle</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativos</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ countByStatus('ATIVO') }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#eff6ff"><span class="material-symbols-rounded" style="color:#3b82f6">business</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E5F1FF"><span class="material-symbols-rounded" style="color:#007AFF">business</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Pessoa Jurídica</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ countByTipo('PJ') }}</p></div>
         </div>
       </div>
@@ -92,7 +92,7 @@ interface Cliente {
           @for (c of filtered(); track c.$id; let i = $index) {
             <div class="bear-card bear-card--interactive p-5 animate-fade-in-up" [style.animation-delay]="(i*50)+'ms'">
               <div class="flex items-center justify-between mb-3">
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white" style="background:linear-gradient(135deg,#4f46e5,#7c3aed)">{{ (c.nomeFantasia||c.razaoSocial||'?').charAt(0) }}</div>
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white" style="background:linear-gradient(135deg,#007AFF,#5856D6)">{{ (c.nomeFantasia||c.razaoSocial||'?').charAt(0) }}</div>
                 <span class="badge" [class]="c.tipo==='PJ'?'badge--info':'badge--neutral'">{{ c.tipo||'PJ' }}</span>
               </div>
               <h3 class="text-sm font-semibold truncate" style="color:var(--text-primary)">{{ c.nomeFantasia||c.razaoSocial }}</h3>
@@ -104,7 +104,7 @@ interface Cliente {
               </div>
               <div class="flex gap-1 pt-3" style="border-top:1px solid var(--border-subtle)">
                 <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem;font-size:0.75rem;" (click)="openForm(c)"><span class="material-symbols-rounded text-sm">edit</span></button>
-                <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem;font-size:0.75rem;color:#ef4444;" (click)="delete(c)"><span class="material-symbols-rounded text-sm">delete</span></button>
+                <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem;font-size:0.75rem;color:#FF3B30;" (click)="delete(c)"><span class="material-symbols-rounded text-sm">delete</span></button>
               </div>
             </div>
           }

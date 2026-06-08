@@ -33,8 +33,8 @@ import { environment } from '@env/environment';
       <!-- Capability Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #eef2ff;">
-            <span class="material-symbols-rounded" style="color: #4f46e5;">smart_toy</span>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #ECEBFB;">
+            <span class="material-symbols-rounded" style="color: #007AFF;">smart_toy</span>
           </div>
           <div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Consultas Respondidas</p>
@@ -42,8 +42,8 @@ import { environment } from '@env/environment';
           </div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #ecfdf5;">
-            <span class="material-symbols-rounded" style="color: #059669;">auto_fix_high</span>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #E9FAEF;">
+            <span class="material-symbols-rounded" style="color: #34C759;">auto_fix_high</span>
           </div>
           <div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Classificações Automáticas</p>
@@ -51,8 +51,8 @@ import { environment } from '@env/environment';
           </div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #fffbeb;">
-            <span class="material-symbols-rounded" style="color: #d97706;">pending_actions</span>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #FFF4E5;">
+            <span class="material-symbols-rounded" style="color: #FF9500;">pending_actions</span>
           </div>
           <div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Pendentes de Revisão</p>
@@ -69,8 +69,8 @@ import { environment } from '@env/environment';
             <!-- Form Card -->
             <div class="bear-card p-6">
               <div class="flex items-center gap-3 mb-5">
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: #eef2ff;">
-                  <span class="material-symbols-rounded" style="color: #4f46e5;">smart_toy</span>
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: #ECEBFB;">
+                  <span class="material-symbols-rounded" style="color: #007AFF;">smart_toy</span>
                 </div>
                 <div>
                   <h3 class="text-heading text-base">Fazer uma Consulta</h3>
@@ -118,8 +118,8 @@ import { environment } from '@env/environment';
             @if (respostaIA()) {
               <div class="bear-card p-6" style="border-left: 4px solid var(--brand-primary);">
                 <div class="flex items-center gap-3 mb-4">
-                  <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: #eef2ff;">
-                    <span class="material-symbols-rounded" style="color: #4f46e5;">smart_toy</span>
+                  <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: #ECEBFB;">
+                    <span class="material-symbols-rounded" style="color: #007AFF;">smart_toy</span>
                   </div>
                   <h3 class="text-heading text-base">Resposta da IA</h3>
                 </div>
@@ -149,8 +149,8 @@ import { environment } from '@env/environment';
             <!-- Classify Form -->
             <div class="bear-card p-6">
               <div class="flex items-center gap-3 mb-5">
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: #ecfdf5;">
-                  <span class="material-symbols-rounded" style="color: #059669;">auto_fix_high</span>
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: #E9FAEF;">
+                  <span class="material-symbols-rounded" style="color: #34C759;">auto_fix_high</span>
                 </div>
                 <div>
                   <h3 class="text-heading text-base">Classificar Lançamento</h3>
@@ -173,10 +173,10 @@ import { environment } from '@env/environment';
 
             <!-- Classification Result -->
             @if (classificacao()) {
-              <div class="bear-card p-6" style="border-left: 4px solid #059669;">
+              <div class="bear-card p-6" style="border-left: 4px solid #34C759;">
                 <div class="flex items-center gap-3 mb-5">
-                  <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: #ecfdf5;">
-                    <span class="material-symbols-rounded" style="color: #059669;">check_circle</span>
+                  <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: #E9FAEF;">
+                    <span class="material-symbols-rounded" style="color: #34C759;">check_circle</span>
                   </div>
                   <h3 class="text-heading text-base">Sugestão de Classificação</h3>
                 </div>
@@ -207,7 +207,7 @@ import { environment } from '@env/environment';
                       <span class="material-symbols-rounded text-base mr-1.5">check</span>
                       Aceitar
                     </button>
-                    <button class="bear-btn bear-btn--outline" style="padding: 0.5rem 1rem; font-size: 0.8125rem; color: #dc2626; border-color: #dc2626;"
+                    <button class="bear-btn bear-btn--outline" style="padding: 0.5rem 1rem; font-size: 0.8125rem; color: #FF3B30; border-color: #FF3B30;"
                             (click)="rejeitarClassificacao(classificacao().id)">
                       <span class="material-symbols-rounded text-base mr-1.5">close</span>
                       Rejeitar
@@ -253,10 +253,10 @@ import { environment } from '@env/environment';
                       <td mat-cell *matCellDef="let c">
                         <div class="flex gap-1">
                           <button class="bear-btn bear-btn--ghost p-2" title="Aceitar" (click)="aceitarClassificacao(c.id)">
-                            <span class="material-symbols-rounded text-base" style="color: #059669;">check_circle</span>
+                            <span class="material-symbols-rounded text-base" style="color: #34C759;">check_circle</span>
                           </button>
                           <button class="bear-btn bear-btn--ghost p-2" title="Rejeitar" (click)="rejeitarClassificacao(c.id)">
-                            <span class="material-symbols-rounded text-base" style="color: #dc2626;">cancel</span>
+                            <span class="material-symbols-rounded text-base" style="color: #FF3B30;">cancel</span>
                           </button>
                         </div>
                       </td>

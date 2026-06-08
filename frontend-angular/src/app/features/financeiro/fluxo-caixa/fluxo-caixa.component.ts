@@ -57,28 +57,28 @@ import { FinanceiroService } from '../financeiro.service';
         <!-- KPI Summary -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div class="stat-card animate-fade-in-up">
-            <div class="stat-card__icon" style="background: #eff6ff; color: #3b82f6;">
+            <div class="stat-card__icon" style="background: #E5F1FF; color: #007AFF;">
               <span class="material-symbols-rounded">account_balance_wallet</span>
             </div>
             <span class="stat-card__value">{{ fluxo().saldoInicial | currency:'BRL' }}</span>
             <span class="stat-card__label">Saldo Inicial</span>
           </div>
           <div class="stat-card animate-fade-in-up" style="animation-delay: 60ms">
-            <div class="stat-card__icon" style="background: #ecfdf5; color: #10b981;">
+            <div class="stat-card__icon" style="background: #E9FAEF; color: #34C759;">
               <span class="material-symbols-rounded">trending_up</span>
             </div>
             <span class="stat-card__value">{{ fluxo().totalEntradas | currency:'BRL' }}</span>
             <span class="stat-card__label">Entradas</span>
           </div>
           <div class="stat-card animate-fade-in-up" style="animation-delay: 120ms">
-            <div class="stat-card__icon" style="background: #fef2f2; color: #ef4444;">
+            <div class="stat-card__icon" style="background: #FFECEB; color: #FF3B30;">
               <span class="material-symbols-rounded">trending_down</span>
             </div>
             <span class="stat-card__value">{{ fluxo().totalSaidas | currency:'BRL' }}</span>
             <span class="stat-card__label">Saídas</span>
           </div>
           <div class="stat-card animate-fade-in-up" style="animation-delay: 180ms">
-            <div class="stat-card__icon" [style.background]="fluxo().saldoFinal >= 0 ? '#ecfdf5' : '#fef2f2'" [style.color]="fluxo().saldoFinal >= 0 ? '#10b981' : '#ef4444'">
+            <div class="stat-card__icon" [style.background]="fluxo().saldoFinal >= 0 ? '#E9FAEF' : '#FFECEB'" [style.color]="fluxo().saldoFinal >= 0 ? '#34C759' : '#FF3B30'">
               <span class="material-symbols-rounded">account_balance</span>
             </div>
             <span class="stat-card__value" [ngClass]="fluxo().saldoFinal >= 0 ? 'text-emerald-600' : 'text-red-600'">{{ fluxo().saldoFinal | currency:'BRL' }}</span>

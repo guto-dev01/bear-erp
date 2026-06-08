@@ -1,15 +1,13 @@
 import { Injectable, signal, computed } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, tap, catchError, throwError } from 'rxjs';
-import { environment } from '@env/environment';
-import { LoginRequest, LoginResponse, UsuarioInfo } from '@core/models/auth.model';
+import { Models } from 'appwrite';
+import { Observable, from, throwError } from 'rxjs';
+import { map, tap, catchError } from 'rxjs/operators';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { LoginRequest, UsuarioInfo } from '@core/models/auth.model';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly apiUrl = `${environment.apiUrl}/auth`;
-  private readonly TOKEN_KEY = 'bear_access_token';
-  private readonly REFRESH_KEY = 'bear_refresh_token';
   private readonly USER_KEY = 'bear_user';
 
   private currentUser = signal<UsuarioInfo | null>(this.loadUser());
@@ -19,42 +17,56 @@ export class AuthService {
   readonly tenantId = computed(() => this.currentUser()?.tenantId ?? '');
   readonly empresaId = computed(() => this.currentUser()?.empresaAtualId ?? '');
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(private appwrite: AppwriteService, private router: Router) {}
 
-  login(request: LoginRequest): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.apiUrl}/login`, request).pipe(
-      tap(response => this.handleLoginSuccess(response)),
+  /**
+   * Login via Appwrite Account (sessão por e-mail/senha).
+   * Os metadados do app (tenant, roles, permissões) vêm das prefs do usuário.
+   */
+  login(request: LoginRequest): Observable<UsuarioInfo> {
+    const account = this.appwrite.account;
+    return from(
+      // Garante que não há sessão pendente antes de criar uma nova.
+      account.deleteSession('current')
+        .catch(() => undefined)
+        .then(() => account.createEmailPasswordSession(request.email, request.senha))
+        .then(() => account.get())
+    ).pipe(
+      map(acc => this.toUsuarioInfo(acc)),
+      tap(user => this.persist(user)),
       catchError(error => throwError(() => error))
     );
   }
 
-  refreshToken(): Observable<LoginResponse> {
-    const refreshToken = localStorage.getItem(this.REFRESH_KEY);
-    return this.http.post<LoginResponse>(`${this.apiUrl}/refresh`, { refreshToken }).pipe(
-      tap(response => this.handleLoginSuccess(response)),
+  /** Revalida a sessão Appwrite (ex.: no boot ou após 401) e re-hidrata o usuário. */
+  refreshToken(): Observable<UsuarioInfo> {
+    return from(this.appwrite.account.get()).pipe(
+      map(acc => this.toUsuarioInfo(acc)),
+      tap(user => this.persist(user)),
       catchError(error => {
-        this.logout();
+        this.clear();
         return throwError(() => error);
       })
     );
   }
 
-  logout(): void {
-    const userId = this.currentUser()?.id;
-    if (userId) {
-      this.http.post(`${this.apiUrl}/logout`, null, {
-        headers: { 'X-User-Id': userId }
-      }).subscribe();
-    }
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.REFRESH_KEY);
-    localStorage.removeItem(this.USER_KEY);
-    this.currentUser.set(null);
-    this.router.navigate(['/login']);
+  /** Re-hidrata silenciosamente a sessão no carregamento do app. */
+  restoreSession(): Observable<UsuarioInfo | null> {
+    return this.refreshToken().pipe(catchError(() => from([null as UsuarioInfo | null])));
   }
 
+  logout(): void {
+    this.appwrite.account.deleteSession('current')
+      .catch(() => undefined)
+      .finally(() => {
+        this.clear();
+        this.router.navigate(['/login']);
+      });
+  }
+
+  /** O Appwrite SDK injeta a sessão nas próprias requisições; não há bearer token manual. */
   getToken(): string | null {
-    return localStorage.getItem(this.TOKEN_KEY);
+    return null;
   }
 
   hasPermission(permission: string): boolean {
@@ -65,11 +77,28 @@ export class AuthService {
     return this.currentUser()?.roles?.includes(role) ?? false;
   }
 
-  private handleLoginSuccess(response: LoginResponse): void {
-    localStorage.setItem(this.TOKEN_KEY, response.accessToken);
-    localStorage.setItem(this.REFRESH_KEY, response.refreshToken);
-    localStorage.setItem(this.USER_KEY, JSON.stringify(response.usuario));
-    this.currentUser.set(response.usuario);
+  private toUsuarioInfo(acc: Models.User<Models.Preferences>): UsuarioInfo {
+    const prefs = (acc.prefs ?? {}) as Record<string, unknown>;
+    const asArray = (v: unknown): string[] => (Array.isArray(v) ? (v as string[]) : []);
+    return {
+      id: acc.$id,
+      nome: acc.name || (prefs['nome'] as string) || acc.email,
+      email: acc.email,
+      tenantId: (prefs['tenantId'] as string) ?? 'default',
+      empresaAtualId: (prefs['empresaAtualId'] as string) ?? '',
+      roles: asArray(prefs['roles']),
+      permissoes: asArray(prefs['permissoes']),
+    };
+  }
+
+  private persist(user: UsuarioInfo): void {
+    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    this.currentUser.set(user);
+  }
+
+  private clear(): void {
+    localStorage.removeItem(this.USER_KEY);
+    this.currentUser.set(null);
   }
 
   private loadUser(): UsuarioInfo | null {

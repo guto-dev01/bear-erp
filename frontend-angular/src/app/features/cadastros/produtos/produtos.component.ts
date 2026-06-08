@@ -37,20 +37,20 @@ import { environment } from '@env/environment';
       <!-- Stats -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#eef2ff"><span class="material-symbols-rounded" style="color:#4f46e5">inventory_2</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">inventory_2</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Produtos</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ countProdutos() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#f5f3ff"><span class="material-symbols-rounded" style="color:#8b5cf6">handyman</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Serviços</p><p class="text-2xl font-bold" style="color:#8b5cf6">{{ countServicos() }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#F2EBFB"><span class="material-symbols-rounded" style="color:#AF52DE">handyman</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Serviços</p><p class="text-2xl font-bold" style="color:#AF52DE">{{ countServicos() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ecfdf5"><span class="material-symbols-rounded" style="color:#059669">check_circle</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativos</p><p class="text-2xl font-bold" style="color:#059669">{{ countAtivos() }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">check_circle</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativos</p><p class="text-2xl font-bold" style="color:#34C759">{{ countAtivos() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#fffbeb"><span class="material-symbols-rounded" style="color:#d97706">payments</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Valor Estoque</p><p class="text-xl font-bold" style="color:#d97706">{{ valorEstoque() | currency:'BRL' }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFF4E5"><span class="material-symbols-rounded" style="color:#FF9500">payments</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Valor Estoque</p><p class="text-xl font-bold" style="color:#FF9500">{{ valorEstoque() | currency:'BRL' }}</p></div>
         </div>
       </div>
 

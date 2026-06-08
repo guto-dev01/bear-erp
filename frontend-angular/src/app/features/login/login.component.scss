@@ -4,11 +4,11 @@
    ═══════════════════════════════════════════════════════════ */
 
 // ─── Variables ──────────────────────────────────────────────
-$brand-indigo: #4f46e5;
-$brand-violet: #7c3aed;
-$brand-deep: #312e81;
-$brand-cyan: #06b6d4;
-$brand-teal: #14b8a6;
+$brand-indigo: #007AFF;
+$brand-violet: #5856D6;
+$brand-deep: #3634A3;
+$brand-cyan: #5AC8FA;
+$brand-teal: #34C759;
 $transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
 $transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
 $transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -321,9 +321,9 @@ $transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
   margin-left: -6px;
 
   &:first-child { margin-left: 0; }
-  &:nth-child(1) { background: #6366f1; }
-  &:nth-child(2) { background: #8b5cf6; }
-  &:nth-child(3) { background: #a78bfa; }
+  &:nth-child(1) { background: #0A84FF; }
+  &:nth-child(2) { background: #AF52DE; }
+  &:nth-child(3) { background: #5AC8FA; }
 
   &--count {
     background: rgba(255, 255, 255, 0.15);
@@ -386,7 +386,7 @@ $transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
 
 .login__feature-icon {
   font-size: 1.25rem;
-  color: #c7d2fe;
+  color: #CCE3FF;
 }
 
 // ─── Brand Footer ──────────────────────────────────────────
@@ -549,15 +549,15 @@ $transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   &--error {
-    border-color: #ef4444;
+    border-color: #FF3B30;
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08);
 
     .login__floating-label {
-      color: #ef4444;
+      color: #FF3B30;
     }
 
     .login__input-icon {
-      color: #ef4444;
+      color: #FF3B30;
     }
   }
 }
@@ -655,10 +655,10 @@ $transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
   transition: all $transition-normal;
 
   &--active {
-    &:nth-child(1) { background: #ef4444; }
-    &:nth-child(2) { background: #f59e0b; }
-    &:nth-child(3) { background: #10b981; }
-    &:nth-child(4) { background: #059669; }
+    &:nth-child(1) { background: #FF3B30; }
+    &:nth-child(2) { background: #FF9500; }
+    &:nth-child(3) { background: #34C759; }
+    &:nth-child(4) { background: #34C759; }
   }
 }
 
@@ -673,7 +673,7 @@ $transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
 // ─── Error Message ─────────────────────────────────────────
 .login__error {
   font-size: 0.75rem;
-  color: #ef4444;
+  color: #FF3B30;
   font-weight: 500;
   margin-top: 0.125rem;
   display: flex;
@@ -740,7 +740,7 @@ $transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
   margin-top: 0.25rem;
   border-radius: 12px;
   border: none;
-  background: linear-gradient(135deg, $brand-indigo 0%, #6366f1 50%, $brand-violet 100%);
+  background: linear-gradient(135deg, $brand-indigo 0%, #0A84FF 50%, $brand-violet 100%);
   background-size: 200% 200%;
   animation: gradientShift 6s ease infinite;
   color: white;

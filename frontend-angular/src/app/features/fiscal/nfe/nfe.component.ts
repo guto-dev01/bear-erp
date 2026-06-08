@@ -47,7 +47,7 @@ import { FiscalService } from '../fiscal.service';
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div class="bear-card">
             <div class="flex items-center gap-3 p-4">
-              <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: var(--brand-primary-light, #e0e7ff);">
+              <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: var(--brand-primary-light, #DAD9F6);">
                 <span class="material-symbols-rounded" style="color: var(--brand-primary);">description</span>
               </div>
               <div>
@@ -58,8 +58,8 @@ import { FiscalService } from '../fiscal.service';
           </div>
           <div class="bear-card">
             <div class="flex items-center gap-3 p-4">
-              <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #dcfce7;">
-                <span class="material-symbols-rounded" style="color: #16a34a;">check_circle</span>
+              <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #DCF3E0;">
+                <span class="material-symbols-rounded" style="color: #34C759;">check_circle</span>
               </div>
               <div>
                 <p class="text-label">Autorizadas</p>
@@ -80,8 +80,8 @@ import { FiscalService } from '../fiscal.service';
           </div>
           <div class="bear-card">
             <div class="flex items-center gap-3 p-4">
-              <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #fef2f2;">
-                <span class="material-symbols-rounded" style="color: #dc2626;">cancel</span>
+              <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #FFECEB;">
+                <span class="material-symbols-rounded" style="color: #FF3B30;">cancel</span>
               </div>
               <div>
                 <p class="text-label">Canceladas</p>
@@ -124,7 +124,7 @@ import { FiscalService } from '../fiscal.service';
                     </button>
                   }
                   @if (nfe.status === 'AUTORIZADA') {
-                    <button class="bear-btn bear-btn--ghost" (click)="cancelar(nfe)" matTooltip="Cancelar" style="color: var(--status-error, #dc2626);">
+                    <button class="bear-btn bear-btn--ghost" (click)="cancelar(nfe)" matTooltip="Cancelar" style="color: var(--status-error, #FF3B30);">
                       <span class="material-symbols-rounded" style="font-size:18px;">cancel</span>
                     </button>
                   }
@@ -228,7 +228,7 @@ import { FiscalService } from '../fiscal.service';
                         <input matInput formControlName="aliquotaIcms" type="number">
                       </mat-form-field>
                       <div class="flex items-center">
-                        <button class="bear-btn bear-btn--ghost" type="button" (click)="removeItem($index)" style="color: var(--status-error, #dc2626);">
+                        <button class="bear-btn bear-btn--ghost" type="button" (click)="removeItem($index)" style="color: var(--status-error, #FF3B30);">
                           <span class="material-symbols-rounded">delete</span>
                         </button>
                       </div>

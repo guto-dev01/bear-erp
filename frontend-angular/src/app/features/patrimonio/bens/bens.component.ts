@@ -37,20 +37,20 @@ import { environment } from '@env/environment';
       <!-- Stats -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#eef2ff"><span class="material-symbols-rounded" style="color:#4f46e5">inventory_2</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">inventory_2</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Bens</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ totalElements() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ecfdf5"><span class="material-symbols-rounded" style="color:#059669">payments</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Valor Total</p><p class="text-xl font-bold" style="color:#059669">{{ valorTotal() | currency:'BRL' }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">payments</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Valor Total</p><p class="text-xl font-bold" style="color:#34C759">{{ valorTotal() | currency:'BRL' }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#fef2f2"><span class="material-symbols-rounded" style="color:#ef4444">trending_down</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Deprec. Acum.</p><p class="text-xl font-bold" style="color:#ef4444">{{ depreciacao() | currency:'BRL' }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">trending_down</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Deprec. Acum.</p><p class="text-xl font-bold" style="color:#FF3B30">{{ depreciacao() | currency:'BRL' }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#f0fdfa"><span class="material-symbols-rounded" style="color:#0d9488">account_balance</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Valor Atual</p><p class="text-xl font-bold" style="color:#0d9488">{{ valorAtual() | currency:'BRL' }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E6F8FB"><span class="material-symbols-rounded" style="color:#30B0C7">account_balance</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Valor Atual</p><p class="text-xl font-bold" style="color:#30B0C7">{{ valorAtual() | currency:'BRL' }}</p></div>
         </div>
       </div>
 
@@ -70,7 +70,7 @@ import { environment } from '@env/environment';
             <ng-container matColumnDef="grupo"><th mat-header-cell *matHeaderCellDef>Grupo</th><td mat-cell *matCellDef="let b"><span class="badge badge--info">{{ formatGrupo(b.grupoContabil) }}</span></td></ng-container>
             <ng-container matColumnDef="valorAquisicao"><th mat-header-cell *matHeaderCellDef>Valor Aquisição</th><td mat-cell *matCellDef="let b" class="font-semibold">{{ b.valorAquisicao | currency:'BRL' }}</td></ng-container>
             <ng-container matColumnDef="valorAtual"><th mat-header-cell *matHeaderCellDef>Valor Atual</th><td mat-cell *matCellDef="let b">{{ b.valorAtual | currency:'BRL' }}</td></ng-container>
-            <ng-container matColumnDef="depreciacao"><th mat-header-cell *matHeaderCellDef>Deprec. Acum.</th><td mat-cell *matCellDef="let b" style="color:#ef4444">{{ b.valorDepreciadoAcumulado | currency:'BRL' }}</td></ng-container>
+            <ng-container matColumnDef="depreciacao"><th mat-header-cell *matHeaderCellDef>Deprec. Acum.</th><td mat-cell *matCellDef="let b" style="color:#FF3B30">{{ b.valorDepreciadoAcumulado | currency:'BRL' }}</td></ng-container>
             <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th>
               <td mat-cell *matCellDef="let b">
                 <span class="badge" [ngClass]="b.status === 'ATIVO' ? 'badge--success' : 'badge--neutral'">

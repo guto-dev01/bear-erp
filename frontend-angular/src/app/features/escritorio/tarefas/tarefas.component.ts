@@ -26,7 +26,7 @@ import { environment } from '@env/environment';
         </div>
         <div class="page-header__actions">
           <button class="bear-btn bear-btn--outline" style="padding:0.5rem 1rem;font-size:0.8125rem;" (click)="carregarAtrasadas()">
-            <span class="material-symbols-rounded text-base mr-1" style="color:#ef4444">warning</span> Atrasadas
+            <span class="material-symbols-rounded text-base mr-1" style="color:#FF3B30">warning</span> Atrasadas
           </button>
           <button class="bear-btn bear-btn--primary" style="padding:0.5rem 1.25rem;font-size:0.875rem;" (click)="showForm.set(true); resetForm()">
             <span class="material-symbols-rounded text-lg mr-1.5">add</span> Nova Tarefa
@@ -163,11 +163,11 @@ export class TarefasComponent implements OnInit {
   tipos = ['ESCRITURACAO_FISCAL', 'ESCRITURACAO_CONTABIL', 'FOLHA_PAGAMENTO', 'APURACAO_IMPOSTOS', 'OBRIGACAO_ACESSORIA', 'FECHAMENTO_BALANCETE', 'CONCILIACAO', 'DECLARACAO_IR', 'CONSULTORIA', 'OUTROS'];
 
   kanbanCols = [
-    { status: 'PENDENTE', label: 'Pendente', icon: 'schedule', color: '#f59e0b', bgColor: '#fffbeb' },
-    { status: 'EM_ANDAMENTO', label: 'Em Andamento', icon: 'play_circle', color: '#3b82f6', bgColor: '#eff6ff' },
-    { status: 'AGUARDANDO_CLIENTE', label: 'Aguardando', icon: 'hourglass_top', color: '#8b5cf6', bgColor: '#f5f3ff' },
-    { status: 'CONCLUIDA', label: 'Concluída', icon: 'check_circle', color: '#059669', bgColor: '#ecfdf5' },
-    { status: '', label: 'Total', icon: 'task', color: '#4f46e5', bgColor: '#eef2ff' },
+    { status: 'PENDENTE', label: 'Pendente', icon: 'schedule', color: '#FF9500', bgColor: '#FFF4E5' },
+    { status: 'EM_ANDAMENTO', label: 'Em Andamento', icon: 'play_circle', color: '#007AFF', bgColor: '#E5F1FF' },
+    { status: 'AGUARDANDO_CLIENTE', label: 'Aguardando', icon: 'hourglass_top', color: '#AF52DE', bgColor: '#F2EBFB' },
+    { status: 'CONCLUIDA', label: 'Concluída', icon: 'check_circle', color: '#34C759', bgColor: '#E9FAEF' },
+    { status: '', label: 'Total', icon: 'task', color: '#007AFF', bgColor: '#ECEBFB' },
   ];
 
   constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {}
@@ -227,11 +227,11 @@ export class TarefasComponent implements OnInit {
   formatTipo(t: string): string { return t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
 
   getPrioridadeBg(p: string): string {
-    const m: Record<string, string> = { 'BAIXA': '#f3f4f6', 'MEDIA': '#dbeafe', 'ALTA': '#ffedd5', 'URGENTE': '#fee2e2' };
+    const m: Record<string, string> = { 'BAIXA': '#f3f4f6', 'MEDIA': '#CCE3FF', 'ALTA': '#FFEACC', 'URGENTE': '#FFD0CD' };
     return m[p] || '#f3f4f6';
   }
   getPrioridadeColor(p: string): string {
-    const m: Record<string, string> = { 'BAIXA': '#6b7280', 'MEDIA': '#1d4ed8', 'ALTA': '#c2410c', 'URGENTE': '#dc2626' };
+    const m: Record<string, string> = { 'BAIXA': '#6b7280', 'MEDIA': '#0040DD', 'ALTA': '#c2410c', 'URGENTE': '#FF3B30' };
     return m[p] || '#6b7280';
   }
 }

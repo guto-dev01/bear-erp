@@ -36,20 +36,20 @@ import { ContabilidadeService } from '../contabilidade.service';
       <!-- KPI Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#eef2ff"><span class="material-symbols-rounded" style="color:#4f46e5">edit_note</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">edit_note</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ totalElements() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ecfdf5"><span class="material-symbols-rounded" style="color:#059669">arrow_upward</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">arrow_upward</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Débitos</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ totalDebitos() | currency:'BRL' }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#fef2f2"><span class="material-symbols-rounded" style="color:#ef4444">arrow_downward</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">arrow_downward</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Créditos</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ totalCreditos() | currency:'BRL' }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" [style.background]="saldoOk() ? '#ecfdf5' : '#fef2f2'">
-            <span class="material-symbols-rounded" [style.color]="saldoOk() ? '#059669' : '#ef4444'">{{ saldoOk() ? 'check_circle' : 'error' }}</span>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" [style.background]="saldoOk() ? '#E9FAEF' : '#FFECEB'">
+            <span class="material-symbols-rounded" [style.color]="saldoOk() ? '#34C759' : '#FF3B30'">{{ saldoOk() ? 'check_circle' : 'error' }}</span>
           </div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Balanço</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ saldoOk() ? 'OK' : 'Divergente' }}</p></div>
         </div>
@@ -102,7 +102,7 @@ import { ContabilidadeService } from '../contabilidade.service';
               <th mat-header-cell *matHeaderCellDef class="w-20">Ações</th>
               <td mat-cell *matCellDef="let l">
                 @if (!l.estornado) {
-                  <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem;font-size:0.75rem;color:#ef4444;"
+                  <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem;font-size:0.75rem;color:#FF3B30;"
                           matTooltip="Estornar" (click)="estornar(l)">
                     <span class="material-symbols-rounded text-sm">undo</span>
                   </button>
@@ -186,7 +186,7 @@ import { ContabilidadeService } from '../contabilidade.service';
                   </div>
                   <div class="col-span-2 flex gap-1 pb-5">
                     @if (i > 1) {
-                      <button type="button" class="bear-btn bear-btn--ghost" style="padding:0.25rem;color:#ef4444;" (click)="removePartida(i)">
+                      <button type="button" class="bear-btn bear-btn--ghost" style="padding:0.25rem;color:#FF3B30;" (click)="removePartida(i)">
                         <span class="material-symbols-rounded text-sm">remove_circle</span>
                       </button>
                     }

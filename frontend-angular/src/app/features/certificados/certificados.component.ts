@@ -44,30 +44,30 @@ import { environment } from '@env/environment';
       <!-- KPI Cards -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #ecfdf5;">
-            <span class="material-symbols-rounded" style="color: #059669;">verified</span>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #E9FAEF;">
+            <span class="material-symbols-rounded" style="color: #34C759;">verified</span>
           </div>
           <div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Ativos</p>
-            <p class="text-2xl font-bold" style="color: #059669;">{{ contarPorStatus('ATIVO') }}</p>
+            <p class="text-2xl font-bold" style="color: #34C759;">{{ contarPorStatus('ATIVO') }}</p>
           </div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #fffbeb;">
-            <span class="material-symbols-rounded" style="color: #d97706;">schedule</span>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #FFF4E5;">
+            <span class="material-symbols-rounded" style="color: #FF9500;">schedule</span>
           </div>
           <div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Próximos a Vencer</p>
-            <p class="text-2xl font-bold" style="color: #d97706;">{{ contarPorStatus('PROXIMO_VENCIMENTO') }}</p>
+            <p class="text-2xl font-bold" style="color: #FF9500;">{{ contarPorStatus('PROXIMO_VENCIMENTO') }}</p>
           </div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #fef2f2;">
-            <span class="material-symbols-rounded" style="color: #dc2626;">error</span>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #FFECEB;">
+            <span class="material-symbols-rounded" style="color: #FF3B30;">error</span>
           </div>
           <div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Expirados</p>
-            <p class="text-2xl font-bold" style="color: #dc2626;">{{ contarPorStatus('EXPIRADO') }}</p>
+            <p class="text-2xl font-bold" style="color: #FF3B30;">{{ contarPorStatus('EXPIRADO') }}</p>
           </div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
@@ -115,7 +115,7 @@ import { environment } from '@env/environment';
                     </button>
                     @if (c.status === 'ATIVO' || c.status === 'PROXIMO_VENCIMENTO') {
                       <button class="bear-btn bear-btn--ghost p-2" title="Revogar" (click)="revogar(c.id)">
-                        <span class="material-symbols-rounded text-base" style="color: #dc2626;">block</span>
+                        <span class="material-symbols-rounded text-base" style="color: #FF3B30;">block</span>
                       </button>
                     }
                   </div>

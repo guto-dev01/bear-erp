@@ -34,20 +34,20 @@ import { environment } from '@env/environment';
       <!-- Stats -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#eef2ff"><span class="material-symbols-rounded" style="color:#4f46e5">business</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">business</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Escritórios</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ escritorios().length }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ecfdf5"><span class="material-symbols-rounded" style="color:#059669">check_circle</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativos</p><p class="text-2xl font-bold" style="color:#059669">{{ countByStatus('ATIVO') }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">check_circle</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativos</p><p class="text-2xl font-bold" style="color:#34C759">{{ countByStatus('ATIVO') }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#fffbeb"><span class="material-symbols-rounded" style="color:#d97706">group</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Clientes</p><p class="text-2xl font-bold" style="color:#d97706">{{ totalClientes() }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFF4E5"><span class="material-symbols-rounded" style="color:#FF9500">group</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Clientes</p><p class="text-2xl font-bold" style="color:#FF9500">{{ totalClientes() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#f5f3ff"><span class="material-symbols-rounded" style="color:#8b5cf6">person</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Usuários</p><p class="text-2xl font-bold" style="color:#8b5cf6">{{ totalUsuarios() }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#F2EBFB"><span class="material-symbols-rounded" style="color:#AF52DE">person</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Usuários</p><p class="text-2xl font-bold" style="color:#AF52DE">{{ totalUsuarios() }}</p></div>
         </div>
       </div>
 
@@ -73,7 +73,7 @@ import { environment } from '@env/environment';
                 <div class="flex items-start justify-between mb-3">
                   <div class="flex items-center gap-3">
                     <div class="w-11 h-11 rounded-xl flex items-center justify-center text-white text-sm font-bold"
-                         style="background:linear-gradient(135deg, #4f46e5, #7c3aed);">
+                         style="background:linear-gradient(135deg, #007AFF, #5856D6);">
                       {{ getInitials(e.nomeEscritorio) }}
                     </div>
                     <div>
