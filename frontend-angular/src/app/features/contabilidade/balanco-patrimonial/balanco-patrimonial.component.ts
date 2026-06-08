@@ -81,7 +81,7 @@ import { ContabilidadeService, ContaBP } from '../contabilidade.service';
       @if (!loading() && contas().length > 0) {
         <div class="bear-card overflow-hidden animate-fade-in-up">
           <div class="p-4 flex items-center justify-between" style="border-bottom:1px solid var(--border-subtle)">
-            <h3 class="text-heading text-sm">Balanço Patrimonial — {{ meses[mes - 1]?.label }}/{{ ano }}</h3>
+            <h3 class="text-heading text-sm">Balanço Patrimonial — {{ meses[mes - 1].label }}/{{ ano }}</h3>
           </div>
           <table style="width:100%;border-collapse:collapse;">
             <thead>

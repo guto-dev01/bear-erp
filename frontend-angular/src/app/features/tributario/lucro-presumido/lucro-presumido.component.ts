@@ -60,7 +60,7 @@ interface ResultadoPresumido {
         </div>
       </div>
 
-      @if (resultado()) {
+      @if (resultado(); as r) {
         <div class="grid grid-cols-2 gap-4 mb-6 animate-fade-in-up">
           <div class="bear-card">
             <div class="p-5 border-b border-[var(--border-subtle)]">
@@ -68,10 +68,10 @@ interface ResultadoPresumido {
             </div>
             <div class="p-5">
               <div class="space-y-2">
-                <div class="flex justify-between"><span class="text-label">Base de Cálculo</span><span>{{ resultado().baseCalculoIrpj | currency:'BRL' }}</span></div>
-                <div class="flex justify-between"><span class="text-label">IRPJ Normal (15%)</span><span>{{ resultado().irpjNormal | currency:'BRL' }}</span></div>
-                <div class="flex justify-between"><span class="text-label">IRPJ Adicional (10%)</span><span>{{ resultado().irpjAdicional | currency:'BRL' }}</span></div>
-                <div class="flex justify-between pt-2 border-t"><span class="text-heading">Total IRPJ</span><span class="text-heading">{{ resultado().irpjTotal | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">Base de Cálculo</span><span>{{ r.baseCalculoIrpj | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">IRPJ Normal (15%)</span><span>{{ r.irpjNormal | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">IRPJ Adicional (10%)</span><span>{{ r.irpjAdicional | currency:'BRL' }}</span></div>
+                <div class="flex justify-between pt-2 border-t"><span class="text-heading">Total IRPJ</span><span class="text-heading">{{ r.irpjTotal | currency:'BRL' }}</span></div>
               </div>
             </div>
           </div>
@@ -81,9 +81,9 @@ interface ResultadoPresumido {
             </div>
             <div class="p-5">
               <div class="space-y-2">
-                <div class="flex justify-between"><span class="text-label">CSLL (9%)</span><span>{{ resultado().csll | currency:'BRL' }}</span></div>
-                <div class="flex justify-between"><span class="text-label">PIS (0,65%)</span><span>{{ resultado().pisCumulativo | currency:'BRL' }}</span></div>
-                <div class="flex justify-between"><span class="text-label">COFINS (3%)</span><span>{{ resultado().cofinsCumulativo | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">CSLL (9%)</span><span>{{ r.csll | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">PIS (0,65%)</span><span>{{ r.pisCumulativo | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">COFINS (3%)</span><span>{{ r.cofinsCumulativo | currency:'BRL' }}</span></div>
               </div>
             </div>
           </div>
@@ -95,7 +95,7 @@ interface ResultadoPresumido {
             </div>
             <div class="text-center">
               <p class="text-label">Total de Tributos</p>
-              <p class="text-3xl font-bold" style="color: var(--brand-primary);">{{ resultado().totalTributos | currency:'BRL' }}</p>
+              <p class="text-3xl font-bold" style="color: var(--brand-primary);">{{ r.totalTributos | currency:'BRL' }}</p>
             </div>
           </div>
         </div>

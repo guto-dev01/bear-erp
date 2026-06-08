@@ -100,7 +100,7 @@ interface LinhaBalancete {
       @if (!loading() && gerado() && linhas().length > 0) {
         <div class="bear-card overflow-hidden animate-fade-in-up">
           <div class="p-4 flex items-center justify-between" style="border-bottom:1px solid var(--border-subtle)">
-            <h3 class="text-heading text-sm">Balancete {{ meses[mes - 1]?.label }}/{{ ano }}</h3>
+            <h3 class="text-heading text-sm">Balancete {{ meses[mes - 1].label }}/{{ ano }}</h3>
             <button class="bear-btn bear-btn--outline" style="padding:0.375rem 0.75rem;font-size:0.75rem;" matTooltip="Exportar PDF">
               <span class="material-symbols-rounded text-sm mr-1">picture_as_pdf</span> Exportar
             </button>

@@ -64,7 +64,7 @@ interface ResultadoReal {
         </div>
       </div>
 
-      @if (resultado()) {
+      @if (resultado(); as r) {
         <div class="grid grid-cols-3 gap-4 mb-6 animate-fade-in-up">
           <div class="bear-card">
             <div class="p-5 border-b border-[var(--border-subtle)]">
@@ -72,11 +72,11 @@ interface ResultadoReal {
             </div>
             <div class="p-5">
               <div class="space-y-2">
-                <div class="flex justify-between"><span class="text-label">Lucro Contábil</span><span>{{ resultado().lucroContabil | currency:'BRL' }}</span></div>
-                <div class="flex justify-between"><span class="text-label">Adições</span><span>{{ resultado().adicoes | currency:'BRL' }}</span></div>
-                <div class="flex justify-between"><span class="text-label">Exclusões</span><span>{{ resultado().exclusoes | currency:'BRL' }}</span></div>
-                <div class="flex justify-between"><span class="text-label">Compensações</span><span>{{ resultado().compensacoes | currency:'BRL' }}</span></div>
-                <div class="flex justify-between pt-2 border-t"><span class="text-heading">Lucro Real</span><span class="text-heading">{{ resultado().lucroReal | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">Lucro Contábil</span><span>{{ r.lucroContabil | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">Adições</span><span>{{ r.adicoes | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">Exclusões</span><span>{{ r.exclusoes | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">Compensações</span><span>{{ r.compensacoes | currency:'BRL' }}</span></div>
+                <div class="flex justify-between pt-2 border-t"><span class="text-heading">Lucro Real</span><span class="text-heading">{{ r.lucroReal | currency:'BRL' }}</span></div>
               </div>
             </div>
           </div>
@@ -86,10 +86,10 @@ interface ResultadoReal {
             </div>
             <div class="p-5">
               <div class="space-y-2">
-                <div class="flex justify-between"><span class="text-label">IRPJ Normal (15%)</span><span>{{ resultado().irpjNormal | currency:'BRL' }}</span></div>
-                <div class="flex justify-between"><span class="text-label">IRPJ Adicional (10%)</span><span>{{ resultado().irpjAdicional | currency:'BRL' }}</span></div>
-                <div class="flex justify-between pt-2 border-t"><span class="text-heading">Total IRPJ</span><span class="text-heading">{{ resultado().irpjTotal | currency:'BRL' }}</span></div>
-                <div class="flex justify-between"><span class="text-label">CSLL (9%)</span><span>{{ resultado().csll | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">IRPJ Normal (15%)</span><span>{{ r.irpjNormal | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">IRPJ Adicional (10%)</span><span>{{ r.irpjAdicional | currency:'BRL' }}</span></div>
+                <div class="flex justify-between pt-2 border-t"><span class="text-heading">Total IRPJ</span><span class="text-heading">{{ r.irpjTotal | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">CSLL (9%)</span><span>{{ r.csll | currency:'BRL' }}</span></div>
               </div>
             </div>
           </div>
@@ -99,11 +99,11 @@ interface ResultadoReal {
             </div>
             <div class="p-5">
               <div class="space-y-2">
-                <div class="flex justify-between"><span class="text-label">PIS (1,65%)</span><span>{{ resultado().pisNaoCumulativo | currency:'BRL' }}</span></div>
-                <div class="flex justify-between"><span class="text-label">COFINS (7,6%)</span><span>{{ resultado().cofinsNaoCumulativo | currency:'BRL' }}</span></div>
-                <div class="flex justify-between"><span class="text-label">Créditos</span><span>{{ resultado().creditosPisCofins | currency:'BRL' }}</span></div>
-                <div class="flex justify-between"><span class="text-label">PIS a Pagar</span><span>{{ resultado().pisAPagar | currency:'BRL' }}</span></div>
-                <div class="flex justify-between"><span class="text-label">COFINS a Pagar</span><span>{{ resultado().cofinsAPagar | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">PIS (1,65%)</span><span>{{ r.pisNaoCumulativo | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">COFINS (7,6%)</span><span>{{ r.cofinsNaoCumulativo | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">Créditos</span><span>{{ r.creditosPisCofins | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">PIS a Pagar</span><span>{{ r.pisAPagar | currency:'BRL' }}</span></div>
+                <div class="flex justify-between"><span class="text-label">COFINS a Pagar</span><span>{{ r.cofinsAPagar | currency:'BRL' }}</span></div>
               </div>
             </div>
           </div>
@@ -115,7 +115,7 @@ interface ResultadoReal {
             </div>
             <div class="text-center">
               <p class="text-label">Total de Tributos</p>
-              <p class="text-3xl font-bold" style="color: var(--brand-primary);">{{ resultado().totalTributos | currency:'BRL' }}</p>
+              <p class="text-3xl font-bold" style="color: var(--brand-primary);">{{ r.totalTributos | currency:'BRL' }}</p>
             </div>
           </div>
         </div>

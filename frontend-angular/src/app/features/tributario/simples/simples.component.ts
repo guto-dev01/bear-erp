@@ -70,7 +70,7 @@ interface ResultadoSimples {
         </div>
       </div>
 
-      @if (resultado()) {
+      @if (resultado(); as r) {
         <div class="grid grid-cols-4 gap-4 mb-6 animate-fade-in-up">
           <div class="bear-card">
             <div class="flex items-center gap-4 p-5">
@@ -79,7 +79,7 @@ interface ResultadoSimples {
               </div>
               <div>
                 <p class="text-label">Faixa</p>
-                <p class="text-heading">{{ resultado().faixa }}</p>
+                <p class="text-heading">{{ r.faixa }}</p>
               </div>
             </div>
           </div>
@@ -90,7 +90,7 @@ interface ResultadoSimples {
               </div>
               <div>
                 <p class="text-label">Alíquota Nominal</p>
-                <p class="text-heading">{{ resultado().aliquotaNominal }}%</p>
+                <p class="text-heading">{{ r.aliquotaNominal }}%</p>
               </div>
             </div>
           </div>
@@ -101,7 +101,7 @@ interface ResultadoSimples {
               </div>
               <div>
                 <p class="text-label">Alíquota Efetiva</p>
-                <p class="text-heading">{{ resultado().aliquotaEfetiva | number:'1.2-4' }}%</p>
+                <p class="text-heading">{{ r.aliquotaEfetiva | number:'1.2-4' }}%</p>
               </div>
             </div>
           </div>
@@ -112,18 +112,18 @@ interface ResultadoSimples {
               </div>
               <div>
                 <p class="text-label">Valor DAS</p>
-                <p class="text-heading">{{ resultado().valorDas | currency:'BRL' }}</p>
+                <p class="text-heading">{{ r.valorDas | currency:'BRL' }}</p>
               </div>
             </div>
           </div>
         </div>
-        @if (resultado().reparticao) {
+        @if (r.reparticao) {
           <div class="bear-card">
             <div class="p-5 border-b border-[var(--border-subtle)]">
               <h2 class="text-heading">Repartição dos Tributos</h2>
             </div>
             <div class="p-0">
-              <table mat-table [dataSource]="resultado().reparticao" class="w-full">
+              <table mat-table [dataSource]="r.reparticao" class="w-full">
                 <ng-container matColumnDef="tributo"><th mat-header-cell *matHeaderCellDef class="!font-bold">Tributo</th><td mat-cell *matCellDef="let r">{{ r.tributo }}</td></ng-container>
                 <ng-container matColumnDef="percentual"><th mat-header-cell *matHeaderCellDef class="!font-bold">Percentual</th><td mat-cell *matCellDef="let r">{{ r.percentual }}%</td></ng-container>
                 <ng-container matColumnDef="valor"><th mat-header-cell *matHeaderCellDef class="!font-bold">Valor</th><td mat-cell *matCellDef="let r">{{ r.valor | currency:'BRL' }}</td></ng-container>

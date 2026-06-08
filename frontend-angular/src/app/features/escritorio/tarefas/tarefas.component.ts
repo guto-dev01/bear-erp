@@ -92,7 +92,7 @@ interface Tarefa {
                   <div class="bear-card p-4 animate-fade-in-up">
                     <div class="flex items-start justify-between mb-2">
                       <span class="text-xs px-2 py-0.5 rounded-md font-medium" [style.background]="getPrioridadeBg(t.prioridade)" [style.color]="getPrioridadeColor(t.prioridade)">{{ t.prioridade }}</span>
-                      <mat-select [value]="t.status" (selectionChange)="atualizarStatus(t.id, $event.value)"
+                      <mat-select [value]="t.status" (selectionChange)="atualizarStatus(t.id!, $event.value)"
                                   style="width:120px;font-size:0.6875rem;" class="text-xs">
                         <mat-option value="PENDENTE">Pendente</mat-option>
                         <mat-option value="EM_ANDAMENTO">Em Andamento</mat-option>
