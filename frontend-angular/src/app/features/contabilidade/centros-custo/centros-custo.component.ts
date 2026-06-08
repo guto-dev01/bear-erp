@@ -36,20 +36,20 @@ import { ContabilidadeService, CentroCustoView } from '../contabilidade.service'
       <!-- Stats -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#eef2ff"><span class="material-symbols-rounded" style="color:#4f46e5">hub</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">hub</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Centros</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ totalElements() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ecfdf5"><span class="material-symbols-rounded" style="color:#059669">check_circle</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativos</p><p class="text-2xl font-bold" style="color:#059669">{{ countAtivos() }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">check_circle</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativos</p><p class="text-2xl font-bold" style="color:#34C759">{{ countAtivos() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#fffbeb"><span class="material-symbols-rounded" style="color:#d97706">account_balance_wallet</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Orçamento Total</p><p class="text-xl font-bold" style="color:#d97706">{{ orcamentoTotal() | currency:'BRL' }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFF4E5"><span class="material-symbols-rounded" style="color:#FF9500">account_balance_wallet</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Orçamento Total</p><p class="text-xl font-bold" style="color:#FF9500">{{ orcamentoTotal() | currency:'BRL' }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#fef2f2"><span class="material-symbols-rounded" style="color:#ef4444">trending_up</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Utilizado</p><p class="text-xl font-bold" style="color:#ef4444">{{ utilizado() | currency:'BRL' }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">trending_up</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Utilizado</p><p class="text-xl font-bold" style="color:#FF3B30">{{ utilizado() | currency:'BRL' }}</p></div>
         </div>
       </div>
 
@@ -73,9 +73,9 @@ import { ContabilidadeService, CentroCustoView } from '../contabilidade.service'
               <td mat-cell *matCellDef="let c">
                 <div class="flex items-center gap-2">
                   <div style="width:60px;height:6px;border-radius:3px;background:var(--surface-3);overflow:hidden;">
-                    <div [style.width]="getPercentual(c) + '%'" [style.background]="getPercentual(c) > 90 ? '#ef4444' : getPercentual(c) > 70 ? '#d97706' : '#059669'" style="height:100%;border-radius:3px;transition:width 0.3s;"></div>
+                    <div [style.width]="getPercentual(c) + '%'" [style.background]="getPercentual(c) > 90 ? '#FF3B30' : getPercentual(c) > 70 ? '#FF9500' : '#34C759'" style="height:100%;border-radius:3px;transition:width 0.3s;"></div>
                   </div>
-                  <span class="text-xs font-medium" [style.color]="getPercentual(c) > 90 ? '#ef4444' : getPercentual(c) > 70 ? '#d97706' : '#059669'">{{ getPercentual(c) }}%</span>
+                  <span class="text-xs font-medium" [style.color]="getPercentual(c) > 90 ? '#FF3B30' : getPercentual(c) > 70 ? '#FF9500' : '#34C759'">{{ getPercentual(c) }}%</span>
                 </div>
               </td>
             </ng-container>

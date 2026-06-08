@@ -1,13 +1,13 @@
 <!doctype html>
-<html lang="pt-BR" data-theme="light">
+<html lang="pt-BR" data-theme="dark">
 <head>
   <meta charset="utf-8">
   <title>Bear ERP — Sistema Contábil Inteligente</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Bear ERP — O sistema contábil SaaS mais avançado do Brasil. IA integrada, multi-tenant, 100% cloud.">
-  <meta name="theme-color" content="#6C5CE7" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0A0A0F" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0A0A0C" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="manifest" href="manifest.webmanifest">
@@ -22,10 +22,10 @@
   <meta property="og:type" content="website">
   <meta property="og:locale" content="pt_BR">
 
-  <!-- Fonts: Inter (primary) + Plus Jakarta Sans (display) + JetBrains Mono (code) -->
+  <!-- Type: SF Pro is provided by Apple OSes; Inter is the cross-platform fallback -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
   <!-- Material Symbols Rounded (variable) -->
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
@@ -35,17 +35,17 @@
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      background: #F8F9FC;
-      color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+      background: #F2F2F7;
+      color: #000000;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       text-rendering: optimizeLegibility;
     }
 
     [data-theme="dark"] body {
-      background: #0A0A0F;
-      color: #E8E8ED;
+      background: #0A0A0C;
+      color: #FFFFFF;
     }
 
     /* Initial loading state — premium spinner */
@@ -60,10 +60,11 @@
 
     bear-root:empty::before {
       content: '';
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #6C5CE7, #5B4BD5);
+      width: 44px;
+      height: 44px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #007AFF, #0A84FF);
+      box-shadow: 0 8px 24px rgba(0, 122, 255, 0.3);
       animation: logoPulse 1.5s ease-in-out infinite;
     }
 
@@ -71,15 +72,15 @@
       content: '';
       width: 24px;
       height: 24px;
-      border: 2.5px solid #E8E8ED;
-      border-top-color: #6C5CE7;
+      border: 2.5px solid rgba(0, 0, 0, 0.1);
+      border-top-color: #007AFF;
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
 
     [data-theme="dark"] bear-root:empty::after {
-      border-color: #32323F;
-      border-top-color: #6C5CE7;
+      border-color: rgba(255, 255, 255, 0.12);
+      border-top-color: #0A84FF;
     }
 
     @keyframes spin { to { transform: rotate(360deg); } }

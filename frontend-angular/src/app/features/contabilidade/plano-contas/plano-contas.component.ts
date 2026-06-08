@@ -43,19 +43,19 @@ interface ContaNode {
       <!-- Stats -->
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#eef2ff"><span class="material-symbols-rounded" style="color:#4f46e5">account_tree</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">account_tree</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Contas</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ totalContas() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ecfdf5"><span class="material-symbols-rounded" style="color:#059669">account_balance</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">account_balance</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Sintéticas</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ sinteticas() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#f0fdfa"><span class="material-symbols-rounded" style="color:#0d9488">edit_note</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E6F8FB"><span class="material-symbols-rounded" style="color:#30B0C7">edit_note</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Analíticas</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ analiticas() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#f5f3ff"><span class="material-symbols-rounded" style="color:#7c3aed">layers</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#F2EBFB"><span class="material-symbols-rounded" style="color:#5856D6">layers</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Níveis</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ maxNivel() }}</p></div>
         </div>
       </div>
@@ -173,7 +173,7 @@ interface ContaNode {
         <span class="font-mono text-xs mr-3" style="color:var(--text-tertiary);min-width:80px;">{{ node.codigo }}</span>
         <span class="flex-1 text-sm" [style.font-weight]="node.tipo === 'SINTETICA' ? '600' : '400'" style="color:var(--text-primary)">{{ node.descricao }}</span>
         <span class="text-xs px-2 py-0.5 rounded-md mr-1" [style.background]="getClassBg(node.classificacao)" [style.color]="getClassColor(node.classificacao)">{{ node.classificacao }}</span>
-        <span class="text-xs px-1.5 py-0.5 rounded-md" [style.background]="node.natureza === 'DEVEDORA' ? '#dbeafe' : '#fee2e2'" [style.color]="node.natureza === 'DEVEDORA' ? '#1d4ed8' : '#dc2626'">
+        <span class="text-xs px-1.5 py-0.5 rounded-md" [style.background]="node.natureza === 'DEVEDORA' ? '#CCE3FF' : '#FFD0CD'" [style.color]="node.natureza === 'DEVEDORA' ? '#0040DD' : '#FF3B30'">
           {{ node.natureza === 'DEVEDORA' ? 'D' : 'C' }}
         </span>
         @if (hoveredId() === node.id) {
@@ -182,7 +182,7 @@ interface ContaNode {
               <span class="material-symbols-rounded text-sm">edit</span>
             </button>
             @if (node.tipo === 'ANALITICA') {
-              <button class="bear-btn bear-btn--ghost" style="padding:0.125rem 0.25rem;color:#ef4444;" matTooltip="Excluir" (click)="deleteConta(node)">
+              <button class="bear-btn bear-btn--ghost" style="padding:0.125rem 0.25rem;color:#FF3B30;" matTooltip="Excluir" (click)="deleteConta(node)">
                 <span class="material-symbols-rounded text-sm">delete</span>
               </button>
             }
@@ -322,11 +322,11 @@ export class PlanoContasComponent implements OnInit {
   }
 
   getClassBg(c: string): string {
-    const m: Record<string, string> = { 'ATIVO': '#dbeafe', 'PASSIVO': '#fee2e2', 'PATRIMONIO_LIQUIDO': '#dcfce7', 'RECEITA': '#ccfbf1', 'DESPESA': '#ffedd5', 'CUSTO': '#f3e8ff' };
+    const m: Record<string, string> = { 'ATIVO': '#CCE3FF', 'PASSIVO': '#FFD0CD', 'PATRIMONIO_LIQUIDO': '#DCF3E0', 'RECEITA': '#CFF0F4', 'DESPESA': '#FFEACC', 'CUSTO': '#F2EBFB' };
     return m[c] || '#f3f4f6';
   }
   getClassColor(c: string): string {
-    const m: Record<string, string> = { 'ATIVO': '#1d4ed8', 'PASSIVO': '#dc2626', 'PATRIMONIO_LIQUIDO': '#15803d', 'RECEITA': '#0d9488', 'DESPESA': '#c2410c', 'CUSTO': '#7c3aed' };
+    const m: Record<string, string> = { 'ATIVO': '#0040DD', 'PASSIVO': '#FF3B30', 'PATRIMONIO_LIQUIDO': '#248A3D', 'RECEITA': '#30B0C7', 'DESPESA': '#c2410c', 'CUSTO': '#5856D6' };
     return m[c] || '#6b7280';
   }
 }

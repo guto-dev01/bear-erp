@@ -44,7 +44,7 @@ interface Honorario {
         </div>
         <div class="page-header__actions">
           <button class="bear-btn bear-btn--outline" style="padding:0.5rem 1rem;font-size:0.8125rem;" (click)="carregarVencidos()">
-            <span class="material-symbols-rounded text-base mr-1" style="color:#ef4444">warning</span> Vencidos
+            <span class="material-symbols-rounded text-base mr-1" style="color:#FF3B30">warning</span> Vencidos
           </button>
           <button class="bear-btn bear-btn--primary" style="padding:0.5rem 1.25rem;font-size:0.875rem;" (click)="showForm.set(true); resetForm()">
             <span class="material-symbols-rounded text-lg mr-1.5">add</span> Novo Honorário
@@ -55,20 +55,20 @@ interface Honorario {
       <!-- Stats -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#eef2ff"><span class="material-symbols-rounded" style="color:#4f46e5">receipt</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">receipt</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ totalElements() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ecfdf5"><span class="material-symbols-rounded" style="color:#059669">paid</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Pagos</p><p class="text-2xl font-bold" style="color:#059669">{{ countPagos() }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">paid</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Pagos</p><p class="text-2xl font-bold" style="color:#34C759">{{ countPagos() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#fffbeb"><span class="material-symbols-rounded" style="color:#d97706">pending</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Abertos</p><p class="text-2xl font-bold" style="color:#d97706">{{ countAbertos() }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFF4E5"><span class="material-symbols-rounded" style="color:#FF9500">pending</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Abertos</p><p class="text-2xl font-bold" style="color:#FF9500">{{ countAbertos() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#fef2f2"><span class="material-symbols-rounded" style="color:#ef4444">error</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Vencidos</p><p class="text-2xl font-bold" style="color:#ef4444">{{ countVencidos() }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">error</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Vencidos</p><p class="text-2xl font-bold" style="color:#FF3B30">{{ countVencidos() }}</p></div>
         </div>
       </div>
 
@@ -113,7 +113,7 @@ interface Honorario {
                 @if (h.status === 'ABERTO' || h.status === 'VENCIDO') {
                   <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem;font-size:0.75rem;"
                           matTooltip="Registrar pagamento" (click)="registrarPagamento(h.id)">
-                    <span class="material-symbols-rounded text-sm" style="color:#059669">payments</span>
+                    <span class="material-symbols-rounded text-sm" style="color:#34C759">payments</span>
                   </button>
                 }
               </td>

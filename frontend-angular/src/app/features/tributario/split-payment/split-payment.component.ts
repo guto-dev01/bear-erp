@@ -52,31 +52,31 @@ interface SplitPaymentRow {
       </div>
 
       <!-- Info Banner -->
-      <div class="bear-card p-4 mb-6 flex items-start gap-3 animate-fade-in-up" style="background:linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);border-left:4px solid #4f46e5;">
-        <span class="material-symbols-rounded" style="color:#4f46e5;margin-top:2px;">info</span>
+      <div class="bear-card p-4 mb-6 flex items-start gap-3 animate-fade-in-up" style="background:linear-gradient(135deg, #ECEBFB 0%, #DAD9F6 100%);border-left:4px solid #007AFF;">
+        <span class="material-symbols-rounded" style="color:#007AFF;margin-top:2px;">info</span>
         <div>
-          <p class="text-sm font-semibold mb-1" style="color:#4f46e5">O que é o Split Payment?</p>
-          <p class="text-xs" style="color:#3730a3">O Split Payment é o novo mecanismo da Reforma Tributária (IBS/CBS) que divide automaticamente o pagamento entre o fornecedor e o Fisco no momento da transação. A partir de 2026, parte do valor pago será direcionada diretamente para os cofres públicos.</p>
+          <p class="text-sm font-semibold mb-1" style="color:#007AFF">O que é o Split Payment?</p>
+          <p class="text-xs" style="color:#3634A3">O Split Payment é o novo mecanismo da Reforma Tributária (IBS/CBS) que divide automaticamente o pagamento entre o fornecedor e o Fisco no momento da transação. A partir de 2026, parte do valor pago será direcionada diretamente para os cofres públicos.</p>
         </div>
       </div>
 
       <!-- Stats -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#eef2ff"><span class="material-symbols-rounded" style="color:#4f46e5">receipt_long</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">receipt_long</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Transações Mês</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ transacoes().length }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ecfdf5"><span class="material-symbols-rounded" style="color:#059669">payments</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Valor Total</p><p class="text-xl font-bold" style="color:#059669">{{ valorTotal() | currency:'BRL' }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">payments</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Valor Total</p><p class="text-xl font-bold" style="color:#34C759">{{ valorTotal() | currency:'BRL' }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#fef2f2"><span class="material-symbols-rounded" style="color:#ef4444">account_balance</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">IBS Retido</p><p class="text-xl font-bold" style="color:#ef4444">{{ ibsTotal() | currency:'BRL' }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">account_balance</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">IBS Retido</p><p class="text-xl font-bold" style="color:#FF3B30">{{ ibsTotal() | currency:'BRL' }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#fffbeb"><span class="material-symbols-rounded" style="color:#d97706">gavel</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">CBS Retido</p><p class="text-xl font-bold" style="color:#d97706">{{ cbsTotal() | currency:'BRL' }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFF4E5"><span class="material-symbols-rounded" style="color:#FF9500">gavel</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">CBS Retido</p><p class="text-xl font-bold" style="color:#FF9500">{{ cbsTotal() | currency:'BRL' }}</p></div>
         </div>
       </div>
 
@@ -120,19 +120,19 @@ interface SplitPaymentRow {
             <div class="grid grid-cols-2 gap-3 animate-fade-in-up">
               <div class="p-4 rounded-xl" style="background:var(--surface-1);">
                 <p class="text-xs font-medium mb-1" style="color:var(--text-tertiary)">Valor Fornecedor</p>
-                <p class="text-lg font-bold" style="color:#059669">{{ simResultado()!.valorFornecedor | currency:'BRL' }}</p>
+                <p class="text-lg font-bold" style="color:#34C759">{{ simResultado()!.valorFornecedor | currency:'BRL' }}</p>
               </div>
               <div class="p-4 rounded-xl" style="background:var(--surface-1);">
                 <p class="text-xs font-medium mb-1" style="color:var(--text-tertiary)">Total Tributos</p>
-                <p class="text-lg font-bold" style="color:#ef4444">{{ simResultado()!.totalTributos | currency:'BRL' }}</p>
+                <p class="text-lg font-bold" style="color:#FF3B30">{{ simResultado()!.totalTributos | currency:'BRL' }}</p>
               </div>
-              <div class="p-4 rounded-xl" style="background:#fef2f2;">
-                <p class="text-xs font-medium mb-1" style="color:#ef4444">IBS ({{ aliqIBS }}%)</p>
-                <p class="text-base font-bold" style="color:#ef4444">{{ simResultado()!.ibs | currency:'BRL' }}</p>
+              <div class="p-4 rounded-xl" style="background:#FFECEB;">
+                <p class="text-xs font-medium mb-1" style="color:#FF3B30">IBS ({{ aliqIBS }}%)</p>
+                <p class="text-base font-bold" style="color:#FF3B30">{{ simResultado()!.ibs | currency:'BRL' }}</p>
               </div>
-              <div class="p-4 rounded-xl" style="background:#fffbeb;">
-                <p class="text-xs font-medium mb-1" style="color:#d97706">CBS ({{ aliqCBS }}%)</p>
-                <p class="text-base font-bold" style="color:#d97706">{{ simResultado()!.cbs | currency:'BRL' }}</p>
+              <div class="p-4 rounded-xl" style="background:#FFF4E5;">
+                <p class="text-xs font-medium mb-1" style="color:#FF9500">CBS ({{ aliqCBS }}%)</p>
+                <p class="text-base font-bold" style="color:#FF9500">{{ simResultado()!.cbs | currency:'BRL' }}</p>
               </div>
             </div>
           }
@@ -157,9 +157,9 @@ interface SplitPaymentRow {
             <ng-container matColumnDef="nfe"><th mat-header-cell *matHeaderCellDef>NF-e</th><td mat-cell *matCellDef="let t" class="font-mono text-xs">{{ t.nfe }}</td></ng-container>
             <ng-container matColumnDef="fornecedor"><th mat-header-cell *matHeaderCellDef>Fornecedor</th><td mat-cell *matCellDef="let t"><span class="font-medium">{{ t.fornecedor }}</span></td></ng-container>
             <ng-container matColumnDef="valorTotal"><th mat-header-cell *matHeaderCellDef>Valor Total</th><td mat-cell *matCellDef="let t" class="font-semibold">{{ t.valorTotal | currency:'BRL' }}</td></ng-container>
-            <ng-container matColumnDef="ibs"><th mat-header-cell *matHeaderCellDef>IBS</th><td mat-cell *matCellDef="let t" style="color:#ef4444">{{ t.ibs | currency:'BRL' }}</td></ng-container>
-            <ng-container matColumnDef="cbs"><th mat-header-cell *matHeaderCellDef>CBS</th><td mat-cell *matCellDef="let t" style="color:#d97706">{{ t.cbs | currency:'BRL' }}</td></ng-container>
-            <ng-container matColumnDef="valorLiquido"><th mat-header-cell *matHeaderCellDef>Líquido</th><td mat-cell *matCellDef="let t" style="color:#059669;font-weight:600;">{{ t.valorLiquido | currency:'BRL' }}</td></ng-container>
+            <ng-container matColumnDef="ibs"><th mat-header-cell *matHeaderCellDef>IBS</th><td mat-cell *matCellDef="let t" style="color:#FF3B30">{{ t.ibs | currency:'BRL' }}</td></ng-container>
+            <ng-container matColumnDef="cbs"><th mat-header-cell *matHeaderCellDef>CBS</th><td mat-cell *matCellDef="let t" style="color:#FF9500">{{ t.cbs | currency:'BRL' }}</td></ng-container>
+            <ng-container matColumnDef="valorLiquido"><th mat-header-cell *matHeaderCellDef>Líquido</th><td mat-cell *matCellDef="let t" style="color:#34C759;font-weight:600;">{{ t.valorLiquido | currency:'BRL' }}</td></ng-container>
             <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th>
               <td mat-cell *matCellDef="let t">
                 <span class="badge" [ngClass]="t.status === 'PROCESSADO' ? 'badge--success' : t.status === 'PENDENTE' ? 'badge--warning' : 'badge--error'">

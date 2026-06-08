@@ -64,7 +64,7 @@ import { FiscalService } from '../fiscal.service';
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                 <div class="bear-card">
                   <div class="flex items-center gap-3 p-4">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: var(--brand-primary-light, #e0e7ff);">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: var(--brand-primary-light, #DAD9F6);">
                       <span class="material-symbols-rounded" style="color: var(--brand-primary);">trending_up</span>
                     </div>
                     <div>
@@ -75,8 +75,8 @@ import { FiscalService } from '../fiscal.service';
                 </div>
                 <div class="bear-card">
                   <div class="flex items-center gap-3 p-4">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #dcfce7;">
-                      <span class="material-symbols-rounded" style="color: #16a34a;">trending_down</span>
+                    <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #DCF3E0;">
+                      <span class="material-symbols-rounded" style="color: #34C759;">trending_down</span>
                     </div>
                     <div>
                       <p class="text-label">Total Créditos</p>
@@ -86,8 +86,8 @@ import { FiscalService } from '../fiscal.service';
                 </div>
                 <div class="bear-card">
                   <div class="flex items-center gap-3 p-4">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #fef2f2;">
-                      <span class="material-symbols-rounded" style="color: #dc2626;">payments</span>
+                    <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #FFECEB;">
+                      <span class="material-symbols-rounded" style="color: #FF3B30;">payments</span>
                     </div>
                     <div>
                       <p class="text-label">ICMS a Recolher</p>
@@ -97,8 +97,8 @@ import { FiscalService } from '../fiscal.service';
                 </div>
                 <div class="bear-card">
                   <div class="flex items-center gap-3 p-4">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #f3e8ff;">
-                      <span class="material-symbols-rounded" style="color: #7c3aed;">account_balance</span>
+                    <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #F2EBFB;">
+                      <span class="material-symbols-rounded" style="color: #5856D6;">account_balance</span>
                     </div>
                     <div>
                       <p class="text-label">Saldo Credor</p>
@@ -158,7 +158,7 @@ import { FiscalService } from '../fiscal.service';
                 <div class="bear-card">
                   <div class="p-4">
                     <div class="flex items-center gap-3 mb-3">
-                      <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: var(--brand-primary-light, #e0e7ff);">
+                      <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: var(--brand-primary-light, #DAD9F6);">
                         <span class="material-symbols-rounded" style="color: var(--brand-primary);">receipt</span>
                       </div>
                       <h3 class="text-heading" style="font-size: 1rem;">PIS</h3>
@@ -168,15 +168,15 @@ import { FiscalService } from '../fiscal.service';
                       <div>Créditos: {{ apuracaoPisCofins().pisCreditoEntradas | currency:'BRL' }}</div>
                       <div>Retido: {{ apuracaoPisCofins().pisRetidoFonte | currency:'BRL' }}</div>
                       <div>Saldo Anterior: {{ apuracaoPisCofins().pisSaldoCredorAnterior | currency:'BRL' }}</div>
-                      <div class="col-span-2 text-lg font-bold mt-2" style="color: var(--status-error, #dc2626);">A Recolher: {{ apuracaoPisCofins().pisRecolher | currency:'BRL' }}</div>
+                      <div class="col-span-2 text-lg font-bold mt-2" style="color: var(--status-error, #FF3B30);">A Recolher: {{ apuracaoPisCofins().pisRecolher | currency:'BRL' }}</div>
                     </div>
                   </div>
                 </div>
                 <div class="bear-card">
                   <div class="p-4">
                     <div class="flex items-center gap-3 mb-3">
-                      <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #dcfce7;">
-                        <span class="material-symbols-rounded" style="color: #16a34a;">receipt</span>
+                      <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #DCF3E0;">
+                        <span class="material-symbols-rounded" style="color: #34C759;">receipt</span>
                       </div>
                       <h3 class="text-heading" style="font-size: 1rem;">COFINS</h3>
                     </div>
@@ -185,7 +185,7 @@ import { FiscalService } from '../fiscal.service';
                       <div>Créditos: {{ apuracaoPisCofins().cofinsCreditoEntradas | currency:'BRL' }}</div>
                       <div>Retido: {{ apuracaoPisCofins().cofinsRetidoFonte | currency:'BRL' }}</div>
                       <div>Saldo Anterior: {{ apuracaoPisCofins().cofinsSaldoCredorAnterior | currency:'BRL' }}</div>
-                      <div class="col-span-2 text-lg font-bold mt-2" style="color: var(--status-error, #dc2626);">A Recolher: {{ apuracaoPisCofins().cofinsRecolher | currency:'BRL' }}</div>
+                      <div class="col-span-2 text-lg font-bold mt-2" style="color: var(--status-error, #FF3B30);">A Recolher: {{ apuracaoPisCofins().cofinsRecolher | currency:'BRL' }}</div>
                     </div>
                   </div>
                 </div>

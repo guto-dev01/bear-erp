@@ -102,8 +102,17 @@ interface Honorario { valor: number; status: string; }
 
       <!-- ═══ Financial Overview + Alerts ═══ -->
       <section class="grid-main">
-        <!-- Financial Cards -->
-        <div class="finance-row">
+        <!-- Desempenho Financeiro -->
+        <div class="finance-panel">
+          <div class="finance-panel__header">
+            <h3 class="finance-panel__title">Desempenho Financeiro</h3>
+            <button class="finance-panel__period" type="button">
+              Este mês
+              <span class="material-symbols-rounded">expand_more</span>
+            </button>
+          </div>
+
+          <div class="finance-row">
           <div class="finance-card finance-card--green">
             <div class="finance-card__pattern"></div>
             <div class="finance-card__content">
@@ -149,6 +158,38 @@ interface Honorario { valor: number; status: string; }
               </div>
               <span class="finance-card__label">Lucro Líquido</span>
               <span class="finance-card__value">{{ formatCurrency(dashboard()?.lucroLiquido || 0) }}</span>
+            </div>
+          </div>
+          </div>
+
+          <!-- Line chart -->
+          <div class="finance-chart">
+            <div class="finance-chart__legend">
+              <span class="finance-chart__legend-item"><i style="background:var(--green)"></i>Receita</span>
+              <span class="finance-chart__legend-item"><i style="background:var(--brand)"></i>Despesa</span>
+            </div>
+            <svg class="finance-chart__svg" viewBox="0 0 640 200" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="recFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="var(--green)" stop-opacity="0.22"/>
+                  <stop offset="100%" stop-color="var(--green)" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="despFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="var(--brand)" stop-opacity="0.16"/>
+                  <stop offset="100%" stop-color="var(--brand)" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <line class="finance-chart__grid" x1="0" y1="20" x2="640" y2="20"/>
+              <line class="finance-chart__grid" x1="0" y1="70" x2="640" y2="70"/>
+              <line class="finance-chart__grid" x1="0" y1="120" x2="640" y2="120"/>
+              <line class="finance-chart__grid" x1="0" y1="170" x2="640" y2="170"/>
+              <polygon fill="url(#recFill)" points="0,120 53,108 106,112 160,92 213,98 266,78 320,62 373,72 426,58 480,46 533,40 586,50 640,36 640,170 0,170"/>
+              <polyline class="finance-chart__line finance-chart__line--rec" points="0,120 53,108 106,112 160,92 213,98 266,78 320,62 373,72 426,58 480,46 533,40 586,50 640,36"/>
+              <polygon fill="url(#despFill)" points="0,150 53,146 106,148 160,138 213,142 266,134 320,128 373,132 426,126 480,122 533,124 586,118 640,120 640,170 0,170"/>
+              <polyline class="finance-chart__line finance-chart__line--desp" points="0,150 53,146 106,148 160,138 213,142 266,134 320,128 373,132 426,126 480,122 533,124 586,118 640,120"/>
+            </svg>
+            <div class="finance-chart__axis">
+              <span>01 Jun</span><span>08 Jun</span><span>15 Jun</span><span>22 Jun</span><span>30 Jun</span>
             </div>
           </div>
         </div>
@@ -300,11 +341,11 @@ export class DashboardComponent implements OnInit {
   ]);
 
   kpiCards = [
-    { title: 'Empresas Ativas', value: '12', icon: 'apartment', color: '#4f46e5', gradientBg: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%)', route: '/empresas', change: '+2 este mês', changeUp: true, theme: 'indigo' },
-    { title: 'NF-e Emitidas', value: '847', icon: 'receipt_long', color: '#059669', gradientBg: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)', route: '/fiscal/nfe', change: '+18.3%', changeUp: true, theme: 'green' },
-    { title: 'Obrigações Pendentes', value: '5', icon: 'pending_actions', color: '#d97706', gradientBg: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)', route: '/sped/obrigacoes', change: '-3 vs mês ant.', changeUp: true, theme: 'amber' },
-    { title: 'Folha (Mês)', value: 'R$ 85k', icon: 'badge', color: '#7c3aed', gradientBg: 'linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%)', route: '/folha/holerites', change: '+2.1%', changeUp: false, theme: 'purple' },
-    { title: 'Honorários Abertos', value: 'R$ 32k', icon: 'paid', color: '#0d9488', gradientBg: 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)', route: '/escritorio/honorarios', change: '4 pendentes', changeUp: true, theme: 'teal' },
+    { title: 'Empresas Ativas', value: '12', icon: 'apartment', color: '#007AFF', gradientBg: 'linear-gradient(135deg, #ECEBFB 0%, #DAD9F6 100%)', route: '/empresas', change: '+2 este mês', changeUp: true, theme: 'indigo' },
+    { title: 'NF-e Emitidas', value: '847', icon: 'receipt_long', color: '#34C759', gradientBg: 'linear-gradient(135deg, #E9FAEF 0%, #D1F3DA 100%)', route: '/fiscal/nfe', change: '+18.3%', changeUp: true, theme: 'green' },
+    { title: 'Obrigações Pendentes', value: '5', icon: 'pending_actions', color: '#FF9500', gradientBg: 'linear-gradient(135deg, #FFF4E5 0%, #FFEACC 100%)', route: '/sped/obrigacoes', change: '-3 vs mês ant.', changeUp: true, theme: 'amber' },
+    { title: 'Folha (Mês)', value: 'R$ 85k', icon: 'badge', color: '#5856D6', gradientBg: 'linear-gradient(135deg, #F2EBFB 0%, #E6E3F9 100%)', route: '/folha/holerites', change: '+2.1%', changeUp: false, theme: 'purple' },
+    { title: 'Honorários Abertos', value: 'R$ 32k', icon: 'paid', color: '#30B0C7', gradientBg: 'linear-gradient(135deg, #E6F8FB 0%, #CFF0F4 100%)', route: '/escritorio/honorarios', change: '4 pendentes', changeUp: true, theme: 'teal' },
   ];
 
   atalhos = [

@@ -114,7 +114,7 @@ interface EventoEsocialView extends EventoEsocialDoc {
                     }
                     @if (e.status === 'VALIDADO') {
                       <button class="bear-btn bear-btn--ghost p-2" title="Enviar" (click)="enviar(e.id)">
-                        <span class="material-symbols-rounded text-base" style="color: #059669;">send</span>
+                        <span class="material-symbols-rounded text-base" style="color: #34C759;">send</span>
                       </button>
                     }
                   </div>

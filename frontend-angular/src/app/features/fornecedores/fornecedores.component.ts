@@ -59,15 +59,15 @@ interface Fornecedor {
       <!-- Stats -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#f5f3ff"><span class="material-symbols-rounded" style="color:#7c3aed">local_shipping</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#F2EBFB"><span class="material-symbols-rounded" style="color:#5856D6">local_shipping</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ items().length }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ecfdf5"><span class="material-symbols-rounded" style="color:#059669">verified</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">verified</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativos</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ countActive() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#f0fdfa"><span class="material-symbols-rounded" style="color:#0d9488">pix</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E6F8FB"><span class="material-symbols-rounded" style="color:#30B0C7">pix</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Com Chave PIX</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ countWithPix() }}</p></div>
         </div>
       </div>
@@ -96,7 +96,7 @@ interface Fornecedor {
           @for (f of filtered(); track f.$id; let i = $index) {
             <div class="bear-card bear-card--interactive p-5 animate-fade-in-up" [style.animation-delay]="(i*50)+'ms'">
               <div class="flex items-center justify-between mb-3">
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white" style="background:linear-gradient(135deg,#7c3aed,#a855f7)">{{ (f.nomeFantasia||f.razaoSocial||'?').charAt(0) }}</div>
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white" style="background:linear-gradient(135deg,#5856D6,#AF52DE)">{{ (f.nomeFantasia||f.razaoSocial||'?').charAt(0) }}</div>
                 <span class="badge badge--success">{{ f.status||'ATIVO' }}</span>
               </div>
               <h3 class="text-sm font-semibold truncate" style="color:var(--text-primary)">{{ f.nomeFantasia||f.razaoSocial }}</h3>
@@ -109,7 +109,7 @@ interface Fornecedor {
               </div>
               <div class="flex gap-1 pt-3" style="border-top:1px solid var(--border-subtle)">
                 <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem;font-size:0.75rem;" (click)="openForm(f)"><span class="material-symbols-rounded text-sm">edit</span></button>
-                <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem;font-size:0.75rem;color:#ef4444;" (click)="delete(f)"><span class="material-symbols-rounded text-sm">delete</span></button>
+                <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem;font-size:0.75rem;color:#FF3B30;" (click)="delete(f)"><span class="material-symbols-rounded text-sm">delete</span></button>
               </div>
             </div>
           }

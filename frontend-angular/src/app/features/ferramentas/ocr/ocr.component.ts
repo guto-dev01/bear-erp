@@ -32,16 +32,16 @@ interface DocProcessado {
       <!-- Stats -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#eef2ff"><span class="material-symbols-rounded" style="color:#4f46e5">document_scanner</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">document_scanner</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Documentos Processados</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ historico().length }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ecfdf5"><span class="material-symbols-rounded" style="color:#059669">verified</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Taxa de Acerto</p><p class="text-2xl font-bold" style="color:#059669">{{ taxaAcerto() }}%</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">verified</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Taxa de Acerto</p><p class="text-2xl font-bold" style="color:#34C759">{{ taxaAcerto() }}%</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#fffbeb"><span class="material-symbols-rounded" style="color:#d97706">timer</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Tempo Médio</p><p class="text-2xl font-bold" style="color:#d97706">2.3s</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFF4E5"><span class="material-symbols-rounded" style="color:#FF9500">timer</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Tempo Médio</p><p class="text-2xl font-bold" style="color:#FF9500">2.3s</p></div>
         </div>
       </div>
 
@@ -74,8 +74,8 @@ interface DocProcessado {
           @if (resultado()) {
             <div class="animate-fade-in-up">
               <div class="flex items-center gap-2 mb-4">
-                <span class="material-symbols-rounded" style="color:#059669">check_circle</span>
-                <span class="text-sm font-semibold" style="color:#059669">Documento processado com sucesso</span>
+                <span class="material-symbols-rounded" style="color:#34C759">check_circle</span>
+                <span class="text-sm font-semibold" style="color:#34C759">Documento processado com sucesso</span>
               </div>
               <div class="flex flex-col gap-3 mb-4">
                 <div class="flex justify-between py-2" style="border-bottom:1px solid var(--border-subtle)">
@@ -88,7 +88,7 @@ interface DocProcessado {
                 </div>
                 <div class="flex justify-between py-2" style="border-bottom:1px solid var(--border-subtle)">
                   <span class="text-xs font-medium" style="color:var(--text-tertiary)">Valor</span>
-                  <span class="text-sm font-semibold" style="color:#059669">{{ resultado()!.valor | currency:'BRL' }}</span>
+                  <span class="text-sm font-semibold" style="color:#34C759">{{ resultado()!.valor | currency:'BRL' }}</span>
                 </div>
                 <div class="flex justify-between py-2" style="border-bottom:1px solid var(--border-subtle)">
                   <span class="text-xs font-medium" style="color:var(--text-tertiary)">Data</span>
@@ -100,7 +100,7 @@ interface DocProcessado {
                 </div>
                 <div class="flex justify-between py-2">
                   <span class="text-xs font-medium" style="color:var(--text-tertiary)">Confiança</span>
-                  <span class="text-sm font-semibold" [style.color]="resultado()!.confianca > 90 ? '#059669' : '#d97706'">{{ resultado()!.confianca }}%</span>
+                  <span class="text-sm font-semibold" [style.color]="resultado()!.confianca > 90 ? '#34C759' : '#FF9500'">{{ resultado()!.confianca }}%</span>
                 </div>
               </div>
               <div class="flex gap-3">

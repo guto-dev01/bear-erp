@@ -55,23 +55,23 @@ interface LinhaDre {
       @if (gerado()) {
         <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6 animate-fade-in-up">
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ecfdf5"><span class="material-symbols-rounded" style="color:#059669">payments</span></div>
-            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Receita Bruta</p><p class="text-xl font-bold" style="color:#059669">{{ receitaBruta() | currency:'BRL' }}</p></div>
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">payments</span></div>
+            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Receita Bruta</p><p class="text-xl font-bold" style="color:#34C759">{{ receitaBruta() | currency:'BRL' }}</p></div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#fff7ed"><span class="material-symbols-rounded" style="color:#d97706">shopping_cart</span></div>
-            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Custos</p><p class="text-xl font-bold" style="color:#d97706">{{ custos() | currency:'BRL' }}</p></div>
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFF4E5"><span class="material-symbols-rounded" style="color:#FF9500">shopping_cart</span></div>
+            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Custos</p><p class="text-xl font-bold" style="color:#FF9500">{{ custos() | currency:'BRL' }}</p></div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#fef2f2"><span class="material-symbols-rounded" style="color:#ef4444">receipt_long</span></div>
-            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Despesas</p><p class="text-xl font-bold" style="color:#ef4444">{{ despesas() | currency:'BRL' }}</p></div>
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">receipt_long</span></div>
+            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Despesas</p><p class="text-xl font-bold" style="color:#FF3B30">{{ despesas() | currency:'BRL' }}</p></div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" [style.background]="lucro() >= 0 ? '#ecfdf5' : '#fef2f2'">
-              <span class="material-symbols-rounded" [style.color]="lucro() >= 0 ? '#059669' : '#ef4444'">{{ lucro() >= 0 ? 'trending_up' : 'trending_down' }}</span>
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center" [style.background]="lucro() >= 0 ? '#E9FAEF' : '#FFECEB'">
+              <span class="material-symbols-rounded" [style.color]="lucro() >= 0 ? '#34C759' : '#FF3B30'">{{ lucro() >= 0 ? 'trending_up' : 'trending_down' }}</span>
             </div>
             <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Resultado Líquido</p>
-              <p class="text-xl font-bold" [style.color]="lucro() >= 0 ? '#059669' : '#ef4444'">{{ lucro() | currency:'BRL' }}</p>
+              <p class="text-xl font-bold" [style.color]="lucro() >= 0 ? '#34C759' : '#FF3B30'">{{ lucro() | currency:'BRL' }}</p>
             </div>
           </div>
         </div>
@@ -113,7 +113,7 @@ interface LinhaDre {
                     {{ l.descricao }}
                   </td>
                   <td class="p-3 text-sm text-right font-mono" style="width:180px;"
-                      [style.color]="l.valor >= 0 ? (l.destaque ? 'var(--text-primary)' : 'var(--text-secondary)') : '#ef4444'"
+                      [style.color]="l.valor >= 0 ? (l.destaque ? 'var(--text-primary)' : 'var(--text-secondary)') : '#FF3B30'"
                       [style.font-size]="l.destaque ? '1rem' : '0.875rem'">
                     {{ l.valor | currency:'BRL' }}
                   </td>

@@ -75,16 +75,16 @@ interface DepreciacaoRow extends DepreciacaoDoc {
       @if (depreciacoes().length > 0) {
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 animate-fade-in-up">
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#eef2ff"><span class="material-symbols-rounded" style="color:#4f46e5">inventory_2</span></div>
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">inventory_2</span></div>
             <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Bens Depreciados</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ depreciacoes().length }}</p></div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#fef2f2"><span class="material-symbols-rounded" style="color:#ef4444">trending_down</span></div>
-            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Deprec. Período</p><p class="text-xl font-bold" style="color:#ef4444">{{ totalPeriodo() | currency:'BRL' }}</p></div>
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">trending_down</span></div>
+            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Deprec. Período</p><p class="text-xl font-bold" style="color:#FF3B30">{{ totalPeriodo() | currency:'BRL' }}</p></div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#f0fdfa"><span class="material-symbols-rounded" style="color:#0d9488">account_balance</span></div>
-            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Valor Residual Total</p><p class="text-xl font-bold" style="color:#0d9488">{{ totalResidual() | currency:'BRL' }}</p></div>
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E6F8FB"><span class="material-symbols-rounded" style="color:#30B0C7">account_balance</span></div>
+            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Valor Residual Total</p><p class="text-xl font-bold" style="color:#30B0C7">{{ totalResidual() | currency:'BRL' }}</p></div>
           </div>
         </div>
       }
@@ -117,9 +117,9 @@ interface DepreciacaoRow extends DepreciacaoDoc {
           <table mat-table [dataSource]="depreciacoes()" class="w-full">
             <ng-container matColumnDef="bemId"><th mat-header-cell *matHeaderCellDef>Bem</th><td mat-cell *matCellDef="let d" class="font-mono text-xs">{{ d.bemId }}</td></ng-container>
             <ng-container matColumnDef="competencia"><th mat-header-cell *matHeaderCellDef>Competência</th><td mat-cell *matCellDef="let d">{{ d.competencia }}</td></ng-container>
-            <ng-container matColumnDef="valorDepreciacao"><th mat-header-cell *matHeaderCellDef>Valor Deprec.</th><td mat-cell *matCellDef="let d" class="font-semibold" style="color:#ef4444">{{ d.valorDepreciacao | currency:'BRL' }}</td></ng-container>
+            <ng-container matColumnDef="valorDepreciacao"><th mat-header-cell *matHeaderCellDef>Valor Deprec.</th><td mat-cell *matCellDef="let d" class="font-semibold" style="color:#FF3B30">{{ d.valorDepreciacao | currency:'BRL' }}</td></ng-container>
             <ng-container matColumnDef="depreciacaoAcumulada"><th mat-header-cell *matHeaderCellDef>Acumulada</th><td mat-cell *matCellDef="let d">{{ d.depreciacaoAcumulada | currency:'BRL' }}</td></ng-container>
-            <ng-container matColumnDef="valorResidualAtual"><th mat-header-cell *matHeaderCellDef>Valor Residual</th><td mat-cell *matCellDef="let d" style="color:#0d9488">{{ d.valorResidualAtual | currency:'BRL' }}</td></ng-container>
+            <ng-container matColumnDef="valorResidualAtual"><th mat-header-cell *matHeaderCellDef>Valor Residual</th><td mat-cell *matCellDef="let d" style="color:#30B0C7">{{ d.valorResidualAtual | currency:'BRL' }}</td></ng-container>
             <ng-container matColumnDef="taxa"><th mat-header-cell *matHeaderCellDef>Taxa a.a.</th><td mat-cell *matCellDef="let d">{{ d.taxaAplicada }}%</td></ng-container>
             <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>

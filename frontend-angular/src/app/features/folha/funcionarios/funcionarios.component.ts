@@ -69,20 +69,20 @@ interface FuncionarioDoc {
       <!-- Stats -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#eef2ff"><span class="material-symbols-rounded" style="color:#4f46e5">groups</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">groups</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ totalElements() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ecfdf5"><span class="material-symbols-rounded" style="color:#059669">badge</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativos</p><p class="text-2xl font-bold" style="color:#059669">{{ countAtivos() }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">badge</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativos</p><p class="text-2xl font-bold" style="color:#34C759">{{ countAtivos() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#fffbeb"><span class="material-symbols-rounded" style="color:#d97706">beach_access</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Férias</p><p class="text-2xl font-bold" style="color:#d97706">{{ countFerias() }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFF4E5"><span class="material-symbols-rounded" style="color:#FF9500">beach_access</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Férias</p><p class="text-2xl font-bold" style="color:#FF9500">{{ countFerias() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ecfeff"><span class="material-symbols-rounded" style="color:#0891b2">payments</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Folha Total</p><p class="text-xl font-bold" style="color:#0891b2">{{ totalFolha() | currency:'BRL' }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E6F8FB"><span class="material-symbols-rounded" style="color:#30B0C7">payments</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Folha Total</p><p class="text-xl font-bold" style="color:#30B0C7">{{ totalFolha() | currency:'BRL' }}</p></div>
         </div>
       </div>
 
@@ -117,7 +117,7 @@ interface FuncionarioDoc {
                     <span class="material-symbols-rounded text-sm">edit</span>
                   </button>
                   @if (f.status === 'ATIVO') {
-                    <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem;font-size:0.75rem;color:#ef4444;" matTooltip="Demitir" (click)="demitir(f.id)">
+                    <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem;font-size:0.75rem;color:#FF3B30;" matTooltip="Demitir" (click)="demitir(f.id)">
                       <span class="material-symbols-rounded text-sm">person_remove</span>
                     </button>
                   }

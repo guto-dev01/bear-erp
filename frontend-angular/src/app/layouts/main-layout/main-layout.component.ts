@@ -362,6 +362,29 @@ interface MenuSection {
         <router-outlet />
       </main>
     </div>
+
+    <!-- Mobile tab bar (iOS) — visible ≤768px -->
+    <nav class="tab-bar">
+      <a class="tab-bar__item" routerLink="/dashboard" routerLinkActive="tab-bar__item--active">
+        <span class="material-symbols-rounded">home</span>
+        <span>Início</span>
+      </a>
+      <a class="tab-bar__item" routerLink="/empresas" routerLinkActive="tab-bar__item--active">
+        <span class="material-symbols-rounded">apartment</span>
+        <span>Empresas</span>
+      </a>
+      <button class="tab-bar__fab" (click)="openCommandPalette()" aria-label="Ações rápidas">
+        <span class="material-symbols-rounded">add</span>
+      </button>
+      <a class="tab-bar__item" routerLink="/clientes" routerLinkActive="tab-bar__item--active">
+        <span class="material-symbols-rounded">groups</span>
+        <span>Clientes</span>
+      </a>
+      <button class="tab-bar__item" (click)="openCommandPalette()">
+        <span class="material-symbols-rounded">more_horiz</span>
+        <span>Mais</span>
+      </button>
+    </nav>
   `,
   styleUrl: './main-layout.component.scss',
 })
@@ -391,12 +414,12 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   unreadCount = computed(() => this.notifications().filter(n => !n.read).length);
 
   quickCreateActions = [
-    { label: 'Novo Cliente', description: 'Cadastrar cliente ou empresa', icon: 'person_add', route: '/clientes/novo', color: '#4f46e5' },
-    { label: 'Nova NF-e', description: 'Emitir nota fiscal eletrônica', icon: 'receipt_long', route: '/fiscal/nfe/nova', color: '#059669' },
-    { label: 'Novo Lançamento', description: 'Lançamento contábil manual', icon: 'edit_note', route: '/contabilidade/lancamentos/novo', color: '#d97706' },
-    { label: 'Nova Tarefa', description: 'Criar tarefa para equipe', icon: 'add_task', route: '/escritorio/tarefas/nova', color: '#7c3aed' },
-    { label: 'Conta a Pagar', description: 'Registrar conta a pagar', icon: 'money_off', route: '/financeiro/contas-pagar/nova', color: '#dc2626' },
-    { label: 'Conta a Receber', description: 'Registrar conta a receber', icon: 'attach_money', route: '/financeiro/contas-receber/nova', color: '#14b8a6' },
+    { label: 'Novo Cliente', description: 'Cadastrar cliente ou empresa', icon: 'person_add', route: '/clientes/novo', color: '#007AFF' },
+    { label: 'Nova NF-e', description: 'Emitir nota fiscal eletrônica', icon: 'receipt_long', route: '/fiscal/nfe/nova', color: '#34C759' },
+    { label: 'Novo Lançamento', description: 'Lançamento contábil manual', icon: 'edit_note', route: '/contabilidade/lancamentos/novo', color: '#FF9500' },
+    { label: 'Nova Tarefa', description: 'Criar tarefa para equipe', icon: 'add_task', route: '/escritorio/tarefas/nova', color: '#5856D6' },
+    { label: 'Conta a Pagar', description: 'Registrar conta a pagar', icon: 'money_off', route: '/financeiro/contas-pagar/nova', color: '#FF3B30' },
+    { label: 'Conta a Receber', description: 'Registrar conta a receber', icon: 'attach_money', route: '/financeiro/contas-receber/nova', color: '#34C759' },
   ];
 
   menuSections: MenuSection[] = [

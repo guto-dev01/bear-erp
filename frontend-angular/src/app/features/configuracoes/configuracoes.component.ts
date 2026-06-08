@@ -162,7 +162,7 @@ interface ConfigSection {
             @for (u of usuarios; track u.email) {
               <div class="flex items-center justify-between p-4 rounded-xl" style="background:var(--surface-1)">
                 <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white" style="background:linear-gradient(135deg,#4f46e5,#7c3aed)">{{ u.nome.charAt(0) }}</div>
+                  <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white" style="background:linear-gradient(135deg,#007AFF,#5856D6)">{{ u.nome.charAt(0) }}</div>
                   <div>
                     <p class="text-sm font-semibold" style="color:var(--text-primary)">{{ u.nome }}</p>
                     <p class="text-xs" style="color:var(--text-tertiary)">{{ u.email }}</p>
@@ -186,7 +186,7 @@ interface ConfigSection {
           </div>
           <div class="p-4 rounded-xl mb-4" style="background:var(--surface-1)">
             <div class="flex items-center gap-3 mb-2">
-              <span class="material-symbols-rounded" style="color:#059669">verified</span>
+              <span class="material-symbols-rounded" style="color:#34C759">verified</span>
               <span class="text-sm font-semibold" style="color:var(--text-primary)">Certificado A1 Instalado</span>
             </div>
             <p class="text-xs" style="color:var(--text-secondary)">Válido até: 15/08/2026 | Emissor: AC VALID</p>
@@ -266,13 +266,13 @@ export class ConfiguracoesComponent {
   sidebarCompacta = false;
 
   configItems: ConfigSection[] = [
-    { title: 'Dados da Empresa', icon: 'business', description: 'Razão social, CNPJ, endereço e regime tributário', color: '#4f46e5', bgColor: '#eef2ff', key: 'empresa' },
-    { title: 'Aparência', icon: 'palette', description: 'Tema, animações e personalização visual', color: '#7c3aed', bgColor: '#f5f3ff', key: 'aparencia' },
-    { title: 'Usuários', icon: 'people', description: 'Gerenciar usuários e permissões de acesso', color: '#059669', bgColor: '#ecfdf5', key: 'usuarios' },
-    { title: 'Certificado Digital', icon: 'verified_user', description: 'Certificado A1/A3 para emissão de NF-e', color: '#0d9488', bgColor: '#f0fdfa', key: 'certificado' },
-    { title: 'Fiscal', icon: 'receipt_long', description: 'Séries, numeração, ambiente e parâmetros fiscais', color: '#d97706', bgColor: '#fffbeb', key: 'fiscal' },
-    { title: 'Contábil', icon: 'account_balance', description: 'Exercício, plano de contas e períodos contábeis', color: '#0891b2', bgColor: '#ecfeff', key: 'contabil' },
-    { title: 'Integrações', icon: 'sync', description: 'APIs, bancos, webhooks e serviços conectados', color: '#e11d48', bgColor: '#fff1f2', key: 'integracoes' },
+    { title: 'Dados da Empresa', icon: 'business', description: 'Razão social, CNPJ, endereço e regime tributário', color: '#007AFF', bgColor: '#ECEBFB', key: 'empresa' },
+    { title: 'Aparência', icon: 'palette', description: 'Tema, animações e personalização visual', color: '#5856D6', bgColor: '#F2EBFB', key: 'aparencia' },
+    { title: 'Usuários', icon: 'people', description: 'Gerenciar usuários e permissões de acesso', color: '#34C759', bgColor: '#E9FAEF', key: 'usuarios' },
+    { title: 'Certificado Digital', icon: 'verified_user', description: 'Certificado A1/A3 para emissão de NF-e', color: '#30B0C7', bgColor: '#E6F8FB', key: 'certificado' },
+    { title: 'Fiscal', icon: 'receipt_long', description: 'Séries, numeração, ambiente e parâmetros fiscais', color: '#FF9500', bgColor: '#FFF4E5', key: 'fiscal' },
+    { title: 'Contábil', icon: 'account_balance', description: 'Exercício, plano de contas e períodos contábeis', color: '#30B0C7', bgColor: '#E6F8FB', key: 'contabil' },
+    { title: 'Integrações', icon: 'sync', description: 'APIs, bancos, webhooks e serviços conectados', color: '#FF3B30', bgColor: '#FFECEB', key: 'integracoes' },
   ];
 
   empresa = { razaoSocial: '', nomeFantasia: '', cnpj: '', ie: '', im: '', regime: 'SIMPLES', cnae: '', endereco: '', cidade: '', uf: '' };
@@ -283,10 +283,10 @@ export class ConfiguracoesComponent {
     { nome: 'Contador', email: 'contador@bearerp.com.br', role: 'CONTADOR' },
   ];
   apis = [
-    { nome: 'Banco do Brasil', icon: 'account_balance', descricao: 'Conciliação e pagamentos', color: '#d97706', bgColor: '#fffbeb', ativo: false },
-    { nome: 'Receita Federal', icon: 'policy', descricao: 'Consultas CNPJ e NFe', color: '#059669', bgColor: '#ecfdf5', ativo: true },
-    { nome: 'eSocial', icon: 'badge', descricao: 'Envio de eventos trabalhistas', color: '#4f46e5', bgColor: '#eef2ff', ativo: true },
-    { nome: 'SPED', icon: 'description', descricao: 'Transmissão de escriturações', color: '#0891b2', bgColor: '#ecfeff', ativo: true },
+    { nome: 'Banco do Brasil', icon: 'account_balance', descricao: 'Conciliação e pagamentos', color: '#FF9500', bgColor: '#FFF4E5', ativo: false },
+    { nome: 'Receita Federal', icon: 'policy', descricao: 'Consultas CNPJ e NFe', color: '#34C759', bgColor: '#E9FAEF', ativo: true },
+    { nome: 'eSocial', icon: 'badge', descricao: 'Envio de eventos trabalhistas', color: '#007AFF', bgColor: '#ECEBFB', ativo: true },
+    { nome: 'SPED', icon: 'description', descricao: 'Transmissão de escriturações', color: '#30B0C7', bgColor: '#E6F8FB', ativo: true },
   ];
 
   constructor(public theme: ThemeService, private snackBar: MatSnackBar) {}

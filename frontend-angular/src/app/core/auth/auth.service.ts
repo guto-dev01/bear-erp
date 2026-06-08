@@ -1,6 +1,6 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, of, from, throwError } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { catchError, map, switchMap, tap } from 'rxjs/operators';
 import { AppwriteService } from '@core/services/appwrite.service';
 import { LoginRequest, UsuarioInfo } from '@core/models/auth.model';
@@ -55,17 +55,22 @@ export class AuthService {
     this.router.navigate(['/login']);
   }
 
-  /** Revalida a sessão Appwrite no boot do app (ex.: guard). */
-  restoreSession(): Observable<UsuarioInfo | null> {
+  /** Revalida a sessão Appwrite (ex.: no boot ou após 401) e re-hidrata o usuário. */
+  refreshToken(): Observable<UsuarioInfo> {
     return this.appwrite.getAccount().pipe(
       switchMap(account => this.buildUsuarioInfo(account.$id, account.name, account.email)),
       tap(usuario => this.handleLoginSuccess(usuario)),
-      catchError(() => {
+      catchError(error => {
         this.currentUser.set(null);
         localStorage.removeItem(this.USER_KEY);
-        return of(null);
+        return throwError(() => error);
       }),
     );
+  }
+
+  /** Re-hidrata silenciosamente a sessão no carregamento do app. */
+  restoreSession(): Observable<UsuarioInfo | null> {
+    return this.refreshToken().pipe(catchError(() => of(null)));
   }
 
   getToken(): string | null {

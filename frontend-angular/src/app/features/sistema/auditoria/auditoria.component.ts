@@ -57,20 +57,20 @@ interface AuditEvent {
       <!-- Stats -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#eef2ff"><span class="material-symbols-rounded" style="color:#4f46e5">today</span></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">today</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Eventos Hoje</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ countHoje() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ecfdf5"><span class="material-symbols-rounded" style="color:#059669">date_range</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Eventos Semana</p><p class="text-2xl font-bold" style="color:#059669">{{ eventos().length }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">date_range</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Eventos Semana</p><p class="text-2xl font-bold" style="color:#34C759">{{ eventos().length }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#f5f3ff"><span class="material-symbols-rounded" style="color:#8b5cf6">group</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Usuários Ativos</p><p class="text-2xl font-bold" style="color:#8b5cf6">{{ uniqueUsers() }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#F2EBFB"><span class="material-symbols-rounded" style="color:#AF52DE">group</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Usuários Ativos</p><p class="text-2xl font-bold" style="color:#AF52DE">{{ uniqueUsers() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#fef2f2"><span class="material-symbols-rounded" style="color:#ef4444">warning</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Alertas</p><p class="text-2xl font-bold" style="color:#ef4444">{{ countAlertas() }}</p></div>
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">warning</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Alertas</p><p class="text-2xl font-bold" style="color:#FF3B30">{{ countAlertas() }}</p></div>
         </div>
       </div>
 
@@ -293,12 +293,12 @@ export class AuditoriaComponent implements OnInit {
   }
 
   getActionBg(a: string): string {
-    const m: Record<string, string> = { CRIAR: '#ecfdf5', EDITAR: '#eff6ff', EXCLUIR: '#fef2f2', LOGIN: '#f5f3ff', LOGOUT: '#f5f3ff', EXPORTAR: '#fffbeb' };
+    const m: Record<string, string> = { CRIAR: '#E9FAEF', EDITAR: '#E5F1FF', EXCLUIR: '#FFECEB', LOGIN: '#F2EBFB', LOGOUT: '#F2EBFB', EXPORTAR: '#FFF4E5' };
     return m[a] || '#f3f4f6';
   }
 
   getActionColor(a: string): string {
-    const m: Record<string, string> = { CRIAR: '#059669', EDITAR: '#3b82f6', EXCLUIR: '#ef4444', LOGIN: '#8b5cf6', LOGOUT: '#8b5cf6', EXPORTAR: '#d97706' };
+    const m: Record<string, string> = { CRIAR: '#34C759', EDITAR: '#007AFF', EXCLUIR: '#FF3B30', LOGIN: '#AF52DE', LOGOUT: '#AF52DE', EXPORTAR: '#FF9500' };
     return m[a] || '#6b7280';
   }
 

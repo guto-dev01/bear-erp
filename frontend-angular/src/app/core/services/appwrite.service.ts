@@ -8,7 +8,7 @@ import { environment } from '@env/environment';
 export class AppwriteService {
   private client: Client;
   private databases: Databases;
-  private account: Account;
+  private account_: Account;
   private readonly dbId = environment.appwrite.databaseId;
 
   constructor() {
@@ -16,7 +16,12 @@ export class AppwriteService {
       .setEndpoint(environment.appwrite.endpoint)
       .setProject(environment.appwrite.projectId);
     this.databases = new Databases(this.client);
-    this.account = new Account(this.client);
+    this.account_ = new Account(this.client);
+  }
+
+  /** Account API do Appwrite (autenticação por sessão). */
+  get account(): Account {
+    return this.account_;
   }
 
   // ── Database ────────────────────────────────────────────────
@@ -44,19 +49,19 @@ export class AppwriteService {
 
   // ── Auth (Appwrite Account) ─────────────────────────────────
   createSession(email: string, password: string): Observable<Models.Session> {
-    return from(this.account.createEmailPasswordSession(email, password));
+    return from(this.account_.createEmailPasswordSession(email, password));
   }
 
   getAccount(): Observable<Models.User<Models.Preferences>> {
-    return from(this.account.get());
+    return from(this.account_.get());
   }
 
   deleteCurrentSession(): Observable<unknown> {
-    return from(this.account.deleteSession('current'));
+    return from(this.account_.deleteSession('current'));
   }
 
   createAccount(email: string, password: string, name: string): Observable<Models.User<Models.Preferences>> {
-    return from(this.account.create(ID.unique(), email, password, name));
+    return from(this.account_.create(ID.unique(), email, password, name));
   }
 
   query = Query;

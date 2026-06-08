@@ -47,16 +47,16 @@ import { ContabilidadeService, ContaBP } from '../contabilidade.service';
       @if (contas().length > 0) {
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 animate-fade-in-up">
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#eef2ff"><span class="material-symbols-rounded" style="color:#4f46e5">account_balance</span></div>
-            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Ativo</p><p class="text-xl font-bold" style="color:#4f46e5">{{ totalAtivo() | currency:'BRL' }}</p></div>
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">account_balance</span></div>
+            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Ativo</p><p class="text-xl font-bold" style="color:#007AFF">{{ totalAtivo() | currency:'BRL' }}</p></div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#fef2f2"><span class="material-symbols-rounded" style="color:#ef4444">credit_card</span></div>
-            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Passivo</p><p class="text-xl font-bold" style="color:#ef4444">{{ totalPassivo() | currency:'BRL' }}</p></div>
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">credit_card</span></div>
+            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Passivo</p><p class="text-xl font-bold" style="color:#FF3B30">{{ totalPassivo() | currency:'BRL' }}</p></div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ecfdf5"><span class="material-symbols-rounded" style="color:#059669">savings</span></div>
-            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Patrimônio Líquido</p><p class="text-xl font-bold" style="color:#059669">{{ totalPL() | currency:'BRL' }}</p></div>
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">savings</span></div>
+            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Patrimônio Líquido</p><p class="text-xl font-bold" style="color:#34C759">{{ totalPL() | currency:'BRL' }}</p></div>
           </div>
         </div>
       }
@@ -101,9 +101,9 @@ import { ContabilidadeService, ContaBP } from '../contabilidade.service';
                   <td style="padding:0.5rem 1rem;font-size:0.8125rem;text-align:right;font-weight:500;">{{ c.saldo | currency:'BRL' }}</td>
                 </tr>
               }
-              <tr style="background:#eef2ff;border-bottom:2px solid #4f46e5;">
-                <td colspan="2" style="padding:0.75rem 1rem;font-weight:700;color:#4f46e5;">TOTAL DO ATIVO</td>
-                <td style="padding:0.75rem 1rem;text-align:right;font-weight:700;color:#4f46e5;">{{ totalAtivo() | currency:'BRL' }}</td>
+              <tr style="background:#ECEBFB;border-bottom:2px solid #007AFF;">
+                <td colspan="2" style="padding:0.75rem 1rem;font-weight:700;color:#007AFF;">TOTAL DO ATIVO</td>
+                <td style="padding:0.75rem 1rem;text-align:right;font-weight:700;color:#007AFF;">{{ totalAtivo() | currency:'BRL' }}</td>
               </tr>
               @for (c of contasPassivo(); track c.codigo) {
                 <tr [style.background]="c.tipo === 'GRUPO' ? 'var(--surface-1)' : 'transparent'" style="border-bottom:1px solid var(--border-subtle);">
@@ -114,9 +114,9 @@ import { ContabilidadeService, ContaBP } from '../contabilidade.service';
                   <td style="padding:0.5rem 1rem;font-size:0.8125rem;text-align:right;font-weight:500;">{{ c.saldo | currency:'BRL' }}</td>
                 </tr>
               }
-              <tr style="background:#fef2f2;border-bottom:2px solid #ef4444;">
-                <td colspan="2" style="padding:0.75rem 1rem;font-weight:700;color:#ef4444;">TOTAL DO PASSIVO</td>
-                <td style="padding:0.75rem 1rem;text-align:right;font-weight:700;color:#ef4444;">{{ totalPassivo() | currency:'BRL' }}</td>
+              <tr style="background:#FFECEB;border-bottom:2px solid #FF3B30;">
+                <td colspan="2" style="padding:0.75rem 1rem;font-weight:700;color:#FF3B30;">TOTAL DO PASSIVO</td>
+                <td style="padding:0.75rem 1rem;text-align:right;font-weight:700;color:#FF3B30;">{{ totalPassivo() | currency:'BRL' }}</td>
               </tr>
               @for (c of contasPL(); track c.codigo) {
                 <tr [style.background]="c.tipo === 'GRUPO' ? 'var(--surface-1)' : 'transparent'" style="border-bottom:1px solid var(--border-subtle);">
@@ -127,9 +127,9 @@ import { ContabilidadeService, ContaBP } from '../contabilidade.service';
                   <td style="padding:0.5rem 1rem;font-size:0.8125rem;text-align:right;font-weight:500;">{{ c.saldo | currency:'BRL' }}</td>
                 </tr>
               }
-              <tr style="background:#ecfdf5;border-bottom:2px solid #059669;">
-                <td colspan="2" style="padding:0.75rem 1rem;font-weight:700;color:#059669;">TOTAL PATRIMÔNIO LÍQUIDO</td>
-                <td style="padding:0.75rem 1rem;text-align:right;font-weight:700;color:#059669;">{{ totalPL() | currency:'BRL' }}</td>
+              <tr style="background:#E9FAEF;border-bottom:2px solid #34C759;">
+                <td colspan="2" style="padding:0.75rem 1rem;font-weight:700;color:#34C759;">TOTAL PATRIMÔNIO LÍQUIDO</td>
+                <td style="padding:0.75rem 1rem;text-align:right;font-weight:700;color:#34C759;">{{ totalPL() | currency:'BRL' }}</td>
               </tr>
             </tbody>
             <tfoot>
