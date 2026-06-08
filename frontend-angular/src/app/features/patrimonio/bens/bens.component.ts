@@ -9,8 +9,33 @@ import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface BemPatrimonial {
+  $id: string;
+  codigo: string;
+  descricao: string;
+  grupo: string;
+  dataAquisicao: string;
+  valorAquisicao: number;
+  valorResidual?: number;
+  vidaUtil?: number;
+  taxaDepreciacao?: number;
+  depreciacaoAcumulada?: number;
+  valorAtual?: number;
+  localizacao?: string;
+  notaFiscal?: string;
+  fornecedor?: string;
+  contaContabil?: string;
+  status: string;
+  empresaId?: string;
+  tenantId?: string;
+  $createdAt?: string;
+  // Campos derivados para o template (compatibilidade visual)
+  grupoContabil?: string;
+  valorDepreciadoAcumulado?: number;
+}
 
 @Component({
   selector: 'bear-bens',
@@ -142,7 +167,7 @@ import { environment } from '@env/environment';
   `,
 })
 export class BensComponent implements OnInit {
-  bens = signal<any[]>([]);
+  bens = signal<BemPatrimonial[]>([]);
   loading = signal(false);
   showForm = signal(false);
   totalElements = signal(0);
@@ -152,9 +177,14 @@ export class BensComponent implements OnInit {
   displayedColumns = ['codigo', 'descricao', 'grupo', 'valorAquisicao', 'valorAtual', 'depreciacao', 'status'];
   grupos = ['IMOVEIS', 'VEICULOS', 'MAQUINAS_EQUIPAMENTOS', 'MOVEIS_UTENSILIOS', 'EQUIPAMENTOS_INFORMATICA', 'INSTALACOES', 'TERRENOS', 'OUTROS'];
   form!: FormGroup;
-  private apiUrl = `${environment.apiUrl}/patrimonio`;
+  private pageSize = 20;
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(
+    private fb: FormBuilder,
+    private appwrite: AppwriteService,
+    private auth: AuthService,
+    private snackBar: MatSnackBar,
+  ) {}
 
   ngOnInit() {
     this.form = this.fb.group({
@@ -169,15 +199,28 @@ export class BensComponent implements OnInit {
 
   carregar(page = 0) {
     this.loading.set(true);
-    const params = new HttpParams().set('page', page).set('size', 20);
-    this.http.get<any>(`${this.apiUrl}/bens`, { params }).subscribe({
-      next: (res) => {
-        const items = res.content || res || [];
-        this.bens.set(items);
-        this.totalElements.set(res.totalElements || items.length);
-        this.valorTotal.set(items.reduce((s: number, b: any) => s + (b.valorAquisicao || 0), 0));
-        this.depreciacao.set(items.reduce((s: number, b: any) => s + (b.valorDepreciadoAcumulado || 0), 0));
-        this.valorAtual.set(items.reduce((s: number, b: any) => s + (b.valorAtual || b.valorAquisicao || 0), 0));
+    const tenantId = this.auth.tenantId() || 'default';
+    const queries = [
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+      this.appwrite.query.equal('tenantId', tenantId),
+    ];
+    this.appwrite.listDocuments<BemPatrimonial>('bens_patrimoniais', queries).subscribe({
+      next: (docs) => {
+        // Mapeia para os campos esperados pelo template (compatibilidade visual).
+        const mapped = docs.map(b => ({
+          ...b,
+          grupoContabil: b.grupo,
+          valorDepreciadoAcumulado: b.depreciacaoAcumulada ?? 0,
+          valorAtual: b.valorAtual ?? b.valorAquisicao,
+        }));
+        const start = page * this.pageSize;
+        const pageItems = mapped.slice(start, start + this.pageSize);
+        this.bens.set(pageItems);
+        this.totalElements.set(mapped.length);
+        this.valorTotal.set(mapped.reduce((s, b) => s + (b.valorAquisicao || 0), 0));
+        this.depreciacao.set(mapped.reduce((s, b) => s + (b.depreciacaoAcumulada || 0), 0));
+        this.valorAtual.set(mapped.reduce((s, b) => s + (b.valorAtual || b.valorAquisicao || 0), 0));
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
@@ -190,11 +233,43 @@ export class BensComponent implements OnInit {
   formatGrupo(g: string): string { return (g || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
 
   salvar() {
-    if (this.form.valid) {
-      this.http.post<any>(`${this.apiUrl}/bens`, this.form.value).subscribe({
-        next: () => { this.snackBar.open('Bem cadastrado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.showForm.set(false); this.carregar(); },
-        error: () => this.snackBar.open('Erro ao cadastrar', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
-      });
-    }
+    if (!this.form.valid) return;
+    const v = this.form.value;
+    const valorAquisicao = Number(v.valorAquisicao) || 0;
+    const vidaUtil = Number(v.vidaUtilMeses) || 0;
+    // Taxa anual de depreciação derivada da vida útil em meses (linear).
+    const taxaDepreciacao = vidaUtil > 0 ? Number(((1200 / vidaUtil)).toFixed(4)) : 0;
+    const tenantId = this.auth.tenantId() || 'default';
+    const empresaId = this.auth.empresaId() || '';
+    const data: Record<string, unknown> = {
+      codigo: this.gerarCodigo(),
+      descricao: v.descricao,
+      grupo: v.grupoContabil,
+      dataAquisicao: v.dataAquisicao,
+      valorAquisicao,
+      valorResidual: 0,
+      vidaUtil,
+      taxaDepreciacao,
+      depreciacaoAcumulada: 0,
+      valorAtual: valorAquisicao,
+      localizacao: [v.localDescricao, v.responsavel].filter(Boolean).join(' - '),
+      notaFiscal: v.notaFiscal || '',
+      fornecedor: v.fornecedorNome || '',
+      status: 'ATIVO',
+      tenantId,
+      empresaId,
+    };
+    this.appwrite.createDocument('bens_patrimoniais', data).subscribe({
+      next: () => {
+        this.snackBar.open('Bem cadastrado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
+        this.showForm.set(false);
+        this.carregar();
+      },
+      error: (e) => this.snackBar.open(e?.message || 'Erro ao cadastrar', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
+    });
+  }
+
+  private gerarCodigo(): string {
+    return 'BEM-' + Date.now().toString(36).toUpperCase();
   }
 }

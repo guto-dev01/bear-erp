@@ -6,8 +6,37 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatExpansionModule } from '@angular/material/expansion';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { forkJoin } from 'rxjs';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+import { FaixaInss, FaixaIrrf, calcularInss, calcularIrrf, calcularFgts, round2 } from '../folha-calc';
+
+interface FuncionarioDoc {
+  $id: string;
+  nome: string;
+  cargo?: string;
+  salario: number;
+  dependentes?: number;
+  status: string;
+  valeTransporte?: number;
+  valeRefeicao?: number;
+}
+
+interface HoleriteDoc {
+  $id: string;
+  funcionarioId: string;
+  funcionarioNome?: string;
+  competencia: string;
+  salarioBase: number;
+  totalProventos?: number;
+  totalDescontos?: number;
+  valorLiquido?: number;
+  inss?: number;
+  irrf?: number;
+  fgts?: number;
+  status: string;
+  $createdAt: string;
+}
 
 @Component({
   selector: 'bear-holerites',
@@ -185,9 +214,13 @@ export class HoleritesComponent {
   form: FormGroup;
   resumo = signal<any>(null); holerites = signal<any[]>([]); processing = signal(false);
   rubricaCols = ['descricao', 'referencia', 'valor'];
-  private apiUrl = `${environment.apiUrl}/folha`;
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {
+  constructor(
+    private fb: FormBuilder,
+    private appwrite: AppwriteService,
+    private auth: AuthService,
+    private snackBar: MatSnackBar,
+  ) {
     const now = new Date();
     this.form = this.fb.group({
       ano: [now.getFullYear(), Validators.required],
@@ -195,28 +228,164 @@ export class HoleritesComponent {
     });
   }
 
-  calcular() {
-    this.processing.set(true);
+  private competencia(): string {
     const { ano, mes } = this.form.value;
-    this.http.post<any>(`${this.apiUrl}/calcular`, null, { params: { ano, mes } }).subscribe({
-      next: (res) => { this.resumo.set(res); this.processing.set(false); this.snackBar.open('Folha calculada!', 'OK', { duration: 3000 }); this.buscarHolerites(); },
+    return `${String(mes).padStart(2, '0')}/${ano}`;
+  }
+
+  private baseQueries() {
+    const Q = this.appwrite.query;
+    const queries = [Q.limit(100), Q.orderDesc('$createdAt'), Q.equal('tenantId', this.auth.tenantId() || 'default')];
+    const empresaId = this.auth.empresaId();
+    if (empresaId) queries.push(Q.equal('empresaId', empresaId));
+    return queries;
+  }
+
+  /** Calcula a folha do mês para todos os funcionários ativos e persiste os holerites. */
+  calcular() {
+    if (this.form.invalid) return;
+    this.processing.set(true);
+    const Q = this.appwrite.query;
+    const tenant = this.auth.tenantId() || 'default';
+    forkJoin({
+      funcionarios: this.appwrite.listDocuments<FuncionarioDoc>('funcionarios', this.baseQueries()),
+      inss: this.appwrite.listDocuments<FaixaInss>('tabela_inss', [Q.limit(100), Q.equal('tenantId', tenant)]),
+      irrf: this.appwrite.listDocuments<FaixaIrrf>('tabela_irrf', [Q.limit(100), Q.equal('tenantId', tenant)]),
+    }).subscribe({
+      next: ({ funcionarios, inss, irrf }) => {
+        const ativos = funcionarios.filter(f => f.status === 'ATIVO');
+        if (!ativos.length) {
+          this.processing.set(false);
+          this.snackBar.open('Nenhum funcionário ativo para processar', 'OK', { duration: 3000 });
+          return;
+        }
+        const competencia = this.competencia();
+        const persists = ativos.map(f => {
+          const calc = this.calcularHolerite(f, inss, irrf);
+          const data: Record<string, unknown> = {
+            funcionarioId: f.$id,
+            funcionarioNome: f.nome,
+            competencia,
+            salarioBase: f.salario,
+            totalProventos: calc.totalProventos,
+            totalDescontos: calc.totalDescontos,
+            valorLiquido: calc.valorLiquido,
+            inss: calc.inss,
+            irrf: calc.irrf,
+            fgts: calc.fgts,
+            valeTransporte: calc.valeTransporte,
+            valeRefeicao: calc.valeRefeicao,
+            status: 'CALCULADO',
+            empresaId: this.auth.empresaId() || '',
+            tenantId: tenant,
+          };
+          return this.appwrite.createDocument<HoleriteDoc>('holerites', data);
+        });
+        forkJoin(persists).subscribe({
+          next: () => {
+            this.processing.set(false);
+            this.snackBar.open('Folha calculada!', 'OK', { duration: 3000 });
+            this.buscarHolerites();
+          },
+          error: (e) => { this.processing.set(false); this.snackBar.open(e?.message || 'Erro ao calcular folha', 'OK', { duration: 3000 }); },
+        });
+      },
       error: () => { this.processing.set(false); this.snackBar.open('Erro ao calcular folha', 'OK', { duration: 3000 }); },
     });
   }
 
+  /** Cálculo de um holerite individual: salário base, INSS, IRRF, FGTS, líquido. */
+  private calcularHolerite(f: FuncionarioDoc, inss: FaixaInss[], irrf: FaixaIrrf[]) {
+    const salarioBase = f.salario || 0;
+    const valorInss = calcularInss(salarioBase, inss);
+    const { base: baseIrrf, valor: valorIrrf } = calcularIrrf(salarioBase, valorInss, f.dependentes ?? 0, irrf);
+    const fgts = calcularFgts(salarioBase);
+    const valeTransporte = round2(salarioBase * 0.06); // desconto VT (máx. 6% do salário)
+    const valeRefeicao = f.valeRefeicao ?? 0;
+    const totalProventos = round2(salarioBase);
+    const totalDescontos = round2(valorInss + valorIrrf + valeTransporte);
+    const valorLiquido = round2(totalProventos - totalDescontos);
+    return {
+      inss: valorInss, irrf: valorIrrf, fgts, baseIrrf,
+      valeTransporte, valeRefeicao,
+      totalProventos, totalDescontos, valorLiquido,
+    };
+  }
+
+  /** "Fechar folha" = marca todos os holerites da competência como FECHADO. */
   fechar() {
+    if (this.form.invalid) return;
     this.processing.set(true);
-    const { ano, mes } = this.form.value;
-    this.http.post<any>(`${this.apiUrl}/fechar`, null, { params: { ano, mes } }).subscribe({
-      next: (res) => { this.resumo.set(res); this.processing.set(false); this.snackBar.open('Folha fechada!', 'OK', { duration: 3000 }); },
+    const Q = this.appwrite.query;
+    const queries = [...this.baseQueries(), Q.equal('competencia', this.competencia())];
+    this.appwrite.listDocuments<HoleriteDoc>('holerites', queries).subscribe({
+      next: (docs) => {
+        if (!docs.length) {
+          this.processing.set(false);
+          this.snackBar.open('Nenhum holerite para fechar nesta competência', 'OK', { duration: 3000 });
+          return;
+        }
+        forkJoin(docs.map(d => this.appwrite.updateDocument('holerites', d.$id, { status: 'FECHADO' }))).subscribe({
+          next: () => { this.processing.set(false); this.snackBar.open('Folha fechada!', 'OK', { duration: 3000 }); this.buscarHolerites(); },
+          error: () => { this.processing.set(false); this.snackBar.open('Erro ao fechar folha', 'OK', { duration: 3000 }); },
+        });
+      },
       error: () => { this.processing.set(false); this.snackBar.open('Erro ao fechar folha', 'OK', { duration: 3000 }); },
     });
   }
 
   buscarHolerites() {
-    const { ano, mes } = this.form.value;
-    this.http.get<any[]>(`${this.apiUrl}/holerites`, { params: { ano, mes } }).subscribe({
-      next: (res) => this.holerites.set(res || []),
+    const Q = this.appwrite.query;
+    const queries = [...this.baseQueries(), Q.equal('competencia', this.competencia())];
+    this.appwrite.listDocuments<HoleriteDoc>('holerites', queries).subscribe({
+      next: (docs) => {
+        const view = docs.map(h => this.toView(h));
+        this.holerites.set(view);
+        this.resumo.set(this.montarResumo(docs));
+      },
+      error: () => { this.holerites.set([]); this.resumo.set(null); },
     });
+  }
+
+  /** Monta o objeto de visualização do holerite (proventos/descontos para as tabelas). */
+  private toView(h: HoleriteDoc) {
+    const inss = h.inss ?? 0;
+    const irrf = h.irrf ?? 0;
+    const vt = round2((h.salarioBase || 0) * 0.06);
+    const proventos = [
+      { descricao: 'Salário Base', referencia: '30 dias', valor: h.salarioBase },
+    ];
+    const descontos = [
+      { descricao: 'INSS', referencia: '', valor: inss },
+      { descricao: 'IRRF', referencia: '', valor: irrf },
+      { descricao: 'Vale Transporte', referencia: '6%', valor: vt },
+    ].filter(d => d.valor > 0);
+    return {
+      ...h,
+      id: h.$id,
+      cargo: '',
+      funcionarioMatricula: h.funcionarioId?.slice(-4) ?? '',
+      salarioLiquido: h.valorLiquido,
+      baseInss: h.salarioBase,
+      valorInss: inss,
+      baseIrrf: round2((h.salarioBase || 0) - inss),
+      valorIrrf: irrf,
+      proventos,
+      descontos,
+      totalProventos: h.totalProventos,
+      totalDescontos: h.totalDescontos,
+    };
+  }
+
+  private montarResumo(docs: HoleriteDoc[]) {
+    return {
+      totalFuncionarios: docs.length,
+      totalProventos: round2(docs.reduce((s, d) => s + (d.totalProventos || 0), 0)),
+      totalDescontos: round2(docs.reduce((s, d) => s + (d.totalDescontos || 0), 0)),
+      totalLiquido: round2(docs.reduce((s, d) => s + (d.valorLiquido || 0), 0)),
+      totalInss: round2(docs.reduce((s, d) => s + (d.inss || 0), 0)),
+      totalIrrf: round2(docs.reduce((s, d) => s + (d.irrf || 0), 0)),
+      totalFgts: round2(docs.reduce((s, d) => s + (d.fgts || 0), 0)),
+    };
   }
 }

@@ -7,8 +7,35 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface Certificado {
+  $id: string;
+  tipo: string;
+  nome: string;
+  cnpjCpf: string;
+  emissor?: string;
+  serialNumber?: string;
+  dataValidade: string;
+  status: string;
+  totalOperacoes?: number;
+  empresaId: string;
+  tenantId: string;
+  $createdAt: string;
+}
+
+interface OperacaoCertificado {
+  $id: string;
+  certificadoId: string;
+  tipo: string;
+  descricao?: string;
+  data: string;
+  resultado?: string;
+  status: string;
+  tenantId: string;
+  $createdAt: string;
+}
 
 @Component({
   selector: 'bear-certificados',
@@ -106,15 +133,15 @@ import { environment } from '@env/environment';
                   </span>
                 </td>
               </ng-container>
-              <ng-container matColumnDef="usos"><th mat-header-cell *matHeaderCellDef class="text-label">Usos</th><td mat-cell *matCellDef="let c">{{ c.totalUsos }}</td></ng-container>
+              <ng-container matColumnDef="usos"><th mat-header-cell *matHeaderCellDef class="text-label">Usos</th><td mat-cell *matCellDef="let c">{{ c.totalOperacoes }}</td></ng-container>
               <ng-container matColumnDef="acoes"><th mat-header-cell *matHeaderCellDef class="text-label">Ações</th>
                 <td mat-cell *matCellDef="let c">
                   <div class="flex gap-1">
-                    <button class="bear-btn bear-btn--ghost p-2" title="Operações" (click)="verOperacoes(c.id, c.nome)">
+                    <button class="bear-btn bear-btn--ghost p-2" title="Operações" (click)="verOperacoes(c.$id, c.nome)">
                       <span class="material-symbols-rounded text-base" style="color: var(--brand-primary);">history</span>
                     </button>
                     @if (c.status === 'ATIVO' || c.status === 'PROXIMO_VENCIMENTO') {
-                      <button class="bear-btn bear-btn--ghost p-2" title="Revogar" (click)="revogar(c.id)">
+                      <button class="bear-btn bear-btn--ghost p-2" title="Revogar" (click)="revogar(c.$id)">
                         <span class="material-symbols-rounded text-base" style="color: #dc2626;">block</span>
                       </button>
                     }
@@ -145,19 +172,19 @@ import { environment } from '@env/environment';
             </button>
           </div>
           <div class="overflow-x-auto">
-            <table mat-table [dataSource]="operacoes()" class="w-full">
-              <ng-container matColumnDef="data"><th mat-header-cell *matHeaderCellDef class="text-label">Data</th><td mat-cell *matCellDef="let o">{{ o.dataOperacao | date:'dd/MM/yyyy HH:mm' }}</td></ng-container>
-              <ng-container matColumnDef="tipo"><th mat-header-cell *matHeaderCellDef class="text-label">Tipo</th><td mat-cell *matCellDef="let o">{{ o.tipoOperacao }}</td></ng-container>
+            <table mat-table [dataSource]="operacoesPagina()" class="w-full">
+              <ng-container matColumnDef="data"><th mat-header-cell *matHeaderCellDef class="text-label">Data</th><td mat-cell *matCellDef="let o">{{ o.data | date:'dd/MM/yyyy HH:mm' }}</td></ng-container>
+              <ng-container matColumnDef="tipo"><th mat-header-cell *matHeaderCellDef class="text-label">Tipo</th><td mat-cell *matCellDef="let o">{{ o.tipo }}</td></ng-container>
               <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef class="text-label">Status</th>
                 <td mat-cell *matCellDef="let o">
-                  <span class="badge" [ngClass]="{'badge--success': o.statusOperacao === 'SUCESSO', 'badge--error': o.statusOperacao === 'FALHA'}">
+                  <span class="badge" [ngClass]="{'badge--success': o.status === 'SUCESSO', 'badge--error': o.status === 'FALHA'}">
                     <span class="badge__dot"></span>
-                    {{ o.statusOperacao }}
+                    {{ o.status }}
                   </span>
                 </td>
               </ng-container>
               <ng-container matColumnDef="descricao"><th mat-header-cell *matHeaderCellDef class="text-label">Descrição</th><td mat-cell *matCellDef="let o">{{ o.descricao }}</td></ng-container>
-              <ng-container matColumnDef="documento"><th mat-header-cell *matHeaderCellDef class="text-label">Documento</th><td mat-cell *matCellDef="let o">{{ o.documentoReferencia || '-' }}</td></ng-container>
+              <ng-container matColumnDef="documento"><th mat-header-cell *matHeaderCellDef class="text-label">Documento</th><td mat-cell *matCellDef="let o">{{ o.resultado || '-' }}</td></ng-container>
               <tr mat-header-row *matHeaderRowDef="operacoesCols"></tr>
               <tr mat-row *matRowDef="let row; columns: operacoesCols;"></tr>
             </table>
@@ -198,15 +225,20 @@ import { environment } from '@env/environment';
   `,
 })
 export class CertificadosComponent implements OnInit {
-  certificados = signal<any[]>([]); loading = signal(false); showForm = signal(false);
-  showOperacoes = signal(false); operacoes = signal<any[]>([]); operacoesTotal = signal(0);
+  certificados = signal<Certificado[]>([]); loading = signal(false); showForm = signal(false);
+  showOperacoes = signal(false); operacoes = signal<OperacaoCertificado[]>([]); operacoesTotal = signal(0);
+  operacoesPagina = signal<OperacaoCertificado[]>([]);
   operacoesCertId = signal(''); operacoesCertNome = signal('');
   displayedColumns = ['nome', 'tipo', 'cnpjCpf', 'razaoSocial', 'validade', 'status', 'usos', 'acoes'];
   operacoesCols = ['data', 'tipo', 'status', 'descricao', 'documento'];
   form!: FormGroup;
-  private apiUrl = `${environment.apiUrl}/certificados`;
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(
+    private fb: FormBuilder,
+    private appwrite: AppwriteService,
+    private auth: AuthService,
+    private snackBar: MatSnackBar,
+  ) {}
 
   ngOnInit() {
     this.form = this.fb.group({
@@ -219,9 +251,16 @@ export class CertificadosComponent implements OnInit {
     this.carregar();
   }
 
+  private tenantId(): string { return this.auth.tenantId() || 'default'; }
+  private empresaId(): string { return this.auth.empresaId() || ''; }
+
   carregar() {
     this.loading.set(true);
-    this.http.get<any[]>(this.apiUrl).subscribe({
+    const Q = this.appwrite.query;
+    const queries = [Q.limit(100), Q.orderDesc('$createdAt'), Q.equal('tenantId', this.tenantId())];
+    const empresa = this.empresaId();
+    if (empresa) queries.push(Q.equal('empresaId', empresa));
+    this.appwrite.listDocuments<Certificado>('certificados', queries).subscribe({
       next: (res) => { this.certificados.set(res || []); this.loading.set(false); },
       error: () => this.loading.set(false),
     });
@@ -229,8 +268,26 @@ export class CertificadosComponent implements OnInit {
 
   carregarProximosVencimento() {
     this.loading.set(true);
-    this.http.get<any[]>(`${this.apiUrl}/proximos-vencimento`).subscribe({
-      next: (res) => { this.certificados.set(res || []); this.loading.set(false); },
+    const Q = this.appwrite.query;
+    const queries = [Q.limit(100), Q.orderDesc('$createdAt'), Q.equal('tenantId', this.tenantId())];
+    const empresa = this.empresaId();
+    if (empresa) queries.push(Q.equal('empresaId', empresa));
+    this.appwrite.listDocuments<Certificado>('certificados', queries).subscribe({
+      next: (res) => {
+        // "proximos-vencimento": filtra/ordena por dataValidade no cliente.
+        const hoje = new Date();
+        const limite = new Date();
+        limite.setDate(limite.getDate() + 30);
+        const proximos = (res || [])
+          .filter(c => {
+            if (!c.dataValidade) return false;
+            const v = new Date(c.dataValidade);
+            return v >= hoje && v <= limite;
+          })
+          .sort((a, b) => new Date(a.dataValidade).getTime() - new Date(b.dataValidade).getTime());
+        this.certificados.set(proximos);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
   }
@@ -238,18 +295,32 @@ export class CertificadosComponent implements OnInit {
   resetForm() { this.form.reset({ tipo: 'A1' }); }
 
   salvar() {
-    if (this.form.valid) {
-      this.http.post<any>(this.apiUrl, this.form.value).subscribe({
-        next: () => { this.snackBar.open('Certificado cadastrado!', 'OK', { duration: 3000 }); this.showForm.set(false); this.carregar(); },
-        error: () => this.snackBar.open('Erro ao cadastrar certificado', 'OK', { duration: 3000 }),
-      });
-    }
+    if (!this.form.valid) return;
+    const v = this.form.value;
+    // razaoSocial/dataEmissao/observacao não existem na coleção; não persistidos.
+    const data: Record<string, unknown> = {
+      nome: v.nome,
+      tipo: v.tipo,
+      cnpjCpf: v.cnpjCpf,
+      emissor: v.emissor || '',
+      serialNumber: v.serialNumber || '',
+      dataValidade: v.dataValidade,
+      status: 'ATIVO',
+      totalOperacoes: 0,
+      tenantId: this.tenantId(),
+      empresaId: this.empresaId(),
+      createdAt: new Date().toISOString(),
+    };
+    this.appwrite.createDocument<Certificado>('certificados', data).subscribe({
+      next: () => { this.snackBar.open('Certificado cadastrado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.showForm.set(false); this.carregar(); },
+      error: (e) => this.snackBar.open(e?.message || 'Erro ao cadastrar certificado', 'OK', { duration: 3000, panelClass: ['error-snackbar'] }),
+    });
   }
 
   revogar(id: string) {
-    this.http.post<any>(`${this.apiUrl}/${id}/revogar`, {}).subscribe({
-      next: () => { this.snackBar.open('Certificado revogado!', 'OK', { duration: 3000 }); this.carregar(); },
-      error: () => this.snackBar.open('Erro ao revogar', 'OK', { duration: 3000 }),
+    this.appwrite.updateDocument<Certificado>('certificados', id, { status: 'REVOGADO' }).subscribe({
+      next: () => { this.snackBar.open('Certificado revogado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.carregar(); },
+      error: (e) => this.snackBar.open(e?.message || 'Erro ao revogar', 'OK', { duration: 3000, panelClass: ['error-snackbar'] }),
     });
   }
 
@@ -257,12 +328,28 @@ export class CertificadosComponent implements OnInit {
     this.operacoesCertId.set(certId);
     this.operacoesCertNome.set(certNome);
     this.showOperacoes.set(true);
-    this.http.get<any>(`${this.apiUrl}/${certId}/operacoes`, { params: { page, size: 20 } }).subscribe({
-      next: (res) => { this.operacoes.set(res.content || []); this.operacoesTotal.set(res.totalElements || 0); },
+    const Q = this.appwrite.query;
+    this.appwrite.listDocuments<OperacaoCertificado>('operacoes_certificado', [
+      Q.limit(100),
+      Q.orderDesc('$createdAt'),
+      Q.equal('tenantId', this.tenantId()),
+      Q.equal('certificadoId', certId),
+    ]).subscribe({
+      next: (res) => {
+        this.operacoes.set(res || []);
+        this.operacoesTotal.set((res || []).length);
+        this.aplicarPaginaOperacoes(page);
+      },
+      error: () => { this.operacoes.set([]); this.operacoesTotal.set(0); this.operacoesPagina.set([]); },
     });
   }
 
-  onOperacoesPage(event: PageEvent) { this.verOperacoes(this.operacoesCertId(), this.operacoesCertNome(), event.pageIndex); }
+  private aplicarPaginaOperacoes(page: number, size = 20) {
+    const start = page * size;
+    this.operacoesPagina.set(this.operacoes().slice(start, start + size));
+  }
+
+  onOperacoesPage(event: PageEvent) { this.aplicarPaginaOperacoes(event.pageIndex, event.pageSize); }
 
   contarPorStatus(status: string): number {
     return this.certificados().filter(c => c.status === status).length;

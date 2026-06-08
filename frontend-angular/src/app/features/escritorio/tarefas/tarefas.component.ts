@@ -7,8 +7,28 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface Tarefa {
+  $id: string;
+  titulo: string;
+  descricao?: string;
+  tipo?: string;
+  prioridade?: string;
+  responsavelId?: string;
+  responsavelNome?: string;
+  empresaId?: string;
+  empresaNome?: string;
+  dataVencimento?: string;
+  dataConclusao?: string;
+  status: string;
+  tenantId: string;
+  $createdAt: string;
+  // alias usado pelo template existente
+  id?: string;
+  clienteEmpresaNome?: string;
+}
 
 @Component({
   selector: 'bear-tarefas',
@@ -152,13 +172,12 @@ import { environment } from '@env/environment';
   `,
 })
 export class TarefasComponent implements OnInit {
-  tarefas = signal<any[]>([]);
+  tarefas = signal<Tarefa[]>([]);
   loading = signal(false);
   showForm = signal(false);
   totalElements = signal(0);
   filtroStatus = signal('');
   form!: FormGroup;
-  private apiUrl = `${environment.apiUrl}/escritorio`;
 
   tipos = ['ESCRITURACAO_FISCAL', 'ESCRITURACAO_CONTABIL', 'FOLHA_PAGAMENTO', 'APURACAO_IMPOSTOS', 'OBRIGACAO_ACESSORIA', 'FECHAMENTO_BALANCETE', 'CONCILIACAO', 'DECLARACAO_IR', 'CONSULTORIA', 'OUTROS'];
 
@@ -170,7 +189,7 @@ export class TarefasComponent implements OnInit {
     { status: '', label: 'Total', icon: 'task', color: '#4f46e5', bgColor: '#eef2ff' },
   ];
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(private fb: FormBuilder, private appwrite: AppwriteService, private auth: AuthService, private snackBar: MatSnackBar) {}
 
   ngOnInit() {
     this.form = this.fb.group({
@@ -181,11 +200,24 @@ export class TarefasComponent implements OnInit {
     this.carregar();
   }
 
-  carregar(page = 0) {
+  private mapTarefa(t: Tarefa): Tarefa {
+    // Aliases para manter o template existente funcionando
+    return { ...t, id: t.$id, clienteEmpresaNome: t.empresaNome };
+  }
+
+  carregar() {
     this.loading.set(true);
-    const params = new HttpParams().set('page', page).set('size', 100);
-    this.http.get<any>(`${this.apiUrl}/tarefas`, { params }).subscribe({
-      next: (res) => { this.tarefas.set(res.content || res || []); this.totalElements.set(res.totalElements || 0); this.loading.set(false); },
+    this.appwrite.listDocuments<Tarefa>('tarefas', [
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+      this.appwrite.query.equal('tenantId', this.auth.tenantId() || 'default'),
+    ]).subscribe({
+      next: (res) => {
+        const mapped = res.map(t => this.mapTarefa(t));
+        this.tarefas.set(mapped);
+        this.totalElements.set(mapped.length);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
   }
@@ -197,41 +229,70 @@ export class TarefasComponent implements OnInit {
     return this.tarefas().filter(t => t.status === status).length;
   }
 
-  getByStatus(status: string): any[] {
+  getByStatus(status: string): Tarefa[] {
     return this.tarefas().filter(t => t.status === status);
   }
 
   salvar() {
-    if (this.form.valid) {
-      this.http.post<any>(`${this.apiUrl}/tarefas`, this.form.value).subscribe({
-        next: () => { this.snackBar.open('Tarefa criada!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.showForm.set(false); this.carregar(); },
-        error: () => this.snackBar.open('Erro ao criar tarefa', 'OK', { duration: 3000, panelClass: ['error-snackbar'] }),
-      });
-    }
+    if (!this.form.valid) return;
+    const v = this.form.value;
+    const data: Record<string, unknown> = {
+      titulo: v.titulo,
+      tipo: v.tipo,
+      descricao: v.descricao || '',
+      prioridade: v.prioridade || 'MEDIA',
+      responsavelNome: v.responsavelNome || '',
+      empresaNome: v.clienteEmpresaNome || '',
+      dataVencimento: v.dataVencimento || '',
+      status: 'PENDENTE',
+      tenantId: this.auth.tenantId() || 'default',
+      empresaId: this.auth.empresaId() || '',
+      createdAt: new Date().toISOString(),
+    };
+    this.appwrite.createDocument('tarefas', data).subscribe({
+      next: () => { this.snackBar.open('Tarefa criada!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.showForm.set(false); this.carregar(); },
+      error: () => this.snackBar.open('Erro ao criar tarefa', 'OK', { duration: 3000, panelClass: ['error-snackbar'] }),
+    });
   }
 
   atualizarStatus(id: string, status: string) {
-    this.http.patch<any>(`${this.apiUrl}/tarefas/${id}/status`, null, { params: { status } }).subscribe({
+    const data: Record<string, unknown> = { status };
+    if (status === 'CONCLUIDA') data['dataConclusao'] = new Date().toISOString().slice(0, 10);
+    this.appwrite.updateDocument('tarefas', id, data).subscribe({
       next: () => { this.snackBar.open('Status atualizado!', 'OK', { duration: 2000 }); this.carregar(); },
+      error: () => this.snackBar.open('Erro ao atualizar', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
     });
   }
 
   carregarAtrasadas() {
+    // "atrasadas" = filtro no cliente por dataVencimento (vencidas e não concluídas)
     this.loading.set(true);
-    this.http.get<any[]>(`${this.apiUrl}/tarefas/atrasadas`).subscribe({
-      next: (res) => { this.tarefas.set(res); this.loading.set(false); },
+    this.appwrite.listDocuments<Tarefa>('tarefas', [
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+      this.appwrite.query.equal('tenantId', this.auth.tenantId() || 'default'),
+    ]).subscribe({
+      next: (res) => {
+        const hoje = new Date().toISOString().slice(0, 10);
+        const atrasadas = res
+          .filter(t => t.status !== 'CONCLUIDA' && !!t.dataVencimento && t.dataVencimento < hoje)
+          .map(t => this.mapTarefa(t));
+        this.tarefas.set(atrasadas);
+        this.totalElements.set(atrasadas.length);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
   }
 
   formatTipo(t: string): string { return t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
 
-  getPrioridadeBg(p: string): string {
+  getPrioridadeBg(p: string | undefined): string {
     const m: Record<string, string> = { 'BAIXA': '#f3f4f6', 'MEDIA': '#dbeafe', 'ALTA': '#ffedd5', 'URGENTE': '#fee2e2' };
-    return m[p] || '#f3f4f6';
+    return m[p ?? ''] || '#f3f4f6';
   }
-  getPrioridadeColor(p: string): string {
+  getPrioridadeColor(p: string | undefined): string {
     const m: Record<string, string> = { 'BAIXA': '#6b7280', 'MEDIA': '#1d4ed8', 'ALTA': '#c2410c', 'URGENTE': '#dc2626' };
-    return m[p] || '#6b7280';
+    return m[p ?? ''] || '#6b7280';
   }
 }

@@ -5,8 +5,19 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface ResultadoPresumido {
+  baseCalculoIrpj: number;
+  irpjNormal: number;
+  irpjAdicional: number;
+  irpjTotal: number;
+  csll: number;
+  pisCumulativo: number;
+  cofinsCumulativo: number;
+  totalTributos: number;
+}
 
 @Component({
   selector: 'bear-lucro-presumido',
@@ -93,10 +104,25 @@ import { environment } from '@env/environment';
   `,
 })
 export class LucroPresumidoComponent {
-  form!: FormGroup; resultado = signal<any>(null);
-  private apiUrl = `${environment.apiUrl}/tributario/lucro-presumido`;
+  form!: FormGroup; resultado = signal<ResultadoPresumido | null>(null);
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {
+  // Percentual de presunção do IRPJ por tipo de atividade.
+  private readonly presuncaoIrpj: Record<string, number> = {
+    COMERCIO_INDUSTRIA: 0.08, SERVICOS_GERAL: 0.32, TRANSPORTE_CARGAS: 0.08,
+    TRANSPORTE_PASSAGEIROS: 0.16, SERVICOS_HOSPITALARES: 0.08, REVENDA_COMBUSTIVEIS: 0.016,
+  };
+  // Percentual de presunção da CSLL por tipo de atividade.
+  private readonly presuncaoCsll: Record<string, number> = {
+    COMERCIO_INDUSTRIA: 0.12, SERVICOS_GERAL: 0.32, TRANSPORTE_CARGAS: 0.12,
+    TRANSPORTE_PASSAGEIROS: 0.12, SERVICOS_HOSPITALARES: 0.12, REVENDA_COMBUSTIVEIS: 0.12,
+  };
+
+  constructor(
+    private fb: FormBuilder,
+    private appwrite: AppwriteService,
+    private auth: AuthService,
+    private snackBar: MatSnackBar,
+  ) {
     this.form = this.fb.group({
       trimestre: ['', Validators.required], tipoAtividade: ['COMERCIO_INDUSTRIA', Validators.required],
       receitaBrutaTrimestre: [null, [Validators.required, Validators.min(1)]], demaisReceitas: [0],
@@ -104,11 +130,50 @@ export class LucroPresumidoComponent {
   }
 
   calcular() {
-    if (this.form.valid) {
-      this.http.post<any>(`${this.apiUrl}/calcular`, this.form.value).subscribe({
-        next: (res) => { this.resultado.set(res); this.snackBar.open('Apuração calculada!', 'OK', { duration: 3000 }); },
-        error: () => this.snackBar.open('Erro ao calcular', 'OK', { duration: 3000 }),
-      });
-    }
+    if (!this.form.valid) return;
+    const { trimestre, tipoAtividade, receitaBrutaTrimestre, demaisReceitas } = this.form.value;
+    const receita = Number(receitaBrutaTrimestre);
+    const demais = Number(demaisReceitas) || 0;
+
+    const presIrpj = this.presuncaoIrpj[tipoAtividade] ?? 0.32;
+    const presCsll = this.presuncaoCsll[tipoAtividade] ?? 0.32;
+
+    // IRPJ: base = receita * presunção + demais receitas; 15% normal + 10% adicional sobre excedente de R$ 60.000/trimestre.
+    const baseCalculoIrpj = receita * presIrpj + demais;
+    const irpjNormal = baseCalculoIrpj * 0.15;
+    const irpjAdicional = Math.max(0, baseCalculoIrpj - 60000) * 0.10;
+    const irpjTotal = irpjNormal + irpjAdicional;
+
+    // CSLL: base = receita * presunção CSLL + demais; alíquota 9%.
+    const baseCsll = receita * presCsll + demais;
+    const csll = baseCsll * 0.09;
+
+    // PIS/COFINS cumulativos sobre a receita bruta.
+    const pisCumulativo = receita * 0.0065;
+    const cofinsCumulativo = receita * 0.03;
+
+    const totalTributos = irpjTotal + csll + pisCumulativo + cofinsCumulativo;
+
+    const resultado: ResultadoPresumido = {
+      baseCalculoIrpj, irpjNormal, irpjAdicional, irpjTotal,
+      csll, pisCumulativo, cofinsCumulativo, totalTributos,
+    };
+    this.resultado.set(resultado);
+    this.persistirApuracao(trimestre, baseCalculoIrpj, totalTributos);
+    this.snackBar.open('Apuração calculada!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
+  }
+
+  private persistirApuracao(competencia: string, baseCalculo: number, valorRecolher: number) {
+    const data = {
+      tipo: 'LUCRO_PRESUMIDO',
+      competencia,
+      baseCalculo,
+      valorApurado: valorRecolher,
+      valorRecolher,
+      status: 'APURADO',
+      empresaId: this.auth.empresaId() || '',
+      tenantId: this.auth.tenantId() || 'default',
+    };
+    this.appwrite.createDocument('apuracoes_fiscais', data).subscribe({ next: () => {}, error: () => {} });
   }
 }

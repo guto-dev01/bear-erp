@@ -9,8 +9,32 @@ import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface Produto {
+  $id: string;
+  codigo: string;
+  descricao: string;
+  tipo: string;
+  unidade: string;
+  ncm: string;
+  cest: string;
+  cfop: string;
+  preco: number;
+  custoMedio: number;
+  estoqueAtual: number;
+  estoqueMinimo: number;
+  categoria: string;
+  marca: string;
+  status: string;
+  empresaId: string;
+  tenantId: string;
+  $createdAt: string;
+  // Campos auxiliares usados apenas no template (mapeados a partir do schema)
+  valorUnitario?: number;
+  nbs?: string;
+}
 
 @Component({
   selector: 'bear-produtos',
@@ -76,8 +100,8 @@ import { environment } from '@env/environment';
       <!-- Table -->
       @if (!loading() && !showForm()) {
         <div class="bear-card overflow-hidden animate-fade-in-up">
-          <table mat-table [dataSource]="filteredItems()" class="w-full">
-            <ng-container matColumnDef="codigo"><th mat-header-cell *matHeaderCellDef>Código</th><td mat-cell *matCellDef="let p" class="font-mono text-xs">{{ p.codigo || p.id }}</td></ng-container>
+          <table mat-table [dataSource]="pagedItems()" class="w-full">
+            <ng-container matColumnDef="codigo"><th mat-header-cell *matHeaderCellDef>Código</th><td mat-cell *matCellDef="let p" class="font-mono text-xs">{{ p.codigo || p.$id }}</td></ng-container>
             <ng-container matColumnDef="descricao"><th mat-header-cell *matHeaderCellDef>Descrição</th><td mat-cell *matCellDef="let p"><span class="font-medium">{{ p.descricao }}</span></td></ng-container>
             <ng-container matColumnDef="tipo"><th mat-header-cell *matHeaderCellDef>Tipo</th>
               <td mat-cell *matCellDef="let p">
@@ -90,6 +114,12 @@ import { environment } from '@env/environment';
             <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th>
               <td mat-cell *matCellDef="let p">
                 <span class="badge" [ngClass]="p.status === 'ATIVO' ? 'badge--success' : 'badge--neutral'"><span class="badge__dot"></span>{{ p.status }}</span>
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="acoes"><th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let p">
+                <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem;font-size:0.75rem;" (click)="editar(p)"><span class="material-symbols-rounded text-sm">edit</span></button>
+                <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem;font-size:0.75rem;color:#ef4444;" (click)="excluir(p)"><span class="material-symbols-rounded text-sm">delete</span></button>
               </td>
             </ng-container>
             <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
@@ -112,7 +142,7 @@ import { environment } from '@env/environment';
       @if (showForm()) {
         <div class="bear-card p-6 max-w-3xl animate-fade-in-up">
           <div class="flex items-center justify-between mb-6">
-            <h2 class="text-heading text-lg">Novo Produto/Serviço</h2>
+            <h2 class="text-heading text-lg">{{ editingId() ? 'Editar Produto/Serviço' : 'Novo Produto/Serviço' }}</h2>
             <button class="bear-btn bear-btn--ghost" style="padding:0.375rem" (click)="showForm.set(false)">
               <span class="material-symbols-rounded">close</span>
             </button>
@@ -152,13 +182,16 @@ import { environment } from '@env/environment';
   `,
 })
 export class ProdutosComponent implements OnInit {
-  items = signal<any[]>([]);
+  items = signal<Produto[]>([]);
   loading = signal(false);
   showForm = signal(false);
+  editingId = signal<string | null>(null);
   totalElements = signal(0);
   valorEstoque = signal(0);
   filtroTipo = signal('');
-  displayedColumns = ['codigo', 'descricao', 'tipo', 'ncm', 'unidade', 'valor', 'status'];
+  pageIndex = signal(0);
+  pageSize = 20;
+  displayedColumns = ['codigo', 'descricao', 'tipo', 'ncm', 'unidade', 'valor', 'status', 'acoes'];
   filtros = [{ value: '', label: 'Todos' }, { value: 'PRODUTO', label: 'Produtos' }, { value: 'SERVICO', label: 'Serviços' }];
   unidades = [
     { value: 'UN', label: 'Unidade (UN)' }, { value: 'KG', label: 'Quilograma (KG)' },
@@ -167,9 +200,13 @@ export class ProdutosComponent implements OnInit {
     { value: 'CX', label: 'Caixa (CX)' }, { value: 'PC', label: 'Peça (PC)' },
   ];
   form!: FormGroup;
-  private apiUrl = `${environment.apiUrl}/cadastros/produtos`;
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(
+    private fb: FormBuilder,
+    private appwrite: AppwriteService,
+    private auth: AuthService,
+    private snackBar: MatSnackBar,
+  ) {}
 
   ngOnInit() {
     this.form = this.fb.group({
@@ -181,38 +218,105 @@ export class ProdutosComponent implements OnInit {
     this.carregar();
   }
 
-  carregar(page = 0) {
+  carregar() {
     this.loading.set(true);
-    const params = new HttpParams().set('page', page).set('size', 20);
-    this.http.get<any>(this.apiUrl, { params }).subscribe({
+    const q = this.appwrite.query;
+    const queries = [
+      q.limit(100),
+      q.orderDesc('$createdAt'),
+      q.equal('tenantId', this.auth.tenantId() || 'default'),
+    ];
+    const empresaId = this.auth.empresaId();
+    if (empresaId) queries.push(q.equal('empresaId', empresaId));
+    this.appwrite.listDocuments<Produto>('produtos', queries).subscribe({
       next: (res) => {
-        const list = res.content || res || [];
+        // Mapeia atributos do schema para os campos auxiliares usados no template.
+        const list = res.map(p => ({ ...p, valorUnitario: p.preco ?? 0 }));
         this.items.set(list);
-        this.totalElements.set(res.totalElements || list.length);
-        this.valorEstoque.set(list.filter((p: any) => p.tipo === 'PRODUTO').reduce((s: number, p: any) => s + (p.valorUnitario || 0), 0));
+        this.totalElements.set(list.length);
+        this.valorEstoque.set(
+          list
+            .filter(p => p.tipo === 'PRODUTO')
+            .reduce((s, p) => s + (p.preco || 0) * (p.estoqueAtual || 0), 0),
+        );
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
     });
   }
 
-  filteredItems(): any[] {
+  filteredItems(): Produto[] {
     const tipo = this.filtroTipo();
     return tipo ? this.items().filter(i => i.tipo === tipo) : this.items();
   }
 
-  resetForm() { this.form.reset({ tipo: 'PRODUTO', unidade: 'UN' }); }
-  onPage(event: PageEvent) { this.carregar(event.pageIndex); }
+  pagedItems(): Produto[] {
+    const start = this.pageIndex() * this.pageSize;
+    return this.filteredItems().slice(start, start + this.pageSize);
+  }
+
+  resetForm() {
+    this.editingId.set(null);
+    this.form.reset({ tipo: 'PRODUTO', unidade: 'UN' });
+  }
+
+  onPage(event: PageEvent) { this.pageIndex.set(event.pageIndex); }
   countProdutos(): number { return this.items().filter(i => i.tipo === 'PRODUTO').length; }
   countServicos(): number { return this.items().filter(i => i.tipo === 'SERVICO').length; }
   countAtivos(): number { return this.items().filter(i => i.status === 'ATIVO').length; }
 
+  editar(p: Produto) {
+    this.editingId.set(p.$id);
+    this.form.reset({
+      descricao: p.descricao ?? '',
+      tipo: p.tipo ?? 'PRODUTO',
+      codigoBarras: '',
+      ncm: p.ncm ?? '',
+      nbs: p.nbs ?? '',
+      unidade: p.unidade ?? 'UN',
+      valorUnitario: p.preco ?? null,
+      cfopPadrao: p.cfop ?? '',
+      contaContabil: '',
+      observacao: '',
+    });
+    this.showForm.set(true);
+  }
+
   salvar() {
-    if (this.form.valid) {
-      this.http.post<any>(this.apiUrl, this.form.value).subscribe({
-        next: () => { this.snackBar.open('Item cadastrado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.showForm.set(false); this.carregar(); },
-        error: () => this.snackBar.open('Erro ao cadastrar', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
-      });
-    }
+    if (this.form.invalid) return;
+    const v = this.form.value;
+    const id = this.editingId();
+    const data: Record<string, unknown> = {
+      codigo: v.codigoBarras || `PRD-${Date.now()}`,
+      descricao: v.descricao,
+      tipo: v.tipo,
+      unidade: v.unidade || 'UN',
+      ncm: v.ncm || '',
+      cfop: v.cfopPadrao || '',
+      preco: Number(v.valorUnitario) || 0,
+      status: 'ATIVO',
+      tenantId: this.auth.tenantId() || 'default',
+      empresaId: this.auth.empresaId() || '',
+    };
+    const obs = id
+      ? this.appwrite.updateDocument<Produto>('produtos', id, data)
+      : this.appwrite.createDocument<Produto>('produtos', data);
+    obs.subscribe({
+      next: () => {
+        this.snackBar.open(id ? 'Item atualizado!' : 'Item cadastrado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
+        this.showForm.set(false);
+        this.editingId.set(null);
+        this.carregar();
+      },
+      error: (e) => this.snackBar.open(e.message || 'Erro ao salvar', 'Fechar', { duration: 5000, panelClass: ['error-snackbar'] }),
+    });
+  }
+
+  excluir(p: Produto) {
+    if (!confirm(`Excluir "${p.descricao}"?`)) return;
+    this.appwrite.deleteDocument('produtos', p.$id).subscribe({
+      next: () => { this.snackBar.open('Item excluído', 'OK', { duration: 3000 }); this.carregar(); },
+      error: () => this.snackBar.open('Erro ao excluir', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
+    });
   }
 }

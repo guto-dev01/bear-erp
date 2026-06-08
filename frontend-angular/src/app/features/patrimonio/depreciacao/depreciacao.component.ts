@@ -7,8 +7,41 @@ import { MatInputModule } from '@angular/material/input';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { forkJoin } from 'rxjs';
+import { map, switchMap } from 'rxjs/operators';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface BemPatrimonial {
+  $id: string;
+  codigo: string;
+  descricao: string;
+  valorAquisicao: number;
+  valorResidual?: number;
+  vidaUtil?: number;
+  taxaDepreciacao?: number;
+  depreciacaoAcumulada?: number;
+  valorAtual?: number;
+  status: string;
+}
+
+interface DepreciacaoDoc {
+  $id: string;
+  bemId: string;
+  competencia: string;
+  valorDepreciacao: number;
+  depreciacaoAcumulada: number;
+  valorAtual: number;
+  empresaId?: string;
+  tenantId?: string;
+  $createdAt?: string;
+}
+
+// Linha exibida na tabela (mapeia campos derivados esperados pelo template).
+interface DepreciacaoRow extends DepreciacaoDoc {
+  valorResidualAtual: number;
+  taxaAplicada: number;
+}
 
 @Component({
   selector: 'bear-depreciacao',
@@ -97,43 +130,152 @@ import { environment } from '@env/environment';
   `,
 })
 export class DepreciacaoComponent {
-  depreciacoes = signal<any[]>([]);
+  depreciacoes = signal<DepreciacaoRow[]>([]);
   loading = signal(false);
   totalPeriodo = signal(0);
   totalResidual = signal(0);
   competencia = '';
   displayedColumns = ['bemId', 'competencia', 'valorDepreciacao', 'depreciacaoAcumulada', 'valorResidualAtual', 'taxa'];
-  private apiUrl = `${environment.apiUrl}/patrimonio/depreciacao`;
 
-  constructor(private http: HttpClient, private snackBar: MatSnackBar) {
+  constructor(
+    private appwrite: AppwriteService,
+    private auth: AuthService,
+    private snackBar: MatSnackBar,
+  ) {
     const hoje = new Date();
     this.competencia = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
   }
 
+  /**
+   * Calcula a depreciação linear de todos os bens ativos na competência informada.
+   * Reimplementa a lógica que o backend Java fazia: para cada bem, calcula a parcela
+   * mensal de depreciação a partir da vida útil / taxa, atualiza depreciacaoAcumulada
+   * e valorAtual do bem (updateDocument) e persiste o registro em `depreciacoes`.
+   */
   calcular() {
+    if (!/^\d{4}-\d{2}$/.test(this.competencia)) {
+      this.snackBar.open('Competência inválida (use YYYY-MM)', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] });
+      return;
+    }
     this.loading.set(true);
-    this.http.post<any[]>(`${this.apiUrl}/calcular/${this.competencia}`, {}).subscribe({
-      next: (res) => {
-        this.depreciacoes.set(res);
-        this.totalPeriodo.set(res.reduce((s, d) => s + (d.valorDepreciacao || 0), 0));
-        this.totalResidual.set(res.reduce((s, d) => s + (d.valorResidualAtual || 0), 0));
-        this.loading.set(false);
-        this.snackBar.open(`${res.length} depreciações calculadas`, 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
+    const tenantId = this.auth.tenantId() || 'default';
+    const empresaId = this.auth.empresaId() || '';
+
+    this.appwrite.listDocuments<BemPatrimonial>('bens_patrimoniais', [
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+      this.appwrite.query.equal('tenantId', tenantId),
+    ]).subscribe({
+      next: (bens) => {
+        const ativos = bens.filter(b => b.status === 'ATIVO');
+        if (ativos.length === 0) {
+          this.loading.set(false);
+          this.snackBar.open('Nenhum bem ativo para depreciar', 'OK', { duration: 3000 });
+          return;
+        }
+
+        const ops = ativos.map(bem => {
+          const valorAquisicao = bem.valorAquisicao || 0;
+          const valorResidual = bem.valorResidual || 0;
+          const baseDepreciavel = Math.max(valorAquisicao - valorResidual, 0);
+          const acumuladaAnterior = bem.depreciacaoAcumulada || 0;
+
+          // Parcela mensal: prioriza vida útil (meses); senão usa taxa anual.
+          let parcela = 0;
+          let taxaAplicada = bem.taxaDepreciacao || 0;
+          if (bem.vidaUtil && bem.vidaUtil > 0) {
+            parcela = baseDepreciavel / bem.vidaUtil;
+            if (!taxaAplicada) taxaAplicada = Number((1200 / bem.vidaUtil).toFixed(4));
+          } else if (taxaAplicada > 0) {
+            parcela = (baseDepreciavel * (taxaAplicada / 100)) / 12;
+          }
+
+          // Não deprecia além da base depreciável.
+          const restante = Math.max(baseDepreciavel - acumuladaAnterior, 0);
+          const valorDepreciacao = Number(Math.min(parcela, restante).toFixed(2));
+          const novaAcumulada = Number((acumuladaAnterior + valorDepreciacao).toFixed(2));
+          const novoValorAtual = Number((valorAquisicao - novaAcumulada).toFixed(2));
+
+          const registro: Record<string, unknown> = {
+            bemId: bem.$id,
+            competencia: this.competencia,
+            valorDepreciacao,
+            depreciacaoAcumulada: novaAcumulada,
+            valorAtual: novoValorAtual,
+            tenantId,
+            empresaId,
+          };
+
+          const row: DepreciacaoRow = {
+            $id: '',
+            bemId: bem.$id,
+            competencia: this.competencia,
+            valorDepreciacao,
+            depreciacaoAcumulada: novaAcumulada,
+            valorAtual: novoValorAtual,
+            valorResidualAtual: novoValorAtual,
+            taxaAplicada,
+          };
+
+          // 1) atualiza o bem; 2) persiste o registro de depreciação.
+          return this.appwrite.updateDocument('bens_patrimoniais', bem.$id, {
+            depreciacaoAcumulada: novaAcumulada,
+            valorAtual: novoValorAtual,
+          }).pipe(
+            switchMap(() => this.appwrite.createDocument<DepreciacaoDoc>('depreciacoes', registro)),
+            map(created => ({ ...row, $id: created.$id })),
+          );
+        });
+
+        forkJoin(ops).subscribe({
+          next: (rows) => {
+            this.aplicar(rows);
+            this.loading.set(false);
+            this.snackBar.open(`${rows.length} depreciações calculadas`, 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
+          },
+          error: (e) => {
+            this.loading.set(false);
+            this.snackBar.open(e?.message || 'Erro ao calcular', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] });
+          },
+        });
       },
-      error: () => { this.loading.set(false); this.snackBar.open('Erro ao calcular', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }); },
+      error: () => {
+        this.loading.set(false);
+        this.snackBar.open('Erro ao carregar bens', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] });
+      },
     });
   }
 
   consultar() {
+    if (!/^\d{4}-\d{2}$/.test(this.competencia)) {
+      this.snackBar.open('Competência inválida (use YYYY-MM)', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] });
+      return;
+    }
     this.loading.set(true);
-    this.http.get<any[]>(`${this.apiUrl}/competencia/${this.competencia}`).subscribe({
-      next: (res) => {
-        this.depreciacoes.set(res);
-        this.totalPeriodo.set(res.reduce((s, d) => s + (d.valorDepreciacao || 0), 0));
-        this.totalResidual.set(res.reduce((s, d) => s + (d.valorResidualAtual || 0), 0));
+    const tenantId = this.auth.tenantId() || 'default';
+    this.appwrite.listDocuments<DepreciacaoDoc>('depreciacoes', [
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+      this.appwrite.query.equal('tenantId', tenantId),
+      this.appwrite.query.equal('competencia', this.competencia),
+    ]).subscribe({
+      next: (docs) => {
+        // A coleção `depreciacoes` não armazena a taxa; ela é derivada apenas no cálculo.
+        const rows: DepreciacaoRow[] = docs.map(d => ({
+          ...d,
+          valorResidualAtual: d.valorAtual,
+          taxaAplicada: 0,
+        }));
+        this.aplicar(rows);
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
     });
+  }
+
+  private aplicar(rows: DepreciacaoRow[]) {
+    this.depreciacoes.set(rows);
+    this.totalPeriodo.set(rows.reduce((s, d) => s + (d.valorDepreciacao || 0), 0));
+    this.totalResidual.set(rows.reduce((s, d) => s + (d.valorResidualAtual || 0), 0));
   }
 }

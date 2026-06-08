@@ -9,8 +9,40 @@ import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface FuncionarioDoc {
+  $id: string;
+  nome: string;
+  cpf: string;
+  pis?: string;
+  rg?: string;
+  ctps?: string;
+  dataNascimento?: string;
+  estadoCivil?: string;
+  endereco?: string;
+  cidade?: string;
+  uf?: string;
+  cep?: string;
+  telefone?: string;
+  email?: string;
+  dataAdmissao: string;
+  dataDemissao?: string;
+  cargo?: string;
+  departamento?: string;
+  salario: number;
+  tipoContrato: string;
+  cbo?: string;
+  dependentes?: number;
+  banco?: string;
+  agencia?: string;
+  conta?: string;
+  status: string;
+  empresaId?: string;
+  tenantId?: string;
+  $createdAt: string;
+}
 
 @Component({
   selector: 'bear-funcionarios',
@@ -197,9 +229,15 @@ export class FuncionariosComponent implements OnInit {
   editingId = signal<string | null>(null);
   displayedColumns = ['matricula', 'nome', 'cpf', 'cargo', 'departamento', 'salario', 'status', 'acoes'];
   form!: FormGroup;
-  private apiUrl = `${environment.apiUrl}/folha/funcionarios`;
+  private pageSize = 20;
+  private pageIndex = 0;
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(
+    private fb: FormBuilder,
+    private appwrite: AppwriteService,
+    private auth: AuthService,
+    private snackBar: MatSnackBar,
+  ) {}
 
   ngOnInit() {
     this.form = this.fb.group({
@@ -217,14 +255,33 @@ export class FuncionariosComponent implements OnInit {
     this.carregar();
   }
 
-  carregar(page = 0) {
+  /** Mapeia documento Appwrite -> objeto de visualização compatível com o template. */
+  private toView(d: FuncionarioDoc, index: number) {
+    return {
+      ...d,
+      id: d.$id,
+      matricula: String(index + 1).padStart(4, '0'),
+      salarioBase: d.salario,
+      logradouro: d.endereco,
+      codigoCbo: d.cbo,
+      numeroDependentes: d.dependentes ?? 0,
+      numeroDependentesIr: d.dependentes ?? 0,
+    };
+  }
+
+  carregar(page = this.pageIndex) {
+    this.pageIndex = page;
     this.loading.set(true);
-    const params = new HttpParams().set('page', page).set('size', 20);
-    this.http.get<any>(this.apiUrl, { params }).subscribe({
-      next: (res) => {
-        const items = res.content || res || [];
-        this.funcionarios.set(items);
-        this.totalElements.set(res.totalElements || items.length);
+    const Q = this.appwrite.query;
+    const queries = [Q.limit(100), Q.orderDesc('$createdAt'), Q.equal('tenantId', this.auth.tenantId() || 'default')];
+    const empresaId = this.auth.empresaId();
+    if (empresaId) queries.push(Q.equal('empresaId', empresaId));
+    this.appwrite.listDocuments<FuncionarioDoc>('funcionarios', queries).subscribe({
+      next: (docs) => {
+        const items = docs.map((d, i) => this.toView(d, i));
+        this.totalElements.set(items.length);
+        const start = this.pageIndex * this.pageSize;
+        this.funcionarios.set(items.slice(start, start + this.pageSize));
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
@@ -236,7 +293,7 @@ export class FuncionariosComponent implements OnInit {
   totalFolha(): number { return this.funcionarios().filter(f => f.status === 'ATIVO').reduce((s, f) => s + (f.salarioBase || 0), 0); }
 
   resetForm() { this.form.reset({ sexo: 'MASCULINO', estadoCivil: 'SOLTEIRO', tipoConta: 'CORRENTE', tipoContrato: 'CLT', tipoSalario: 'MENSAL', categoria: 'EMPREGADO', cargaHorariaSemanal: 44, numeroDependentes: 0, numeroDependentesIr: 0 }); }
-  onPage(event: PageEvent) { this.carregar(event.pageIndex); }
+  onPage(event: PageEvent) { this.pageSize = event.pageSize; this.carregar(event.pageIndex); }
 
   editar(f: any) {
     this.editingId.set(f.id);
@@ -244,20 +301,42 @@ export class FuncionariosComponent implements OnInit {
     this.form.patchValue(f);
   }
 
+  /** Extrai apenas os atributos existentes na coleção Appwrite. */
+  private toDoc(v: any): Record<string, unknown> {
+    return {
+      nome: v.nome, cpf: v.cpf, pis: v.pis || '', rg: v.rg || '', ctps: v.ctps || '',
+      dataNascimento: v.dataNascimento || '', estadoCivil: v.estadoCivil || '',
+      endereco: v.logradouro || '', cidade: v.cidade || '', uf: v.uf || '', cep: v.cep || '',
+      telefone: v.telefone || '', email: v.email || '',
+      dataAdmissao: v.dataAdmissao, tipoContrato: v.tipoContrato,
+      cargo: v.cargo || '', departamento: v.departamento || '',
+      salario: Number(v.salarioBase) || 0, cbo: v.codigoCbo || '',
+      dependentes: Number(v.numeroDependentes) || 0,
+      banco: v.banco || '', agencia: v.agencia || '', conta: v.conta || '',
+      empresaId: this.auth.empresaId() || '',
+      tenantId: this.auth.tenantId() || 'default',
+    };
+  }
+
   salvar() {
     if (this.form.valid) {
       const id = this.editingId();
-      const req = id ? this.http.put<any>(`${this.apiUrl}/${id}`, this.form.value) : this.http.post<any>(this.apiUrl, this.form.value);
+      const data = this.toDoc(this.form.value);
+      if (!id) data['status'] = 'ATIVO';
+      const req = id
+        ? this.appwrite.updateDocument('funcionarios', id, data)
+        : this.appwrite.createDocument('funcionarios', data);
       req.subscribe({
         next: () => { this.snackBar.open(id ? 'Atualizado!' : 'Cadastrado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.showForm.set(false); this.carregar(); },
-        error: () => this.snackBar.open('Erro ao salvar', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
+        error: (e) => this.snackBar.open(e?.message || 'Erro ao salvar', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
       });
     }
   }
 
   demitir(id: string) {
     if (!confirm('Confirma a demissão deste funcionário?')) return;
-    this.http.post<any>(`${this.apiUrl}/${id}/demitir`, {}).subscribe({
+    const hoje = new Date().toISOString().slice(0, 10);
+    this.appwrite.updateDocument('funcionarios', id, { status: 'DEMITIDO', dataDemissao: hoje }).subscribe({
       next: () => { this.snackBar.open('Funcionário demitido', 'OK', { duration: 3000 }); this.carregar(); },
       error: () => this.snackBar.open('Erro ao demitir', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
     });

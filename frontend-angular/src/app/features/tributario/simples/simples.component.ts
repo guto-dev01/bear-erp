@@ -6,8 +6,29 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface FaixaSimples {
+  $id: string;
+  anexo: string;
+  faixa: number;
+  receitaBrutaMin: number;
+  receitaBrutaMax: number;
+  aliquota: number;
+  parcelaDeducao: number;
+  vigencia: string;
+}
+
+interface ReparticaoItem { tributo: string; percentual: number; valor: number; }
+
+interface ResultadoSimples {
+  faixa: number;
+  aliquotaNominal: number;
+  aliquotaEfetiva: number;
+  valorDas: number;
+  reparticao: ReparticaoItem[];
+}
 
 @Component({
   selector: 'bear-simples',
@@ -117,10 +138,44 @@ import { environment } from '@env/environment';
   `,
 })
 export class SimplesComponent {
-  form!: FormGroup; resultado = signal<any>(null);
-  private apiUrl = `${environment.apiUrl}/tributario/simples`;
+  form!: FormGroup; resultado = signal<ResultadoSimples | null>(null);
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {
+  // Repartição aproximada dos tributos por anexo (percentual sobre o DAS).
+  private readonly reparticaoPorAnexo: Record<string, ReparticaoItem[]> = {
+    I: [
+      { tributo: 'IRPJ', percentual: 5.5, valor: 0 }, { tributo: 'CSLL', percentual: 3.5, valor: 0 },
+      { tributo: 'COFINS', percentual: 12.74, valor: 0 }, { tributo: 'PIS/PASEP', percentual: 2.76, valor: 0 },
+      { tributo: 'CPP', percentual: 41.5, valor: 0 }, { tributo: 'ICMS', percentual: 34.0, valor: 0 },
+    ],
+    II: [
+      { tributo: 'IRPJ', percentual: 5.5, valor: 0 }, { tributo: 'CSLL', percentual: 3.5, valor: 0 },
+      { tributo: 'COFINS', percentual: 11.51, valor: 0 }, { tributo: 'PIS/PASEP', percentual: 2.49, valor: 0 },
+      { tributo: 'CPP', percentual: 37.5, valor: 0 }, { tributo: 'IPI', percentual: 7.5, valor: 0 },
+      { tributo: 'ICMS', percentual: 32.0, valor: 0 },
+    ],
+    III: [
+      { tributo: 'IRPJ', percentual: 4.0, valor: 0 }, { tributo: 'CSLL', percentual: 3.5, valor: 0 },
+      { tributo: 'COFINS', percentual: 12.82, valor: 0 }, { tributo: 'PIS/PASEP', percentual: 2.78, valor: 0 },
+      { tributo: 'CPP', percentual: 43.4, valor: 0 }, { tributo: 'ISS', percentual: 33.5, valor: 0 },
+    ],
+    IV: [
+      { tributo: 'IRPJ', percentual: 18.8, valor: 0 }, { tributo: 'CSLL', percentual: 15.2, valor: 0 },
+      { tributo: 'COFINS', percentual: 17.67, valor: 0 }, { tributo: 'PIS/PASEP', percentual: 3.83, valor: 0 },
+      { tributo: 'ISS', percentual: 44.5, valor: 0 },
+    ],
+    V: [
+      { tributo: 'IRPJ', percentual: 25.0, valor: 0 }, { tributo: 'CSLL', percentual: 15.0, valor: 0 },
+      { tributo: 'COFINS', percentual: 14.1, valor: 0 }, { tributo: 'PIS/PASEP', percentual: 3.05, valor: 0 },
+      { tributo: 'CPP', percentual: 28.85, valor: 0 }, { tributo: 'ISS', percentual: 14.0, valor: 0 },
+    ],
+  };
+
+  constructor(
+    private fb: FormBuilder,
+    private appwrite: AppwriteService,
+    private auth: AuthService,
+    private snackBar: MatSnackBar,
+  ) {
     this.form = this.fb.group({
       competencia: ['', Validators.required], anexo: ['ANEXO_I', Validators.required],
       receitaBruta12Meses: [null, [Validators.required, Validators.min(1)]],
@@ -129,11 +184,55 @@ export class SimplesComponent {
   }
 
   calcular() {
-    if (this.form.valid) {
-      this.http.post<any>(`${this.apiUrl}/calcular`, this.form.value).subscribe({
-        next: (res) => { this.resultado.set(res); this.snackBar.open('DAS calculado!', 'OK', { duration: 3000 }); },
-        error: () => this.snackBar.open('Erro ao calcular', 'OK', { duration: 3000 }),
-      });
-    }
+    if (!this.form.valid) return;
+    const { competencia, anexo, receitaBruta12Meses, receitaBrutaMes } = this.form.value;
+    const rbt12 = Number(receitaBruta12Meses);
+    const receitaMes = Number(receitaBrutaMes);
+    const anexoKey = String(anexo).replace('ANEXO_', ''); // ANEXO_I -> I
+
+    const Q = this.appwrite.query;
+    this.appwrite.listDocuments<FaixaSimples>('tabela_simples', [
+      Q.limit(100), Q.orderDesc('$createdAt'), Q.equal('anexo', anexoKey),
+    ]).subscribe({
+      next: (faixas) => {
+        const faixa = faixas.find(f => rbt12 >= f.receitaBrutaMin && rbt12 <= f.receitaBrutaMax)
+          ?? faixas.slice().sort((a, b) => b.receitaBrutaMax - a.receitaBrutaMax)[0];
+        if (!faixa) {
+          this.snackBar.open('Faixa não encontrada para o anexo/RBT12', 'OK', { duration: 4000, panelClass: ['error-snackbar'] });
+          return;
+        }
+        // Alíquota efetiva = (RBT12 * aliq - parcelaDeducao) / RBT12
+        const aliqEfetivaFrac = ((rbt12 * (faixa.aliquota / 100)) - faixa.parcelaDeducao) / rbt12;
+        const valorDas = receitaMes * aliqEfetivaFrac;
+        const reparticao = (this.reparticaoPorAnexo[anexoKey] ?? []).map(r => ({
+          ...r, valor: valorDas * (r.percentual / 100),
+        }));
+        const resultado: ResultadoSimples = {
+          faixa: faixa.faixa,
+          aliquotaNominal: faixa.aliquota,
+          aliquotaEfetiva: aliqEfetivaFrac * 100,
+          valorDas,
+          reparticao,
+        };
+        this.resultado.set(resultado);
+        this.persistirApuracao(competencia, rbt12, valorDas);
+        this.snackBar.open('DAS calculado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
+      },
+      error: () => this.snackBar.open('Erro ao calcular', 'OK', { duration: 3000, panelClass: ['error-snackbar'] }),
+    });
+  }
+
+  private persistirApuracao(competencia: string, baseCalculo: number, valorRecolher: number) {
+    const data = {
+      tipo: 'SIMPLES',
+      competencia,
+      baseCalculo,
+      valorApurado: valorRecolher,
+      valorRecolher,
+      status: 'APURADO',
+      empresaId: this.auth.empresaId() || '',
+      tenantId: this.auth.tenantId() || 'default',
+    };
+    this.appwrite.createDocument('apuracoes_fiscais', data).subscribe({ next: () => {}, error: () => {} });
   }
 }

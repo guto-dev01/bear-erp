@@ -7,8 +7,33 @@ import { MatInputModule } from '@angular/material/input';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface SplitPaymentDoc {
+  $id: string;
+  $createdAt: string;
+  operacaoId?: string;
+  descricao?: string;
+  valorTotal: number;
+  aliquotaIbs?: number;
+  aliquotaCbs?: number;
+  valorIbs?: number;
+  valorCbs?: number;
+  valorLiquido?: number;
+  status: string;
+}
+
+interface SplitPaymentRow {
+  data: string;
+  nfe: string;
+  fornecedor: string;
+  valorTotal: number;
+  ibs: number;
+  cbs: number;
+  valorLiquido: number;
+  status: string;
+}
 
 @Component({
   selector: 'bear-split-payment',
@@ -159,7 +184,7 @@ import { environment } from '@env/environment';
   `,
 })
 export class SplitPaymentComponent {
-  transacoes = signal<any[]>([]);
+  transacoes = signal<SplitPaymentRow[]>([]);
   loading = signal(false);
   splitAtivo = signal(true);
   valorTotal = signal(0);
@@ -170,17 +195,33 @@ export class SplitPaymentComponent {
   valorSimulacao = 10000;
   simResultado = signal<{ valorFornecedor: number; ibs: number; cbs: number; totalTributos: number } | null>(null);
   displayedColumns = ['data', 'nfe', 'fornecedor', 'valorTotal', 'ibs', 'cbs', 'valorLiquido', 'status'];
-  private apiUrl = `${environment.apiUrl}/tributario/split-payment`;
 
-  constructor(private http: HttpClient, private snackBar: MatSnackBar) {
+  constructor(
+    private appwrite: AppwriteService,
+    private auth: AuthService,
+    private snackBar: MatSnackBar,
+  ) {
     this.carregar();
   }
 
   carregar() {
     this.loading.set(true);
-    this.http.get<any[]>(this.apiUrl).subscribe({
-      next: (res) => {
-        const items = Array.isArray(res) ? res : [];
+    const Q = this.appwrite.query;
+    this.appwrite.listDocuments<SplitPaymentDoc>('split_payment', [
+      Q.limit(100), Q.orderDesc('$createdAt'),
+      Q.equal('tenantId', this.auth.tenantId() || 'default'),
+    ]).subscribe({
+      next: (docs) => {
+        const items: SplitPaymentRow[] = docs.map(d => ({
+          data: d.$createdAt,
+          nfe: d.operacaoId || '',
+          fornecedor: d.descricao || '',
+          valorTotal: d.valorTotal || 0,
+          ibs: d.valorIbs || 0,
+          cbs: d.valorCbs || 0,
+          valorLiquido: d.valorLiquido ?? ((d.valorTotal || 0) - (d.valorIbs || 0) - (d.valorCbs || 0)),
+          status: d.status || 'PENDENTE',
+        }));
         this.transacoes.set(items);
         this.valorTotal.set(items.reduce((s, t) => s + (t.valorTotal || 0), 0));
         this.ibsTotal.set(items.reduce((s, t) => s + (t.ibs || 0), 0));
@@ -191,6 +232,7 @@ export class SplitPaymentComponent {
     });
   }
 
+  // Cálculo IBS/CBS no cliente e persistência da transação no Appwrite.
   simular() {
     const valor = this.valorSimulacao || 0;
     const ibs = valor * (this.aliqIBS / 100);
@@ -200,6 +242,24 @@ export class SplitPaymentComponent {
       ibs,
       cbs,
       totalTributos: ibs + cbs,
+    });
+
+    const data = {
+      operacaoId: '',
+      descricao: 'Simulação Split Payment',
+      valorTotal: valor,
+      aliquotaIbs: this.aliqIBS,
+      aliquotaCbs: this.aliqCBS,
+      valorIbs: ibs,
+      valorCbs: cbs,
+      valorLiquido: valor - ibs - cbs,
+      status: this.splitAtivo() ? 'PROCESSADO' : 'PENDENTE',
+      empresaId: this.auth.empresaId() || '',
+      tenantId: this.auth.tenantId() || 'default',
+    };
+    this.appwrite.createDocument('split_payment', data).subscribe({
+      next: () => { this.snackBar.open('Split Payment registrado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.carregar(); },
+      error: () => this.snackBar.open('Erro ao registrar', 'OK', { duration: 3000, panelClass: ['error-snackbar'] }),
     });
   }
 }

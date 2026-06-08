@@ -310,8 +310,9 @@ export class NfeComponent implements OnInit {
 
   autorizar(nfe: any) {
     if (confirm(`Autorizar NF-e #${nfe.numero}?`)) {
+      // TODO(appwrite): integração externa — transmissão à SEFAZ não disponível nesta versão.
       this.fiscalService.autorizarNfe(nfe.id).subscribe({
-        next: () => { this.snackBar.open('NF-e autorizada!', 'OK', { duration: 3000 }); this.loadNfes(); },
+        next: () => { this.snackBar.open('Autorização da NF-e requer integração externa (não disponível nesta versão Appwrite)', 'Fechar', { duration: 5000 }); this.loadNfes(); },
         error: err => this.snackBar.open(err.error?.message || 'Erro', 'Fechar', { duration: 5000 })
       });
     }
@@ -319,8 +320,9 @@ export class NfeComponent implements OnInit {
 
   cancelar(nfe: any) {
     if (confirm(`Cancelar NF-e #${nfe.numero}?`)) {
+      // TODO(appwrite): integração externa — cancelamento na SEFAZ não disponível nesta versão.
       this.fiscalService.cancelarNfe(nfe.id).subscribe({
-        next: () => { this.snackBar.open('NF-e cancelada', 'OK', { duration: 3000 }); this.loadNfes(); },
+        next: () => { this.snackBar.open('Cancelamento da NF-e requer integração externa (não disponível nesta versão Appwrite)', 'Fechar', { duration: 5000 }); this.loadNfes(); },
         error: err => this.snackBar.open(err.error?.message || 'Erro', 'Fechar', { duration: 5000 })
       });
     }

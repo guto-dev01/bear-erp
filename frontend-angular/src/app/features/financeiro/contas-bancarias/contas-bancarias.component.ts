@@ -7,8 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { FinanceiroService } from '../financeiro.service';
 
 @Component({
   selector: 'bear-contas-bancarias',
@@ -158,9 +157,8 @@ export class ContasBancariasComponent implements OnInit {
   maiorSaldo = signal(0);
   form!: FormGroup;
   bancos = ['Banco do Brasil', 'Itaú', 'Bradesco', 'Santander', 'Caixa Econômica', 'Nubank', 'Inter', 'Sicoob', 'Sicredi', 'Safra', 'BTG Pactual', 'Outros'];
-  private apiUrl = `${environment.apiUrl}/financeiro/contas-bancarias`;
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(private fb: FormBuilder, private service: FinanceiroService, private snackBar: MatSnackBar) {}
 
   ngOnInit() {
     this.form = this.fb.group({
@@ -173,9 +171,10 @@ export class ContasBancariasComponent implements OnInit {
 
   carregar() {
     this.loading.set(true);
-    this.http.get<any[]>(this.apiUrl).subscribe({
+    this.service.listContasBancarias().subscribe({
       next: (res) => {
-        const items = Array.isArray(res) ? res : (res as any).content || [];
+        // `descricao` guarda o responsável no schema do Appwrite.
+        const items = res.map((c) => ({ ...c, responsavel: c.descricao }));
         this.contas.set(items);
         this.saldoTotal.set(items.reduce((s: number, c: any) => s + (c.saldoAtual || 0), 0));
         this.maiorSaldo.set(items.length > 0 ? Math.max(...items.map((c: any) => c.saldoAtual || 0)) : 0);
@@ -200,7 +199,7 @@ export class ContasBancariasComponent implements OnInit {
 
   salvar() {
     if (this.form.valid) {
-      this.http.post<any>(this.apiUrl, this.form.value).subscribe({
+      this.service.createContaBancaria(this.form.value).subscribe({
         next: () => { this.snackBar.open('Conta criada!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.showForm.set(false); this.carregar(); },
         error: () => this.snackBar.open('Erro ao criar conta', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
       });

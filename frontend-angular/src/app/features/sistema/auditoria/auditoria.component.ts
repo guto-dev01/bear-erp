@@ -6,8 +6,21 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface AuditLogDoc {
+  $id: string;
+  usuario: string;
+  acao: string;
+  modulo: string;
+  descricao: string;
+  ip?: string;
+  detalhes?: string;
+  timestamp: string;
+  tenantId: string;
+  $createdAt: string;
+}
 
 interface AuditEvent {
   id: string;
@@ -174,31 +187,48 @@ export class AuditoriaComponent implements OnInit {
   filtroAcao = '';
   filtroModulo = '';
   private page = 0;
-  private apiUrl = `${environment.apiUrl}/sistema/auditoria`;
 
-  constructor(private http: HttpClient) {}
+  constructor(private appwrite: AppwriteService, private auth: AuthService) {}
 
   ngOnInit() { this.carregar(); }
+
+  private tenant(): string { return this.auth.tenantId() || 'default'; }
 
   carregar() {
     this.loading.set(true);
     this.page = 0;
-    let params = new HttpParams().set('page', 0).set('size', 50);
-    if (this.filtroAcao) params = params.set('acao', this.filtroAcao);
-    if (this.filtroModulo) params = params.set('modulo', this.filtroModulo);
-    if (this.filtroUsuario) params = params.set('usuario', this.filtroUsuario);
+    const queries = [
+      this.appwrite.query.equal('tenantId', this.tenant()),
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+    ];
+    if (this.filtroAcao) queries.push(this.appwrite.query.equal('acao', this.filtroAcao));
+    if (this.filtroModulo) queries.push(this.appwrite.query.equal('modulo', this.filtroModulo));
 
-    this.http.get<any>(this.apiUrl, { params }).subscribe({
-      next: (res) => {
-        const items = res.content || res || [];
-        this.eventos.set(items.length > 0 ? items : this.generateDemoData());
+    this.appwrite.listDocuments<AuditLogDoc>('audit_logs', queries).subscribe({
+      next: (docs) => {
+        this.eventos.set(docs.map(d => this.toEvent(d)));
+        this.hasMore.set(docs.length >= 100);
         this.loading.set(false);
       },
       error: () => {
-        this.eventos.set(this.generateDemoData());
+        this.eventos.set([]);
         this.loading.set(false);
       },
     });
+  }
+
+  private toEvent(d: AuditLogDoc): AuditEvent {
+    return {
+      id: d.$id,
+      usuario: d.usuario,
+      acao: d.acao,
+      modulo: d.modulo,
+      descricao: d.descricao,
+      ip: d.ip || '',
+      timestamp: new Date(d.timestamp || d.$createdAt),
+      detalhes: d.detalhes || undefined,
+    };
   }
 
   carregarMais() {
@@ -228,7 +258,34 @@ export class AuditoriaComponent implements OnInit {
     return this.eventos().filter(e => e.acao === 'EXCLUIR' || e.acao === 'LOGIN').length;
   }
 
-  exportar() {}
+  exportar() {
+    const rows = this.filteredEvents();
+    const header = ['Usuario', 'Acao', 'Modulo', 'Descricao', 'IP', 'Timestamp'];
+    const esc = (v: string) => '"' + (v || '').replace(/"/g, '""') + '"';
+    const csv = [
+      header.join(','),
+      ...rows.map(e => [e.usuario, e.acao, e.modulo, e.descricao, e.ip, new Date(e.timestamp).toISOString()].map(esc).join(',')),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `auditoria-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    // Registra a própria exportação na trilha de auditoria.
+    const user = this.auth.user();
+    this.appwrite.createDocument('audit_logs', {
+      usuario: user?.nome || user?.email || 'Sistema',
+      acao: 'EXPORTAR',
+      modulo: 'SISTEMA',
+      descricao: `Exportou ${rows.length} evento(s) de auditoria em CSV`,
+      ip: '',
+      timestamp: new Date().toISOString(),
+      tenantId: this.tenant(),
+    }).subscribe({ next: () => {}, error: () => {} });
+  }
 
   getActionIcon(a: string): string {
     const m: Record<string, string> = { CRIAR: 'add_circle', EDITAR: 'edit', EXCLUIR: 'delete', LOGIN: 'login', LOGOUT: 'logout', EXPORTAR: 'download' };
@@ -260,36 +317,5 @@ export class AuditoriaComponent implements OnInit {
     if (hrs < 24) return `há ${hrs}h`;
     const days = Math.floor(hrs / 24);
     return `há ${days}d`;
-  }
-
-  private generateDemoData(): AuditEvent[] {
-    const users = ['Admin', 'Maria Silva', 'João Santos', 'Ana Oliveira', 'Carlos Lima'];
-    const acoes = ['CRIAR', 'EDITAR', 'EXCLUIR', 'LOGIN', 'EXPORTAR'];
-    const modulos = ['CONTABILIDADE', 'FISCAL', 'FINANCEIRO', 'FOLHA', 'SISTEMA'];
-    const descs: Record<string, string[]> = {
-      CRIAR: ['Criou novo lançamento contábil', 'Cadastrou novo funcionário', 'Criou nova regra fiscal', 'Adicionou conta bancária'],
-      EDITAR: ['Alterou plano de contas', 'Atualizou dados do cliente', 'Editou configurações fiscais', 'Modificou centro de custo'],
-      EXCLUIR: ['Removeu lançamento #4521', 'Excluiu nota fiscal cancelada', 'Removeu regra inativa'],
-      LOGIN: ['Realizou login no sistema', 'Autenticou via certificado digital'],
-      EXPORTAR: ['Exportou balancete em PDF', 'Gerou SPED Fiscal', 'Exportou relatório DRE'],
-    };
-    const events: AuditEvent[] = [];
-    for (let i = 0; i < 25; i++) {
-      const acao = acoes[Math.floor(Math.random() * acoes.length)];
-      const descList = descs[acao];
-      const ts = new Date();
-      ts.setMinutes(ts.getMinutes() - Math.floor(Math.random() * 10000));
-      events.push({
-        id: `evt-${i}`,
-        usuario: users[Math.floor(Math.random() * users.length)],
-        acao,
-        modulo: modulos[Math.floor(Math.random() * modulos.length)],
-        descricao: descList[Math.floor(Math.random() * descList.length)],
-        ip: `192.168.1.${Math.floor(Math.random() * 254) + 1}`,
-        timestamp: ts,
-        detalhes: Math.random() > 0.5 ? `{"entidade":"Lancamento","id":"${Math.floor(Math.random() * 9999)}","campos_alterados":["valor","historico"]}` : undefined,
-      });
-    }
-    return events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }
 }

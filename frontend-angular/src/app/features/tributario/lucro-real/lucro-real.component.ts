@@ -5,8 +5,26 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface ResultadoReal {
+  lucroContabil: number;
+  adicoes: number;
+  exclusoes: number;
+  compensacoes: number;
+  lucroReal: number;
+  irpjNormal: number;
+  irpjAdicional: number;
+  irpjTotal: number;
+  csll: number;
+  pisNaoCumulativo: number;
+  cofinsNaoCumulativo: number;
+  creditosPisCofins: number;
+  pisAPagar: number;
+  cofinsAPagar: number;
+  totalTributos: number;
+}
 
 @Component({
   selector: 'bear-lucro-real',
@@ -106,10 +124,14 @@ import { environment } from '@env/environment';
   `,
 })
 export class LucroRealComponent {
-  form!: FormGroup; resultado = signal<any>(null);
-  private apiUrl = `${environment.apiUrl}/tributario/lucro-real`;
+  form!: FormGroup; resultado = signal<ResultadoReal | null>(null);
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {
+  constructor(
+    private fb: FormBuilder,
+    private appwrite: AppwriteService,
+    private auth: AuthService,
+    private snackBar: MatSnackBar,
+  ) {
     this.form = this.fb.group({
       periodo: ['', Validators.required], tipoPeriodo: ['TRIMESTRAL', Validators.required],
       lucroContabil: [null, Validators.required], saldoPrejuizoAnterior: [0], creditosPisCofins: [0],
@@ -117,11 +139,61 @@ export class LucroRealComponent {
   }
 
   calcular() {
-    if (this.form.valid) {
-      this.http.post<any>(`${this.apiUrl}/calcular`, this.form.value).subscribe({
-        next: (res) => { this.resultado.set(res); this.snackBar.open('LALUR calculado!', 'OK', { duration: 3000 }); },
-        error: () => this.snackBar.open('Erro ao calcular', 'OK', { duration: 3000 }),
-      });
-    }
+    if (!this.form.valid) return;
+    const { periodo, tipoPeriodo, lucroContabil, saldoPrejuizoAnterior, creditosPisCofins } = this.form.value;
+    const lucro = Number(lucroContabil);
+    const prejuizoAnterior = Number(saldoPrejuizoAnterior) || 0;
+    const creditos = Number(creditosPisCofins) || 0;
+
+    // LALUR Parte A — sem lançamentos extras informados, adições/exclusões = 0.
+    const adicoes = 0;
+    const exclusoes = 0;
+    const lucroAjustado = lucro + adicoes - exclusoes;
+    // Compensação de prejuízo fiscal limitada a 30% do lucro ajustado.
+    const compensacoes = lucroAjustado > 0
+      ? Math.min(prejuizoAnterior, lucroAjustado * 0.30)
+      : 0;
+    const lucroReal = lucroAjustado - compensacoes;
+
+    // Adicional de 10% sobre o que exceder o limite do período (R$ 20.000/mês ou R$ 60.000/trimestre).
+    const limiteAdicional = tipoPeriodo === 'MENSAL' ? 20000 : 60000;
+    const baseTributavel = Math.max(0, lucroReal);
+    const irpjNormal = baseTributavel * 0.15;
+    const irpjAdicional = Math.max(0, baseTributavel - limiteAdicional) * 0.10;
+    const irpjTotal = irpjNormal + irpjAdicional;
+    const csll = baseTributavel * 0.09;
+
+    // PIS/COFINS não-cumulativo — débitos sobre o lucro contábil (proxy de receita), abatidos os créditos informados.
+    const pisNaoCumulativo = lucro * 0.0165;
+    const cofinsNaoCumulativo = lucro * 0.076;
+    const proporcaoPis = 0.0165 / (0.0165 + 0.076);
+    const pisAPagar = Math.max(0, pisNaoCumulativo - creditos * proporcaoPis);
+    const cofinsAPagar = Math.max(0, cofinsNaoCumulativo - creditos * (1 - proporcaoPis));
+
+    const totalTributos = irpjTotal + csll + pisAPagar + cofinsAPagar;
+
+    const resultado: ResultadoReal = {
+      lucroContabil: lucro, adicoes, exclusoes, compensacoes, lucroReal,
+      irpjNormal, irpjAdicional, irpjTotal, csll,
+      pisNaoCumulativo, cofinsNaoCumulativo, creditosPisCofins: creditos,
+      pisAPagar, cofinsAPagar, totalTributos,
+    };
+    this.resultado.set(resultado);
+    this.persistirApuracao(periodo, lucroReal, totalTributos);
+    this.snackBar.open('LALUR calculado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
+  }
+
+  private persistirApuracao(competencia: string, baseCalculo: number, valorRecolher: number) {
+    const data = {
+      tipo: 'LUCRO_REAL',
+      competencia,
+      baseCalculo,
+      valorApurado: valorRecolher,
+      valorRecolher,
+      status: 'APURADO',
+      empresaId: this.auth.empresaId() || '',
+      tenantId: this.auth.tenantId() || 'default',
+    };
+    this.appwrite.createDocument('apuracoes_fiscais', data).subscribe({ next: () => {}, error: () => {} });
   }
 }

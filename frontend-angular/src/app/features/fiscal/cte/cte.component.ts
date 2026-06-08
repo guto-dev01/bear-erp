@@ -279,16 +279,18 @@ export class CteComponent implements OnInit {
 
   autorizar(c: any) {
     if (!confirm(`Autorizar CT-e nº ${c.numero}?`)) return;
+    // TODO(appwrite): integração externa — transmissão do CT-e à SEFAZ não disponível nesta versão.
     this.service.autorizarCte(c.id).subscribe({
-      next: () => { this.snackBar.open('CT-e autorizado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.carregar(); },
+      next: () => { this.snackBar.open('Autorização do CT-e requer integração externa (não disponível nesta versão Appwrite)', 'Fechar', { duration: 5000 }); this.carregar(); },
       error: () => this.snackBar.open('Erro ao autorizar', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
     });
   }
 
   cancelar(c: any) {
     if (!confirm(`Cancelar CT-e nº ${c.numero}?`)) return;
+    // TODO(appwrite): integração externa — evento de cancelamento do CT-e não disponível nesta versão.
     this.service.cancelarCte(c.id, 'Cancelamento solicitado pelo usuário').subscribe({
-      next: () => { this.snackBar.open('CT-e cancelado', 'OK', { duration: 3000 }); this.carregar(); },
+      next: () => { this.snackBar.open('Cancelamento do CT-e requer integração externa (não disponível nesta versão Appwrite)', 'Fechar', { duration: 5000 }); this.carregar(); },
       error: () => this.snackBar.open('Erro ao cancelar', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
     });
   }

@@ -8,8 +8,25 @@ import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface Honorario {
+  $id: string;
+  empresaId: string;
+  empresaNome?: string;
+  valor: number;
+  competencia: string;
+  dataVencimento: string;
+  dataPagamento?: string;
+  status: string;
+  tenantId: string;
+  $createdAt: string;
+  // aliases usados pelo template existente
+  id?: string;
+  clienteEmpresaNome?: string;
+  valorTotal?: number;
+}
 
 @Component({
   selector: 'bear-honorarios',
@@ -148,15 +165,14 @@ import { environment } from '@env/environment';
   `,
 })
 export class HonorariosComponent implements OnInit {
-  honorarios = signal<any[]>([]);
+  honorarios = signal<Honorario[]>([]);
   loading = signal(false);
   showForm = signal(false);
   totalElements = signal(0);
   displayedColumns = ['cliente', 'competencia', 'valor', 'vencimento', 'status', 'acoes'];
   form!: FormGroup;
-  private apiUrl = `${environment.apiUrl}/escritorio`;
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(private fb: FormBuilder, private appwrite: AppwriteService, private auth: AuthService, private snackBar: MatSnackBar) {}
 
   ngOnInit() {
     this.form = this.fb.group({
@@ -167,42 +183,82 @@ export class HonorariosComponent implements OnInit {
     this.carregar();
   }
 
-  carregar(page = 0) {
+  private mapHonorario(h: Honorario): Honorario {
+    // Status VENCIDO derivado no cliente quando em aberto e vencido
+    const hoje = new Date().toISOString().slice(0, 10);
+    let status = h.status;
+    if (status === 'ABERTO' && h.dataVencimento && h.dataVencimento < hoje) status = 'VENCIDO';
+    // Aliases para manter o template existente funcionando
+    return { ...h, status, id: h.$id, clienteEmpresaNome: h.empresaNome, valorTotal: h.valor };
+  }
+
+  carregar() {
     this.loading.set(true);
-    const params = new HttpParams().set('page', page).set('size', 20);
-    this.http.get<any>(`${this.apiUrl}/honorarios`, { params }).subscribe({
-      next: (res) => { this.honorarios.set(res.content || res || []); this.totalElements.set(res.totalElements || 0); this.loading.set(false); },
+    this.appwrite.listDocuments<Honorario>('honorarios', [
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+      this.appwrite.query.equal('tenantId', this.auth.tenantId() || 'default'),
+    ]).subscribe({
+      next: (res) => {
+        const mapped = res.map(h => this.mapHonorario(h));
+        this.honorarios.set(mapped);
+        this.totalElements.set(mapped.length);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
   }
 
   resetForm() { this.form.reset({ valorServicosExtras: 0 }); }
-  onPage(event: PageEvent) { this.carregar(event.pageIndex); }
+  onPage(_event: PageEvent) { /* listagem completa carregada (limit 100); paginação apenas visual */ }
 
   countPagos(): number { return this.honorarios().filter(h => h.status === 'PAGO').length; }
   countAbertos(): number { return this.honorarios().filter(h => h.status === 'ABERTO').length; }
   countVencidos(): number { return this.honorarios().filter(h => h.status === 'VENCIDO').length; }
 
   salvar() {
-    if (this.form.valid) {
-      this.http.post<any>(`${this.apiUrl}/honorarios`, this.form.value).subscribe({
-        next: () => { this.snackBar.open('Honorário criado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.showForm.set(false); this.carregar(); },
-        error: () => this.snackBar.open('Erro ao criar honorário', 'OK', { duration: 3000, panelClass: ['error-snackbar'] }),
-      });
-    }
+    if (!this.form.valid) return;
+    const v = this.form.value;
+    const valorHon = Number(v.valorHonorario) || 0;
+    const valorExtra = Number(v.valorServicosExtras) || 0;
+    const data: Record<string, unknown> = {
+      empresaNome: v.clienteEmpresaNome,
+      competencia: v.competencia,
+      valor: valorHon + valorExtra,
+      dataVencimento: v.dataVencimento,
+      status: 'ABERTO',
+      tenantId: this.auth.tenantId() || 'default',
+      empresaId: this.auth.empresaId() || '',
+      createdAt: new Date().toISOString(),
+    };
+    this.appwrite.createDocument('honorarios', data).subscribe({
+      next: () => { this.snackBar.open('Honorário criado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.showForm.set(false); this.carregar(); },
+      error: () => this.snackBar.open('Erro ao criar honorário', 'OK', { duration: 3000, panelClass: ['error-snackbar'] }),
+    });
   }
 
   registrarPagamento(id: string) {
-    this.http.post<any>(`${this.apiUrl}/honorarios/${id}/pagar`, {}).subscribe({
+    const data: Record<string, unknown> = { status: 'PAGO', dataPagamento: new Date().toISOString().slice(0, 10) };
+    this.appwrite.updateDocument('honorarios', id, data).subscribe({
       next: () => { this.snackBar.open('Pagamento registrado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.carregar(); },
       error: () => this.snackBar.open('Erro', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
     });
   }
 
   carregarVencidos() {
+    // "vencidos" = filtro no cliente por dataVencimento (em aberto e vencidos)
     this.loading.set(true);
-    this.http.get<any[]>(`${this.apiUrl}/honorarios/vencidos`).subscribe({
-      next: (res) => { this.honorarios.set(res); this.loading.set(false); },
+    this.appwrite.listDocuments<Honorario>('honorarios', [
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+      this.appwrite.query.equal('tenantId', this.auth.tenantId() || 'default'),
+    ]).subscribe({
+      next: (res) => {
+        const vencidos = res.map(h => this.mapHonorario(h)).filter(h => h.status === 'VENCIDO');
+        this.honorarios.set(vencidos);
+        this.totalElements.set(vencidos.length);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
   }

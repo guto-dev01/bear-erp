@@ -9,8 +9,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { ContabilidadeService, CentroCustoView } from '../contabilidade.service';
 
 @Component({
   selector: 'bear-centros-custo',
@@ -139,7 +138,7 @@ import { environment } from '@env/environment';
   `,
 })
 export class CentrosCustoComponent implements OnInit {
-  centros = signal<any[]>([]);
+  centros = signal<CentroCustoView[]>([]);
   loading = signal(false);
   showForm = signal(false);
   totalElements = signal(0);
@@ -147,9 +146,8 @@ export class CentrosCustoComponent implements OnInit {
   utilizado = signal(0);
   displayedColumns = ['codigo', 'nome', 'responsavel', 'orcamento', 'utilizado', 'percentual', 'status'];
   form!: FormGroup;
-  private apiUrl = `${environment.apiUrl}/contabilidade/centros-custo`;
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(private fb: FormBuilder, private service: ContabilidadeService, private snackBar: MatSnackBar) {}
 
   ngOnInit() {
     this.form = this.fb.group({
@@ -159,16 +157,14 @@ export class CentrosCustoComponent implements OnInit {
     this.carregar();
   }
 
-  carregar(page = 0) {
+  carregar(_page = 0) {
     this.loading.set(true);
-    const params = new HttpParams().set('page', page).set('size', 20);
-    this.http.get<any>(this.apiUrl, { params }).subscribe({
-      next: (res) => {
-        const items = res.content || res || [];
+    this.service.listCentrosCusto().subscribe({
+      next: (items) => {
         this.centros.set(items);
-        this.totalElements.set(res.totalElements || items.length);
-        this.orcamentoTotal.set(items.reduce((s: number, c: any) => s + (c.orcamento || 0), 0));
-        this.utilizado.set(items.reduce((s: number, c: any) => s + (c.valorUtilizado || 0), 0));
+        this.totalElements.set(items.length);
+        this.orcamentoTotal.set(items.reduce((s, c) => s + (c.orcamento || 0), 0));
+        this.utilizado.set(items.reduce((s, c) => s + (c.valorUtilizado || 0), 0));
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
@@ -178,11 +174,11 @@ export class CentrosCustoComponent implements OnInit {
   resetForm() { this.form.reset({ status: 'ATIVO' }); }
   onPage(event: PageEvent) { this.carregar(event.pageIndex); }
   countAtivos(): number { return this.centros().filter(c => c.status === 'ATIVO').length; }
-  getPercentual(c: any): number { return c.orcamento > 0 ? Math.round(((c.valorUtilizado || 0) / c.orcamento) * 100) : 0; }
+  getPercentual(c: CentroCustoView): number { return c.orcamento > 0 ? Math.round(((c.valorUtilizado || 0) / c.orcamento) * 100) : 0; }
 
   salvar() {
     if (this.form.valid) {
-      this.http.post<any>(this.apiUrl, this.form.value).subscribe({
+      this.service.createCentroCusto(this.form.value).subscribe({
         next: () => { this.snackBar.open('Centro de custo criado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.showForm.set(false); this.carregar(); },
         error: () => this.snackBar.open('Erro ao criar', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
       });
