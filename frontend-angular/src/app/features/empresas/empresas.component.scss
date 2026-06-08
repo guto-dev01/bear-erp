@@ -152,6 +152,49 @@
   }
 }
 
+/* ─── Form Overlay (centralizado) ────────────────────── */
+
+.form-overlay {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding-top: 0.5rem;
+}
+
+.form-card {
+  box-shadow: 0 8px 32px -12px rgba(0, 0, 0, 0.35);
+}
+
+/* Botão de busca de CNPJ na Receita */
+.cnpj-search-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0.25rem;
+  margin-right: 0.25rem;
+
+  &:disabled { cursor: default; }
+}
+
+.cnpj-search-icon {
+  font-size: 1.25rem;
+  color: var(--brand-primary);
+  transition: opacity 150ms;
+
+  .cnpj-search-btn:hover:not(:disabled) & { opacity: 0.7; }
+
+  &--spin {
+    animation: cnpj-spin 0.9s linear infinite;
+  }
+}
+
+@keyframes cnpj-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ─── Form Sections ──────────────────────────────────── */
 
 .form-section {
