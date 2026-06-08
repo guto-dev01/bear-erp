@@ -1,15 +1,30 @@
 import { Injectable, signal, computed } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, tap, catchError, throwError } from 'rxjs';
-import { environment } from '@env/environment';
-import { LoginRequest, LoginResponse, UsuarioInfo } from '@core/models/auth.model';
+import { Observable, of, from, throwError } from 'rxjs';
+import { catchError, map, switchMap, tap } from 'rxjs/operators';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { LoginRequest, UsuarioInfo } from '@core/models/auth.model';
+
+interface UsuarioDoc {
+  $id: string;
+  nome: string;
+  email: string;
+  tenantId?: string;
+  empresaAtualId?: string;
+  empresaIds?: string[];
+  roleIds?: string[];
+  status?: string;
+}
+
+interface RoleDoc {
+  $id: string;
+  nome: string;
+  permissoes?: string[];
+  tenantId?: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly apiUrl = `${environment.apiUrl}/auth`;
-  private readonly TOKEN_KEY = 'bear_access_token';
-  private readonly REFRESH_KEY = 'bear_refresh_token';
   private readonly USER_KEY = 'bear_user';
 
   private currentUser = signal<UsuarioInfo | null>(this.loadUser());
@@ -19,42 +34,43 @@ export class AuthService {
   readonly tenantId = computed(() => this.currentUser()?.tenantId ?? '');
   readonly empresaId = computed(() => this.currentUser()?.empresaAtualId ?? '');
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(private appwrite: AppwriteService, private router: Router) {}
 
-  login(request: LoginRequest): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.apiUrl}/login`, request).pipe(
-      tap(response => this.handleLoginSuccess(response)),
-      catchError(error => throwError(() => error))
-    );
-  }
-
-  refreshToken(): Observable<LoginResponse> {
-    const refreshToken = localStorage.getItem(this.REFRESH_KEY);
-    return this.http.post<LoginResponse>(`${this.apiUrl}/refresh`, { refreshToken }).pipe(
-      tap(response => this.handleLoginSuccess(response)),
-      catchError(error => {
-        this.logout();
-        return throwError(() => error);
-      })
+  login(request: LoginRequest): Observable<UsuarioInfo> {
+    // Appwrite recusa criar sessão se já existe uma ativa — encerra antes.
+    return this.appwrite.deleteCurrentSession().pipe(
+      catchError(() => of(null)),
+      switchMap(() => this.appwrite.createSession(request.email, request.senha)),
+      switchMap(() => this.appwrite.getAccount()),
+      switchMap(account => this.buildUsuarioInfo(account.$id, account.name, account.email)),
+      tap(usuario => this.handleLoginSuccess(usuario)),
+      catchError(error => throwError(() => error)),
     );
   }
 
   logout(): void {
-    const userId = this.currentUser()?.id;
-    if (userId) {
-      this.http.post(`${this.apiUrl}/logout`, null, {
-        headers: { 'X-User-Id': userId }
-      }).subscribe();
-    }
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.REFRESH_KEY);
+    this.appwrite.deleteCurrentSession().subscribe({ next: () => {}, error: () => {} });
     localStorage.removeItem(this.USER_KEY);
     this.currentUser.set(null);
     this.router.navigate(['/login']);
   }
 
+  /** Revalida a sessão Appwrite no boot do app (ex.: guard). */
+  restoreSession(): Observable<UsuarioInfo | null> {
+    return this.appwrite.getAccount().pipe(
+      switchMap(account => this.buildUsuarioInfo(account.$id, account.name, account.email)),
+      tap(usuario => this.handleLoginSuccess(usuario)),
+      catchError(() => {
+        this.currentUser.set(null);
+        localStorage.removeItem(this.USER_KEY);
+        return of(null);
+      }),
+    );
+  }
+
   getToken(): string | null {
-    return localStorage.getItem(this.TOKEN_KEY);
+    // Sessão é gerenciada pelo SDK do Appwrite (cookie/localStorage). Mantido por compatibilidade.
+    return null;
   }
 
   hasPermission(permission: string): boolean {
@@ -65,11 +81,46 @@ export class AuthService {
     return this.currentUser()?.roles?.includes(role) ?? false;
   }
 
-  private handleLoginSuccess(response: LoginResponse): void {
-    localStorage.setItem(this.TOKEN_KEY, response.accessToken);
-    localStorage.setItem(this.REFRESH_KEY, response.refreshToken);
-    localStorage.setItem(this.USER_KEY, JSON.stringify(response.usuario));
-    this.currentUser.set(response.usuario);
+  /** Enriquece os dados da conta Appwrite com tenant/roles/permissões da coleção `usuarios`. */
+  private buildUsuarioInfo(accountId: string, nome: string, email: string): Observable<UsuarioInfo> {
+    const Q = this.appwrite.query;
+    return this.appwrite.listDocuments<UsuarioDoc>('usuarios', [Q.equal('email', email), Q.limit(1)]).pipe(
+      switchMap(docs => {
+        const doc = docs[0];
+        if (!doc) {
+          // Conta existe no Appwrite Auth mas sem registro de perfil — usa defaults.
+          return of<UsuarioInfo>({
+            id: accountId, nome, email, tenantId: 'default',
+            empresaAtualId: '', roles: [], permissoes: [],
+          });
+        }
+        const tenantId = doc.tenantId ?? 'default';
+        const roleIds = doc.roleIds ?? [];
+        const rolesObs = roleIds.length
+          ? this.appwrite.listDocuments<RoleDoc>('roles', [Q.equal('tenantId', tenantId)])
+          : of<RoleDoc[]>([]);
+        return rolesObs.pipe(
+          map(allRoles => {
+            const myRoles = allRoles.filter(r => roleIds.includes(r.$id));
+            const permissoes = Array.from(new Set(myRoles.flatMap(r => r.permissoes ?? [])));
+            return {
+              id: doc.$id || accountId,
+              nome: doc.nome || nome,
+              email: doc.email || email,
+              tenantId,
+              empresaAtualId: doc.empresaAtualId ?? (doc.empresaIds?.[0] ?? ''),
+              roles: myRoles.map(r => r.nome),
+              permissoes,
+            } as UsuarioInfo;
+          }),
+        );
+      }),
+    );
+  }
+
+  private handleLoginSuccess(usuario: UsuarioInfo): void {
+    localStorage.setItem(this.USER_KEY, JSON.stringify(usuario));
+    this.currentUser.set(usuario);
   }
 
   private loadUser(): UsuarioInfo | null {

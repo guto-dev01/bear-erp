@@ -1,12 +1,37 @@
-const { Client, Databases, ID, Permission, Role, Query } = require('node-appwrite');
+const { Client, Databases, Users, ID, Permission, Role, Query } = require('node-appwrite');
+const fs = require('fs');
+const path = require('path');
+
+// Carrega variáveis do .env da raiz do projeto (sem depender de dotenv).
+function loadEnv() {
+  const envPath = path.resolve(__dirname, '..', '.env');
+  if (!fs.existsSync(envPath)) return;
+  for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const idx = trimmed.indexOf('=');
+    if (idx === -1) continue;
+    const key = trimmed.slice(0, idx).trim();
+    const value = trimmed.slice(idx + 1).trim();
+    if (!(key in process.env)) process.env[key] = value;
+  }
+}
+loadEnv();
+
+const API_KEY = process.env.APPWRITE_API_KEY;
+if (!API_KEY) {
+  console.error('❌ APPWRITE_API_KEY ausente. Defina no .env da raiz (nunca commite o valor).');
+  process.exit(1);
+}
 
 const client = new Client()
-  .setEndpoint('https://cloud.appwrite.io/v1')
-  .setProject('69b52c570036d92459ce')
-  .setKey('standard_e04260ebac4f36c6d310aa4cf59c95a7a36fb75ff4960912cf2e0a492e82dde2e7d515b7da5cd401ede97665d987ab95ca0780ccff2b2b71a5b00ba48e1adc570ea5327d1977d173d800a8e51828f5fe584c2f9abe011760ae066fb9b27d0b809cfba0f047fbbadc14957ea1b1b1b9f7e0d2b1864df1ad6218e3544a0a871ee6');
+  .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
+  .setProject(process.env.APPWRITE_PROJECT_ID)
+  .setKey(API_KEY);
 
 const db = new Databases(client);
-const DB_ID = '69b52c820006ab36b33a';
+const users = new Users(client);
+const DB_ID = process.env.APPWRITE_DB_ID;
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -746,13 +771,31 @@ async function populateData() {
 
   // --- USUARIO ADMIN ---
   console.log('\n👤 Populando Usuário Admin...');
+  const ADMIN_EMAIL = 'admin@bearerp.com.br';
+  const ADMIN_SENHA = process.env.ADMIN_SENHA || 'Bear@2024!';
+
+  // Conta no Appwrite Auth (login nativo). A senha é gerenciada pelo Appwrite.
+  let authUserId = ID.unique();
+  try {
+    const authUser = await users.create(authUserId, ADMIN_EMAIL, undefined, ADMIN_SENHA, 'Administrador Bear ERP');
+    authUserId = authUser.$id;
+    console.log('  ✓ Conta Appwrite Auth criada');
+  } catch (e) {
+    if (e.message?.includes('already exists') || e.code === 409) {
+      console.log('  ~ Conta Appwrite Auth já existe');
+    } else {
+      console.error('  ✗ Erro ao criar conta Auth:', e.message);
+    }
+  }
+
+  // Perfil do usuário (tenant/roles/permissões) na coleção `usuarios`.
   await db.createDocument(DB_ID, 'usuarios', ID.unique(), {
-    nome: 'Administrador Bear ERP', email: 'admin@bearerp.com.br',
-    senha: '$2a$12$LJ3m4ys9PqKP7MfDLH.CQOQ7IhMCOWfMJLKR9OGaUx3VqL5Rq6Km', // Bear@2024!
+    nome: 'Administrador Bear ERP', email: ADMIN_EMAIL,
+    senha: 'managed-by-appwrite-auth', // senha real fica no Appwrite Auth
     status: 'ATIVO', tenantId: TENANT, roleIds: [adminRole.$id],
     empresaIds: [], twoFactorEnabled: false, tentativasLogin: 0, createdAt: now,
   });
-  console.log('  ✓ admin@bearerp.com.br / Bear@2024!');
+  console.log(`  ✓ ${ADMIN_EMAIL} / ${ADMIN_SENHA}`);
 
   // --- EMPRESAS EXEMPLO ---
   console.log('\n🏢 Populando Empresas...');
