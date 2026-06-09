@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Account, Client, Databases, ID, Models, Query } from 'appwrite';
+import { Account, Client, Databases, Functions, ID, Models, Query } from 'appwrite';
 import { from, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from '@env/environment';
@@ -9,6 +9,7 @@ export class AppwriteService {
   private client: Client;
   private databases: Databases;
   private account_: Account;
+  private functions: Functions;
   private readonly dbId = environment.appwrite.databaseId;
 
   constructor() {
@@ -17,6 +18,7 @@ export class AppwriteService {
       .setProject(environment.appwrite.projectId);
     this.databases = new Databases(this.client);
     this.account_ = new Account(this.client);
+    this.functions = new Functions(this.client);
   }
 
   /** Account API do Appwrite (autenticação por sessão). */
@@ -56,12 +58,32 @@ export class AppwriteService {
     return from(this.account_.get());
   }
 
+  /**
+   * Gera um JWT de curta duração (~15 min) da sessão Appwrite atual, para
+   * autenticar requisições ao backend Java (gateway valida via Appwrite).
+   */
+  createJwt(): Observable<string> {
+    return from(this.account_.createJWT()).pipe(map(res => res.jwt));
+  }
+
   deleteCurrentSession(): Observable<unknown> {
     return from(this.account_.deleteSession('current'));
   }
 
   createAccount(email: string, password: string, name: string): Observable<Models.User<Models.Preferences>> {
     return from(this.account_.create(ID.unique(), email, password, name));
+  }
+
+  // ── Functions (Appwrite) ────────────────────────────────────
+  /**
+   * Executa uma Appwrite Function de forma síncrona e devolve o corpo da
+   * resposta já parseado como JSON. O segredo (ex.: token do Hub) fica na
+   * Function — o navegador só envia o payload.
+   */
+  executeFunction<T>(functionId: string, payload: Record<string, unknown> = {}): Observable<T> {
+    return from(this.functions.createExecution(functionId, JSON.stringify(payload))).pipe(
+      map(exec => JSON.parse(exec.responseBody || '{}') as T)
+    );
   }
 
   query = Query;

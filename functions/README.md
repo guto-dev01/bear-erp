@@ -55,6 +55,31 @@ functions/
 > Default de ambiente é **produção restrita**. Só vira produção com
 > `ESOCIAL_AMBIENTE=1`.
 
+## Function de consulta de CPF (Hub do Desenvolvedor) — DEPRECADA
+
+> **Deprecada.** A consulta de CPF migrou para o backend Java
+> (`integracoes-service` → `GET /api/v1/integracoes/cpf/{cpf}`), acessível pelo
+> api-gateway com validação de JWT do Appwrite. O frontend (Funcionários) chama
+> o gateway, não mais esta function. Mantida como fallback; a lógica de
+> normalização (`_shared/hub/consulta-cpf.js`) foi portada para
+> `ConsultaCpfService.java`.
+
+- **consulta-cpf-hub** — recebe `{ cpf, dataNascimento? }`, consulta os dados da
+  pessoa física no Hub do Desenvolvedor e devolve `{ ok, cpf, normalizado, bruto }`.
+  O token (`CPF_API_TOKEN`) fica **só na Function** — o navegador nunca o vê.
+  Lógica pura e testada em `_shared/hub/consulta-cpf.js` (CPF validado, resposta
+  normalizada, payload bruto preservado). O frontend chama via
+  `AppwriteService.executeFunction(env.appwrite.functions.consultaCpf, { cpf })`.
+
+| Variável | Default | Função |
+|---|---|---|
+| `CPF_API_TOKEN` | — | **obrigatória** — token do Hub do Desenvolvedor |
+| `CPF_API_URL` | `https://ws.hubdodesenvolvedor.com.br/v2/cpf/` | endpoint base do Hub |
+
+> Entrypoint `consulta-cpf-hub/index.js`, mesmo `rootDirectory` (`functions/`).
+> Configure `CPF_API_TOKEN` nas variáveis da Function no console do Appwrite
+> (o valor está no `.env` local, **não** no repositório).
+
 ## Rodar os testes
 
 ```bash

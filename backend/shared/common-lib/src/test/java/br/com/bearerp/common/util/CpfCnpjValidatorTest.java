@@ -20,7 +20,7 @@ class CpfCnpjValidatorTest {
             "52998224725",     // CPF válido sem formatação
             "529.982.247-25",  // CPF válido com formatação
             "11144477735",
-            "45532945087"
+            "12345678909"
         })
         @DisplayName("deve aceitar CPFs válidos")
         void deveAceitarCpfsValidos(String cpf) {

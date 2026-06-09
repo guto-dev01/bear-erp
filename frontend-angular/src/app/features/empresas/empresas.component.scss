@@ -1,3 +1,8 @@
+/* Cor de preenchimento dos campos do modal — clara no tema claro,
+   cinza-escuro (não preto) no tema escuro. */
+:host { --field-bg: var(--surface-1); }
+:host-context([data-theme="dark"]) { --field-bg: var(--surface-card); }
+
 /* ─── Search Box ─────────────────────────────────────── */
 
 .search-box {
@@ -37,6 +42,36 @@
   }
 }
 
+/* ─── Stats Grid (resumo por regime) ─────────────────── */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .stat-card {
+    cursor: pointer;
+    border: 1px solid transparent;
+    gap: 0.5rem;
+
+    &__hint {
+      font-size: 0.75rem;
+      color: var(--text-tertiary);
+      font-weight: 500;
+    }
+
+    &--active {
+      border-color: var(--brand-primary);
+      box-shadow: 0 0 0 1px var(--brand-primary), var(--shadow-md);
+    }
+  }
+}
+
 /* ─── Empresa Card ───────────────────────────────────── */
 
 .empresa-card {
@@ -65,6 +100,7 @@
   }
 
   &__avatar {
+    position: relative;
     width: 40px;
     height: 40px;
     border-radius: 10px;
@@ -75,6 +111,28 @@
     justify-content: center;
     font-weight: 700;
     font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  /* Ícone do segmento da empresa, sobreposto no canto do avatar */
+  &__segment {
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    width: 19px;
+    height: 19px;
+    border-radius: 50%;
+    background: var(--surface-card);
+    border: 1.5px solid var(--surface-card);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .material-symbols-rounded {
+      font-size: 13px;
+      color: var(--brand-primary);
+    }
   }
 
   &__name {
@@ -152,17 +210,191 @@
   }
 }
 
-/* ─── Form Overlay (centralizado) ────────────────────── */
+/* ─── Modal (Editar / Nova Empresa) ──────────────────── */
 
-.form-overlay {
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
   display: flex;
+  align-items: center;
   justify-content: center;
-  width: 100%;
-  padding-top: 0.5rem;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: modal-fade 200ms ease-out;
 }
 
-.form-card {
-  box-shadow: 0 8px 32px -12px rgba(0, 0, 0, 0.35);
+@keyframes modal-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  background: var(--surface-raised);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-2xl);
+  overflow: hidden;
+
+  [data-theme="dark"] & { border: 1px solid var(--border-subtle); }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    h2 {
+      font-size: 1.125rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-title);
+    }
+  }
+
+  &__title-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #007AFF, #5856D6);
+    color: #fff;
+
+    .material-symbols-rounded { font-size: 1.25rem; }
+  }
+
+  &__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-md);
+    border: none;
+    background: transparent;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: all 150ms;
+
+    &:hover { background: var(--surface-2); color: var(--text-primary); }
+  }
+
+  &__tabs {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0 1.5rem;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  &__tab {
+    position: relative;
+    padding: 0.75rem 0.25rem;
+    margin-right: 1.25rem;
+    border: none;
+    background: transparent;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: color 150ms;
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -1px;
+      height: 2px;
+      border-radius: 2px;
+      background: var(--brand-primary);
+      transform: scaleX(0);
+      transition: transform 200ms var(--ease-ios);
+    }
+
+    &:hover { color: var(--text-secondary); }
+
+    &--active {
+      color: var(--brand-primary);
+      font-weight: 600;
+      &::after { transform: scaleX(1); }
+    }
+  }
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+  }
+
+  &__body {
+    padding: 1.5rem;
+    overflow-y: auto;
+  }
+
+  &__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-subtle);
+    background: var(--surface-card);
+  }
+}
+
+.tab-panel {
+  animation: tab-fade-in 200ms var(--ease-ios) both;
+
+  &__title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+  }
+
+  /* Caixas de input no estilo do app: superfície preenchida, borda única
+     e SEM o contorno entalhado do Material (a "linha cortando"). */
+  ::ng-deep {
+    .mat-mdc-text-field-wrapper {
+      background: var(--field-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--r-control);
+      transition: border-color 150ms var(--ease-ios), box-shadow 150ms var(--ease-ios);
+    }
+
+    /* remove as 3 partes da borda entalhada que cortavam a caixa */
+    .mdc-notched-outline__leading,
+    .mdc-notched-outline__notch,
+    .mdc-notched-outline__trailing {
+      border: none !important;
+    }
+    .mdc-line-ripple { display: none !important; }
+
+    /* foco: realça a própria caixa, não a linha interna */
+    .mat-focused .mat-mdc-text-field-wrapper {
+      border-color: var(--brand-primary);
+      box-shadow: 0 0 0 3px var(--brand-primary-light);
+    }
+
+    .mat-mdc-form-field-subscript-wrapper { font-size: 0.75rem; }
+  }
+}
+
+@keyframes tab-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* Botão de busca de CNPJ na Receita */
@@ -195,19 +427,77 @@
   to { transform: rotate(360deg); }
 }
 
-/* ─── Form Sections ──────────────────────────────────── */
+/* ─── Paginação ──────────────────────────────────────── */
 
-.form-section {
-  margin-bottom: 1.5rem;
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border-subtle);
 
-  &__title {
+  &__nav {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  &__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: var(--surface-0);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 150ms;
+
+    .material-symbols-rounded { font-size: 1.25rem; }
+
+    &:hover:not(:disabled) {
+      border-color: var(--brand-primary);
+      color: var(--brand-primary);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+  }
+
+  &__page {
     font-size: 0.8125rem;
     font-weight: 600;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    min-width: 48px;
+    text-align: center;
+  }
+
+  &__select {
+    margin-left: 0.5rem;
+    height: 34px;
+    padding: 0 0.625rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: var(--surface-0);
     color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--border-subtle);
+    font-size: 0.8125rem;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+
+    &:focus { border-color: var(--brand-primary); }
+  }
+
+  &__info {
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
   }
 }

@@ -244,6 +244,13 @@ bear:
     jwt:
       secret: ${JWT_SECRET:bear-erp-jwt-secret-key-minimum-256-bits-for-hmac-sha256-algorithm}
 
+# Validação da identidade pelo Appwrite Cloud (o frontend autentica via Appwrite).
+appwrite:
+  endpoint: ${APPWRITE_ENDPOINT:https://cloud.appwrite.io/v1}
+  project-id: ${APPWRITE_PROJECT_ID:}
+  # TTL do cache de tokens validados (segundos). O JWT do Appwrite vive 15 min.
+  jwt-cache-seconds: ${APPWRITE_JWT_CACHE_SECONDS:300}
+
 eureka:
   client:
     service-url:

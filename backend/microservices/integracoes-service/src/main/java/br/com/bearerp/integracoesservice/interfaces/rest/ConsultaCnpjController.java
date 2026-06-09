@@ -20,11 +20,6 @@ public class ConsultaCnpjController {
         return ResponseEntity.ok(consultaCnpjService.consultarCnpj(cnpj));
     }
 
-    @GetMapping("/cpf/{cpf}")
-    public ResponseEntity<Map<String, Object>> consultarCpf(@PathVariable String cpf) {
-        return ResponseEntity.ok(consultaCnpjService.consultarCpf(cpf));
-    }
-
     @GetMapping("/sintegra/{uf}/{inscricaoEstadual}")
     public ResponseEntity<Map<String, Object>> consultarSintegra(
             @PathVariable String uf, @PathVariable String inscricaoEstadual) {

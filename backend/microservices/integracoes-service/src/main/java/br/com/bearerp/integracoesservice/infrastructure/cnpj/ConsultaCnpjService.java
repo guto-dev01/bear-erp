@@ -1,23 +1,39 @@
 package br.com.bearerp.integracoesservice.infrastructure.cnpj;
 
+import br.com.bearerp.common.util.CpfCnpjValidator;
+import br.com.bearerp.common.exception.ResourceNotFoundException;
+import br.com.bearerp.integracoesservice.infrastructure.config.IntegracaoProperties;
+import br.com.bearerp.integracoesservice.infrastructure.exception.DocumentoInvalidoException;
+import br.com.bearerp.integracoesservice.infrastructure.exception.ProvedorExternoException;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Consulta automática de CNPJ/CPF:
- * - ReceitaWS (CNPJ) — preencher dados automaticamente
- * - SINTEGRA (Inscrição Estadual)
- * - SUFRAMA (Zona Franca de Manaus)
- * - Validação de situação cadastral
- * - Score de fornecedor
+ * Consulta de CNPJ na BrasilAPI (configurável via {@code integracoes.cnpj.url}),
+ * preenchimento automático de dados cadastrais e score de fornecedor.
+ *
+ * A chamada externa roda server-side (não mais direto do navegador), passando
+ * pelo gateway autenticado.
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class ConsultaCnpjService {
+
+    private final RestClient integracoesRestClient;
+    private final IntegracaoProperties props;
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class DadosCnpj {
@@ -83,94 +99,84 @@ public class ConsultaCnpjService {
         private int anosAtividade;
         private boolean situacaoRegular;
         private boolean semRestricoes;
-        private int pontuacaoPontualidade;   // Histórico de entregas
+        private int pontuacaoPontualidade;
         private int pontuacaoQualidade;
         private String recomendacao;
     }
 
     /**
-     * Consultar CNPJ na Receita Federal (via ReceitaWS ou BrasilAPI)
+     * Consulta o CNPJ na BrasilAPI e mapeia para {@link DadosCnpj}.
      */
     public DadosCnpj consultarCnpj(String cnpj) {
-        String cnpjLimpo = cnpj.replaceAll("[^0-9]", "");
-
-        if (cnpjLimpo.length() != 14) {
-            throw new RuntimeException("CNPJ inválido: deve conter 14 dígitos");
+        String cnpjLimpo = cnpj == null ? "" : cnpj.replaceAll("\\D", "");
+        if (!CpfCnpjValidator.isValidCnpj(cnpjLimpo)) {
+            throw new DocumentoInvalidoException("CNPJ inválido");
         }
 
-        // Em produção: chamar API externa
-        // URL ReceitaWS: https://receitaws.com.br/v1/cnpj/{cnpj}
-        // URL BrasilAPI: https://brasilapi.com.br/api/cnpj/v1/{cnpj}
-        // URL MinhaReceita: https://minhareceita.org/{cnpj}
-
         log.info("Consultando CNPJ: {}", cnpjLimpo);
+        JsonNode r;
+        try {
+            r = integracoesRestClient.get()
+                    .uri(props.getCnpj().getUrl() + "/" + cnpjLimpo)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (HttpClientErrorException.NotFound e) {
+            throw new ResourceNotFoundException("CNPJ não encontrado na Receita");
+        } catch (RestClientException e) {
+            log.error("Falha de rede ao consultar CNPJ: {}", e.getMessage());
+            throw new ProvedorExternoException("Falha ao consultar o provedor de CNPJ");
+        }
+        if (r == null) {
+            throw new ProvedorExternoException("Resposta vazia do provedor de CNPJ");
+        }
 
-        // Simulação com dados realistas
+        String situacao = upper(texto(r, "descricao_situacao_cadastral", "situacao"));
         DadosCnpj dados = DadosCnpj.builder()
                 .cnpj(cnpjLimpo)
-                .razaoSocial("EMPRESA EXEMPLO LTDA")
-                .nomeFantasia("EXEMPLO")
-                .situacao("ATIVA")
-                .dataSituacao(LocalDate.of(2020, 1, 15))
-                .naturezaJuridica("206-2 - Sociedade Empresária Limitada")
-                .porte("EPP")
-                .dataAbertura(LocalDate.of(2015, 6, 10))
-                .logradouro("Rua das Flores")
-                .numero("100")
-                .bairro("Centro")
-                .municipio("São Paulo")
-                .uf("SP")
-                .cep("01001000")
-                .telefone("(11) 3000-0000")
-                .email("contato@exemplo.com.br")
-                .cnaePrincipal("47.11-3-02")
-                .cnaePrincipalDescricao("Comércio varejista de mercadorias em geral")
-                .cnaeSecundarios(List.of("46.93-1-00", "47.89-0-99"))
-                .socios(List.of(
-                        Socio.builder().nome("JOÃO DA SILVA").qualificacao("Sócio-Administrador")
-                                .dataEntrada(LocalDate.of(2015, 6, 10)).build()
-                ))
-                .optanteSimplesNacional(true)
-                .optanteMei(false)
-                .dataOpcaoSimples(LocalDate.of(2015, 7, 1))
-                .regimeTributario("SIMPLES")
-                .ativa(true)
-                .aptoParaNegocio(true)
+                .razaoSocial(texto(r, "razao_social"))
+                .nomeFantasia(coalesce(texto(r, "nome_fantasia"), texto(r, "razao_social")))
+                .situacao(situacao)
+                .dataSituacao(data(r, "data_situacao_cadastral"))
+                .motivoSituacao(texto(r, "descricao_motivo_situacao_cadastral"))
+                .naturezaJuridica(texto(r, "natureza_juridica"))
+                .porte(texto(r, "porte", "descricao_porte"))
+                .dataAbertura(data(r, "data_inicio_atividade", "data_abertura"))
+                .logradouro(juntar(texto(r, "descricao_tipo_de_logradouro"), texto(r, "logradouro")))
+                .numero(texto(r, "numero"))
+                .complemento(texto(r, "complemento"))
+                .bairro(texto(r, "bairro"))
+                .municipio(texto(r, "municipio"))
+                .uf(texto(r, "uf"))
+                .cep(somenteDigitos(texto(r, "cep")))
+                .telefone(texto(r, "ddd_telefone_1"))
+                .email(texto(r, "email"))
+                .cnaePrincipal(texto(r, "cnae_fiscal"))
+                .cnaePrincipalDescricao(texto(r, "cnae_fiscal_descricao"))
+                .cnaeSecundarios(cnaesSecundarios(r))
+                .socios(socios(r))
+                .optanteSimplesNacional(bool(r, "opcao_pelo_simples"))
+                .optanteMei(bool(r, "opcao_pelo_mei"))
+                .ativa("ATIVA".equals(situacao))
+                .aptoParaNegocio("ATIVA".equals(situacao))
                 .alertas(new ArrayList<>())
                 .build();
 
-        // Validações automáticas
         if (!"ATIVA".equals(dados.getSituacao())) {
             dados.setAptoParaNegocio(false);
             dados.getAlertas().add("CNPJ com situação: " + dados.getSituacao() + " — verificar antes de fazer negócio");
         }
-
         if (dados.getDataAbertura() != null && dados.getDataAbertura().isAfter(LocalDate.now().minusYears(1))) {
             dados.getAlertas().add("Empresa com menos de 1 ano de atividade — risco elevado");
         }
-
         return dados;
     }
 
     /**
-     * Consultar CPF
+     * Consulta de Inscrição Estadual no SINTEGRA (ainda stub — fora do escopo da fatia atual).
      */
-    public Map<String, Object> consultarCpf(String cpf) {
-        String cpfLimpo = cpf.replaceAll("[^0-9]", "");
-        if (cpfLimpo.length() != 11) throw new RuntimeException("CPF inválido");
-
-        Map<String, Object> resultado = new LinkedHashMap<>();
-        resultado.put("cpf", cpfLimpo);
-        resultado.put("situacao", "REGULAR");
-        resultado.put("valido", validarCpf(cpfLimpo));
-        return resultado;
-    }
-
-    /**
-     * Consultar Inscrição Estadual no SINTEGRA
-     */
-    public Map<String, Object> consultarSintegra(String uf, String inscricaoEstadual) {
-        Map<String, Object> resultado = new LinkedHashMap<>();
+    public java.util.Map<String, Object> consultarSintegra(String uf, String inscricaoEstadual) {
+        java.util.Map<String, Object> resultado = new java.util.LinkedHashMap<>();
         resultado.put("uf", uf);
         resultado.put("inscricaoEstadual", inscricaoEstadual);
         resultado.put("situacao", "HABILITADA");
@@ -179,31 +185,22 @@ public class ConsultaCnpjService {
     }
 
     /**
-     * Calcular score do fornecedor
+     * Score do fornecedor a partir dos dados reais do CNPJ.
      */
     public ScoreFornecedor calcularScoreFornecedor(String cnpj) {
         DadosCnpj dados = consultarCnpj(cnpj);
 
         int score = 50; // Base
-
-        // Tempo de atividade
         int anosAtividade = 0;
         if (dados.getDataAbertura() != null) {
             anosAtividade = LocalDate.now().getYear() - dados.getDataAbertura().getYear();
-            score += Math.min(anosAtividade * 3, 20); // Até 20 pontos
+            score += Math.min(anosAtividade * 3, 20);
         }
-
-        // Situação cadastral
         if (dados.isAtiva()) score += 15;
-
-        // Porte
         if ("DEMAIS".equals(dados.getPorte())) score += 10;
         else if ("EPP".equals(dados.getPorte())) score += 5;
-
-        // Sem alertas
         if (dados.getAlertas().isEmpty()) score += 5;
         else score -= dados.getAlertas().size() * 5;
-
         score = Math.max(0, Math.min(100, score));
 
         String classificacao;
@@ -234,23 +231,76 @@ public class ConsultaCnpjService {
                 .build();
     }
 
-    private boolean validarCpf(String cpf) {
-        if (cpf.length() != 11) return false;
-        if (cpf.chars().distinct().count() == 1) return false;
+    // ── helpers de parsing (defensivos) ─────────────────────────
 
-        int[] pesos1 = {10, 9, 8, 7, 6, 5, 4, 3, 2};
-        int[] pesos2 = {11, 10, 9, 8, 7, 6, 5, 4, 3, 2};
+    private static List<String> cnaesSecundarios(JsonNode r) {
+        List<String> out = new ArrayList<>();
+        JsonNode arr = r.get("cnaes_secundarios");
+        if (arr != null && arr.isArray()) {
+            for (JsonNode n : arr) {
+                String codigo = texto(n, "codigo");
+                if (codigo != null) out.add(codigo);
+            }
+        }
+        return out;
+    }
 
-        int soma = 0;
-        for (int i = 0; i < 9; i++) soma += (cpf.charAt(i) - '0') * pesos1[i];
-        int dig1 = 11 - (soma % 11);
-        if (dig1 > 9) dig1 = 0;
+    private static List<Socio> socios(JsonNode r) {
+        List<Socio> out = new ArrayList<>();
+        JsonNode arr = r.get("qsa");
+        if (arr != null && arr.isArray()) {
+            for (JsonNode n : arr) {
+                out.add(Socio.builder()
+                        .nome(texto(n, "nome_socio", "nome"))
+                        .cpfCnpj(texto(n, "cnpj_cpf_do_socio", "cpf_cnpj_socio"))
+                        .qualificacao(texto(n, "qualificacao_socio", "qualificacao"))
+                        .build());
+            }
+        }
+        return out;
+    }
 
-        soma = 0;
-        for (int i = 0; i < 10; i++) soma += (cpf.charAt(i) - '0') * pesos2[i];
-        int dig2 = 11 - (soma % 11);
-        if (dig2 > 9) dig2 = 0;
+    private static String texto(JsonNode node, String... chaves) {
+        if (node == null) return null;
+        for (String c : chaves) {
+            JsonNode v = node.get(c);
+            if (v != null && !v.isNull() && StringUtils.hasText(v.asText())) {
+                return v.asText().trim();
+            }
+        }
+        return null;
+    }
 
-        return (cpf.charAt(9) - '0') == dig1 && (cpf.charAt(10) - '0') == dig2;
+    private static boolean bool(JsonNode node, String chave) {
+        JsonNode v = node.get(chave);
+        return v != null && v.asBoolean(false);
+    }
+
+    private static LocalDate data(JsonNode node, String... chaves) {
+        String t = texto(node, chaves);
+        if (t == null) return null;
+        try {
+            return LocalDate.parse(t.length() > 10 ? t.substring(0, 10) : t);
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    private static String upper(String s) {
+        return s == null ? null : s.toUpperCase();
+    }
+
+    private static String coalesce(String a, String b) {
+        return StringUtils.hasText(a) ? a : b;
+    }
+
+    private static String juntar(String tipo, String logradouro) {
+        if (!StringUtils.hasText(tipo)) return logradouro;
+        if (!StringUtils.hasText(logradouro)) return tipo;
+        return (tipo + " " + logradouro).trim();
+    }
+
+    private static String somenteDigitos(String v) {
+        return v == null ? null : v.replaceAll("\\D", "");
     }
 }
