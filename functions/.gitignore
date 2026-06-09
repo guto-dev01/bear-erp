@@ -1,0 +1,12 @@
+node_modules/
+
+# NUNCA versionar material de certificado real nem segredos.
+*.pfx
+*.p12
+*.key
+.env
+.env.*
+
+# Cadeias TLS Sectigo instaladas localmente (ver _shared/soap/certs/README.md).
+# Os arquivos .pem reais devem ser providos por ambiente, não commitados.
+_shared/soap/certs/*.pem

@@ -25,6 +25,13 @@ yarn-error.log*
 .env.*
 !.env.example
 
+# Material de certificado digital — NUNCA versionar (.pfx/.p12/chaves)
+*.pfx
+*.p12
+*.key
+# Cadeias TLS Sectigo instaladas por ambiente (ver functions/_shared/soap/certs/README.md)
+functions/_shared/soap/certs/*.pem
+
 # IDEs e editores
 .idea/
 .vscode/

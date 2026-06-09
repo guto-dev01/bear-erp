@@ -86,10 +86,10 @@
                 <span>{{ empresa.email }}</span>
               </div>
             }
-            @if (empresa.cidade && empresa.estado) {
+            @if (empresa.cidade && empresa.uf) {
               <div class="empresa-card__info-item">
                 <span class="material-symbols-rounded text-sm">location_on</span>
-                <span>{{ empresa.cidade }}/{{ empresa.estado }}</span>
+                <span>{{ empresa.cidade }}/{{ empresa.uf }}</span>
               </div>
             }
           </div>
@@ -109,7 +109,8 @@
 
   <!-- Form -->
   @if (showForm()) {
-    <div class="bear-card p-6 max-w-3xl animate-fade-in-up">
+    <div class="form-overlay">
+    <div class="bear-card p-6 w-full max-w-3xl animate-fade-in-up form-card">
       <div class="flex items-center justify-between mb-6">
         <h2 class="text-heading text-lg">{{ editingId() ? 'Editar Empresa' : 'Nova Empresa' }}</h2>
         <button class="bear-btn bear-btn--ghost" style="padding: 0.375rem;" (click)="closeForm()">
@@ -131,7 +132,20 @@
             </mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label>CNPJ</mat-label>
-              <input matInput formControlName="cnpj" maxlength="14">
+              <input matInput formControlName="cnpj" maxlength="14" inputmode="numeric"
+                     placeholder="Somente números"
+                     (input)="onCnpjInput($any($event.target).value)"
+                     (blur)="onCnpjInput($any($event.target).value)">
+              <button matSuffix type="button" class="cnpj-search-btn"
+                      matTooltip="Buscar dados na Receita Federal"
+                      [disabled]="cnpjLoading()"
+                      (click)="buscarCnpj(empresaForm.get('cnpj')?.value)">
+                <span class="material-symbols-rounded cnpj-search-icon"
+                      [class.cnpj-search-icon--spin]="cnpjLoading()">
+                  {{ cnpjLoading() ? 'progress_activity' : 'cloud_download' }}
+                </span>
+              </button>
+              <mat-hint>Preenche os dados automaticamente</mat-hint>
             </mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label>Inscrição Estadual</mat-label>
@@ -180,7 +194,7 @@
             </mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label>Estado</mat-label>
-              <mat-select formControlName="estado">
+              <mat-select formControlName="uf">
                 @for (uf of ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO']; track uf) {
                   <mat-option [value]="uf">{{ uf }}</mat-option>
                 }
@@ -197,12 +211,13 @@
           <button type="button" class="bear-btn bear-btn--outline" style="padding: 0.5rem 1.5rem;"
                   (click)="closeForm()">Cancelar</button>
           <button type="submit" class="bear-btn bear-btn--primary" style="padding: 0.5rem 1.5rem;"
-                  [disabled]="empresaForm.invalid">
+                  [disabled]="saving()">
             <span class="material-symbols-rounded text-lg mr-1">{{ editingId() ? 'save' : 'add' }}</span>
             {{ editingId() ? 'Salvar' : 'Criar Empresa' }}
           </button>
         </div>
       </form>
+    </div>
     </div>
   }
 </div>
