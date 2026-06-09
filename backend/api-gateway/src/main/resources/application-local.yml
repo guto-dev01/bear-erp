@@ -68,7 +68,7 @@ spring:
             - Path=/api/v1/certificados/**
 
         - id: integracoes-service
-          uri: http://localhost:8101
+          uri: http://localhost:8113
           predicates:
             - Path=/api/v1/integracoes/**
 

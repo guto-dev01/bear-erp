@@ -9,8 +9,18 @@ import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { AppwriteService } from '@core/services/appwrite.service';
 import { AuthService } from '@core/auth/auth.service';
+import { environment } from '@env/environment';
+
+/** Dados normalizados de CPF retornados pelo backend (integracoes-service). */
+interface DadosCpf {
+  cpf?: string;
+  nome?: string;
+  dataNascimento?: string;
+  situacaoCadastral?: string;
+}
 
 interface FuncionarioDoc {
   $id: string;
@@ -153,7 +163,21 @@ interface FuncionarioDoc {
             <p class="text-label mb-3">Dados Pessoais</p>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <mat-form-field appearance="outline"><mat-label>Nome</mat-label><input matInput formControlName="nome"></mat-form-field>
-              <mat-form-field appearance="outline"><mat-label>CPF</mat-label><input matInput formControlName="cpf"></mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>CPF</mat-label>
+                <input matInput formControlName="cpf" maxlength="11" inputmode="numeric"
+                       (input)="onCpfInput($any($event.target).value)"
+                       (blur)="onCpfInput($any($event.target).value)">
+                <button matSuffix type="button" class="cpf-search-btn" style="border:none;background:none;cursor:pointer;display:flex;align-items:center;padding:0 0.25rem;"
+                        matTooltip="Buscar dados do CPF" [disabled]="cpfLoading()"
+                        (click)="buscarCpf(form.get('cpf')?.value)">
+                  <span class="material-symbols-rounded" style="font-size:1.25rem;color:var(--brand-primary);"
+                        [class.cpf-search-icon--spin]="cpfLoading()">
+                    {{ cpfLoading() ? 'progress_activity' : 'cloud_download' }}
+                  </span>
+                </button>
+                <mat-hint>Preenche nome e nascimento</mat-hint>
+              </mat-form-field>
               <mat-form-field appearance="outline"><mat-label>PIS</mat-label><input matInput formControlName="pis"></mat-form-field>
               <mat-form-field appearance="outline"><mat-label>RG</mat-label><input matInput formControlName="rg"></mat-form-field>
               <mat-form-field appearance="outline"><mat-label>CTPS</mat-label><input matInput formControlName="ctps"></mat-form-field>
@@ -220,10 +244,16 @@ interface FuncionarioDoc {
       }
     </div>
   `,
+  styles: [`
+    .cpf-search-icon--spin { animation: cpf-spin 0.9s linear infinite; }
+    @keyframes cpf-spin { to { transform: rotate(360deg); } }
+    .cpf-search-btn:disabled { cursor: default; opacity: 0.7; }
+  `],
 })
 export class FuncionariosComponent implements OnInit {
   funcionarios = signal<any[]>([]);
   loading = signal(false);
+  cpfLoading = signal(false);
   showForm = signal(false);
   totalElements = signal(0);
   editingId = signal<string | null>(null);
@@ -237,6 +267,7 @@ export class FuncionariosComponent implements OnInit {
     private appwrite: AppwriteService,
     private auth: AuthService,
     private snackBar: MatSnackBar,
+    private http: HttpClient,
   ) {}
 
   ngOnInit() {
@@ -294,6 +325,45 @@ export class FuncionariosComponent implements OnInit {
 
   resetForm() { this.form.reset({ sexo: 'MASCULINO', estadoCivil: 'SOLTEIRO', tipoConta: 'CORRENTE', tipoContrato: 'CLT', tipoSalario: 'MENSAL', categoria: 'EMPREGADO', cargaHorariaSemanal: 44, numeroDependentes: 0, numeroDependentesIr: 0 }); }
   onPage(event: PageEvent) { this.pageSize = event.pageSize; this.carregar(event.pageIndex); }
+
+  /** Normaliza para dígitos e dispara a busca automaticamente ao completar 11. */
+  onCpfInput(value: string) {
+    const digits = (value || '').replace(/\D/g, '');
+    if (this.form.get('cpf')?.value !== digits) {
+      this.form.patchValue({ cpf: digits }, { emitEvent: false });
+    }
+    if (digits.length === 11) this.buscarCpf(digits);
+  }
+
+  /** Consulta os dados da pessoa via backend (integracoes-service) e preenche o form. */
+  buscarCpf(cpf: string) {
+    const digits = (cpf || '').replace(/\D/g, '');
+    if (digits.length !== 11 || this.cpfLoading()) return;
+    this.cpfLoading.set(true);
+
+    let params = new HttpParams();
+    const nasc = this.form.get('dataNascimento')?.value;
+    if (nasc) params = params.set('dataNascimento', nasc); // alguns planos exigem a data
+
+    this.http
+      .get<DadosCpf>(`${environment.apiUrl}/integracoes/cpf/${digits}`, { params })
+      .subscribe({
+        next: (d) => {
+          this.cpfLoading.set(false);
+          this.form.patchValue({
+            nome: d.nome || this.form.value.nome,
+            dataNascimento: d.dataNascimento || this.form.value.dataNascimento,
+          });
+          this.snackBar.open('Dados preenchidos pela Receita Federal', 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
+        },
+        error: (err) => {
+          this.cpfLoading.set(false);
+          const msg = err.status === 404 ? 'CPF não encontrado'
+            : (err.error?.message || 'Não foi possível consultar o CPF');
+          this.snackBar.open(msg, 'Fechar', { duration: 4000, panelClass: ['error-snackbar'] });
+        },
+      });
+  }
 
   editar(f: any) {
     this.editingId.set(f.id);

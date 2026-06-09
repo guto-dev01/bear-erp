@@ -174,24 +174,27 @@ $apple-mono: '"SF Mono", "JetBrains Mono", ui-monospace, "Fira Code", monospace'
   --z-toast: 700;
 }
 
-// ─── DARK (refined — deep neutral black, elevated grouped cards) ───────────────
+// ─── DARK (refined — deep navy/charcoal, elevated slate cards) ─────────────────
+// Not pure black: a cool blue-grey undertone gives the premium SaaS depth seen
+// in Linear / Vercel / the reference mockup. Cards sit a step lighter than the
+// canvas so they read as distinct elevated surfaces.
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --bg-canvas: #0a0a0c;            // near-black neutral canvas
-  --surface-card: #1c1c1e;         // grouped card
-  --surface-raised: #2c2c2e;       // menus / popovers / sheets
-  --surface-0: #1c1c1e;
-  --surface-1: #0a0a0c;
-  --surface-2: #2c2c2e;
-  --surface-3: #3a3a3c;
-  --surface-4: #48484a;
-  --surface-5: #636366;
+  --bg-canvas: #0a0d14;            // deep navy-charcoal canvas
+  --surface-card: #141925;         // slate-navy grouped card
+  --surface-raised: #1c2230;       // menus / popovers / sheets
+  --surface-0: #141925;
+  --surface-1: #0a0d14;
+  --surface-2: #1c2230;
+  --surface-3: #272e3d;
+  --surface-4: #353d4f;
+  --surface-5: #4a5468;
 
-  --separator: rgba(84, 84, 88, 0.40);
-  --border-color: rgba(84, 84, 88, 0.40);
-  --border-subtle: rgba(84, 84, 88, 0.24);
-  --border-strong: rgba(84, 84, 88, 0.65);
+  --separator: rgba(122, 134, 160, 0.18);
+  --border-color: rgba(122, 134, 160, 0.16);
+  --border-subtle: rgba(122, 134, 160, 0.10);
+  --border-strong: rgba(122, 134, 160, 0.32);
   --border-focus: #0a84ff;
 
   --text-title: #ffffff;
@@ -245,19 +248,19 @@ $apple-mono: '"SF Mono", "JetBrains Mono", ui-monospace, "Fira Code", monospace'
   --chart-5: #ff375f;  --chart-6: #64d2ff;  --chart-7: #bf5af2;  --chart-8: #ffd60a;
   --chart-9: #ff453a;  --chart-10: #40c8e0; --chart-11: #ac8e68; --chart-12: #66d4cf;
 
-  --sidebar-bg: rgba(28, 28, 30, 0.78);
+  --sidebar-bg: rgba(17, 21, 32, 0.82);
   --sidebar-hover: rgba(255, 255, 255, 0.06);
   --sidebar-active: rgba(10, 132, 255, 0.22);
   --sidebar-active-border: #0a84ff;
   --sidebar-text: rgba(235, 235, 245, 0.60);
   --sidebar-text-hover: #ffffff;
   --sidebar-text-active: #0a84ff;
-  --sidebar-border: rgba(84, 84, 88, 0.40);
+  --sidebar-border: rgba(122, 134, 160, 0.16);
   --sidebar-section-label: rgba(235, 235, 245, 0.35);
 
-  --toolbar-bg: rgba(20, 20, 22, 0.72);
-  --toolbar-border: rgba(84, 84, 88, 0.40);
-  --tabbar-bg: rgba(20, 20, 22, 0.80);
+  --toolbar-bg: rgba(13, 16, 24, 0.72);
+  --toolbar-border: rgba(122, 134, 160, 0.16);
+  --tabbar-bg: rgba(13, 16, 24, 0.82);
 
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.5);
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);

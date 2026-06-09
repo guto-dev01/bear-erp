@@ -105,6 +105,9 @@ services:
       EUREKA_URI: http://service-discovery:8761/eureka
       REDIS_HOST: redis
       JWT_SECRET: ${JWT_SECRET:-bear-erp-jwt-secret-key-minimum-256-bits-for-hmac-sha256-algorithm}
+      # Validação da identidade pelo Appwrite (frontend autentica via Appwrite Cloud)
+      APPWRITE_ENDPOINT: ${APPWRITE_ENDPOINT:-https://cloud.appwrite.io/v1}
+      APPWRITE_PROJECT_ID: ${APPWRITE_PROJECT_ID:-}
     depends_on:
       service-discovery:
         condition: service_healthy
@@ -744,6 +747,10 @@ services:
     environment:
       <<: *service-env
       MONGODB_URI: mongodb://${MONGO_USER:-bearadmin}:${MONGO_PASSWORD:-BearErp2024!}@mongodb:27017/bear_erp_integracoes?authSource=admin
+      # Integrações externas — token do Hub fica só aqui (vem do .env raiz)
+      CPF_API_TOKEN: ${CPF_API_TOKEN:-}
+      CPF_API_URL: ${CPF_API_URL:-https://ws.hubdodesenvolvedor.com.br/v2/cpf/}
+      CNPJ_API_URL: ${CNPJ_API_URL:-https://brasilapi.com.br/api/cnpj/v1}
     depends_on: *service-deps
     networks:
       - bear-network

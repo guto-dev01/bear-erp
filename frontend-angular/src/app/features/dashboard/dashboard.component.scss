@@ -219,6 +219,8 @@
       opacity: 1;
       transform: translate(2px, -2px);
     }
+
+    .kpi-card__icon-wrap { transform: scale(1.06); }
   }
 
   &__top {
@@ -236,12 +238,20 @@
     align-items: center;
     justify-content: center;
     position: relative;
+    transition: transform 250ms var(--ease-spring);
 
     .material-symbols-rounded {
       font-size: 1.25rem;
       position: relative;
       z-index: 1;
     }
+
+    // Light-mode themed chips: soft tinted fill + vibrant icon
+    &--indigo { background: rgba(0, 122, 255, 0.12);  .material-symbols-rounded { color: #007AFF; } }
+    &--green  { background: rgba(52, 199, 89, 0.14);  .material-symbols-rounded { color: #248A3D; } }
+    &--amber  { background: rgba(255, 149, 0, 0.14);  .material-symbols-rounded { color: #C93400; } }
+    &--purple { background: rgba(88, 86, 214, 0.14);  .material-symbols-rounded { color: #5856D6; } }
+    &--teal   { background: rgba(48, 176, 199, 0.14); .material-symbols-rounded { color: #0E7C8B; } }
   }
 
   &__arrow {
@@ -441,6 +451,64 @@
     &__badge--indigo { background: rgba(10, 132, 255, 0.22); color: #0A84FF; }
 
     .finance-card__icon-wrap .material-symbols-rounded { color: #fff; }
+  }
+}
+
+// ─── Dark-mode card definition, glass sheen & themed icon chips ───────────────
+[data-theme="dark"] {
+  // Give every floating card a hairline border + soft inner highlight so it
+  // reads as a distinct, elevated surface against the near-black canvas.
+  .kpi-card,
+  .alerts-panel,
+  .section-card,
+  .ops-card {
+    border-color: var(--border-subtle);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0)) padding-box,
+      var(--surface-0) padding-box;
+  }
+
+  // KPI icon chips: deeper translucent tint + bright system color icon
+  .kpi-card__icon-wrap {
+    &--indigo { background: rgba(10, 132, 255, 0.18);  .material-symbols-rounded { color: #0A84FF; } }
+    &--green  { background: rgba(48, 209, 88, 0.18);   .material-symbols-rounded { color: #30D158; } }
+    &--amber  { background: rgba(255, 159, 10, 0.18);  .material-symbols-rounded { color: #FF9F0A; } }
+    &--purple { background: rgba(94, 92, 230, 0.20);   .material-symbols-rounded { color: #7D7AFF; } }
+    &--teal   { background: rgba(100, 210, 255, 0.16); .material-symbols-rounded { color: #64D2FF; } }
+  }
+
+  // Hover: lift the hairline to a faintly colored glow edge
+  .kpi-card:hover { border-color: var(--border-strong); }
+  .ops-card:hover { border-color: var(--border-strong); }
+
+  // Alert count chips: translucent tints instead of bright light pills
+  .alert-row__count {
+    &--error   { background: rgba(255, 69, 58, 0.18);  color: #FF453A; }
+    &--warning { background: rgba(255, 159, 10, 0.18); color: #FF9F0A; }
+    &--info    { background: rgba(10, 132, 255, 0.18); color: #0A84FF; }
+    &--purple  { background: rgba(94, 92, 230, 0.20);  color: #7D7AFF; }
+  }
+  .alerts-panel__total-badge { background: rgba(255, 69, 58, 0.18); color: #FF453A; }
+
+  // Timeline avatars: translucent tints to match the dark surface
+  .timeline__avatar {
+    &--fiscal  { background: rgba(48, 209, 88, 0.16);  color: #30D158; }
+    &--finance { background: rgba(10, 132, 255, 0.16); color: #0A84FF; }
+    &--task    { background: rgba(191, 90, 242, 0.16); color: #BF5AF2; }
+    &--import  { background: rgba(255, 159, 10, 0.16); color: #FF9F0A; }
+  }
+
+  // Quick-access hover tints: dark translucent fills (not bright pastels)
+  .quick-item {
+    &--indigo:hover,
+    &--blue:hover   { background: rgba(10, 132, 255, 0.14); .quick-item__icon-wrap { background: rgba(10, 132, 255, 0.20); .material-symbols-rounded { color: #0A84FF; } } }
+    &--green:hover,
+    &--emerald:hover { background: rgba(48, 209, 88, 0.14); .quick-item__icon-wrap { background: rgba(48, 209, 88, 0.20); .material-symbols-rounded { color: #30D158; } } }
+    &--red:hover,
+    &--rose:hover   { background: rgba(255, 69, 58, 0.14); .quick-item__icon-wrap { background: rgba(255, 69, 58, 0.20); .material-symbols-rounded { color: #FF453A; } } }
+    &--purple:hover { background: rgba(94, 92, 230, 0.16); .quick-item__icon-wrap { background: rgba(94, 92, 230, 0.22); .material-symbols-rounded { color: #7D7AFF; } } }
+    &--amber:hover  { background: rgba(255, 159, 10, 0.14); .quick-item__icon-wrap { background: rgba(255, 159, 10, 0.20); .material-symbols-rounded { color: #FF9F0A; } } }
+    &--teal:hover   { background: rgba(100, 210, 255, 0.14); .quick-item__icon-wrap { background: rgba(100, 210, 255, 0.20); .material-symbols-rounded { color: #64D2FF; } } }
   }
 }
 

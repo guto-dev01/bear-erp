@@ -23,6 +23,14 @@ bear:
     encryption:
       aes-key: ${AES_KEY:YmVhci1lcnAtYWVzMjU2LWtleS0zMmJ5dGVzLW9rISE=}
 
+# Integrações externas. O token do Hub é secreto e só existe aqui (env), nunca no frontend.
+integracoes:
+  hub:
+    cpf-url: ${CPF_API_URL:https://ws.hubdodesenvolvedor.com.br/v2/cpf/}
+    cpf-token: ${CPF_API_TOKEN:}
+  cnpj:
+    url: ${CNPJ_API_URL:https://brasilapi.com.br/api/cnpj/v1}
+
 eureka:
   client:
     service-url:

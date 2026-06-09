@@ -72,8 +72,8 @@ interface Honorario { valor: number; status: string; }
              [class]="'kpi-card kpi-card--' + kpi.theme"
              [style.animation-delay]="(i * 80) + 'ms'">
             <div class="kpi-card__top">
-              <div class="kpi-card__icon-wrap" [style.background]="kpi.gradientBg">
-                <span class="material-symbols-rounded" [style.color]="kpi.color">{{ kpi.icon }}</span>
+              <div class="kpi-card__icon-wrap" [class]="'kpi-card__icon-wrap kpi-card__icon-wrap--' + kpi.theme">
+                <span class="material-symbols-rounded">{{ kpi.icon }}</span>
               </div>
               <span class="material-symbols-rounded kpi-card__arrow">north_east</span>
             </div>
@@ -341,11 +341,11 @@ export class DashboardComponent implements OnInit {
   ]);
 
   kpiCards = [
-    { title: 'Empresas Ativas', value: '12', icon: 'apartment', color: '#007AFF', gradientBg: 'linear-gradient(135deg, #ECEBFB 0%, #DAD9F6 100%)', route: '/empresas', change: '+2 este mês', changeUp: true, theme: 'indigo' },
-    { title: 'NF-e Emitidas', value: '847', icon: 'receipt_long', color: '#34C759', gradientBg: 'linear-gradient(135deg, #E9FAEF 0%, #D1F3DA 100%)', route: '/fiscal/nfe', change: '+18.3%', changeUp: true, theme: 'green' },
-    { title: 'Obrigações Pendentes', value: '5', icon: 'pending_actions', color: '#FF9500', gradientBg: 'linear-gradient(135deg, #FFF4E5 0%, #FFEACC 100%)', route: '/sped/obrigacoes', change: '-3 vs mês ant.', changeUp: true, theme: 'amber' },
-    { title: 'Folha (Mês)', value: 'R$ 85k', icon: 'badge', color: '#5856D6', gradientBg: 'linear-gradient(135deg, #F2EBFB 0%, #E6E3F9 100%)', route: '/folha/holerites', change: '+2.1%', changeUp: false, theme: 'purple' },
-    { title: 'Honorários Abertos', value: 'R$ 32k', icon: 'paid', color: '#30B0C7', gradientBg: 'linear-gradient(135deg, #E6F8FB 0%, #CFF0F4 100%)', route: '/escritorio/honorarios', change: '4 pendentes', changeUp: true, theme: 'teal' },
+    { title: 'Empresas Ativas', value: '12', icon: 'apartment', route: '/empresas', change: '+2 este mês', changeUp: true, theme: 'indigo' },
+    { title: 'NF-e Emitidas', value: '847', icon: 'receipt_long', route: '/fiscal/nfe', change: '+18.3%', changeUp: true, theme: 'green' },
+    { title: 'Obrigações Pendentes', value: '5', icon: 'pending_actions', route: '/sped/obrigacoes', change: '-3 vs mês ant.', changeUp: true, theme: 'amber' },
+    { title: 'Folha (Mês)', value: 'R$ 85k', icon: 'badge', route: '/folha/holerites', change: '+2.1%', changeUp: false, theme: 'purple' },
+    { title: 'Honorários Abertos', value: 'R$ 32k', icon: 'paid', route: '/escritorio/honorarios', change: '4 pendentes', changeUp: true, theme: 'teal' },
   ];
 
   atalhos = [

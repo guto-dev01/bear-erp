@@ -7,5 +7,9 @@ export const environment = {
     endpoint: 'https://cloud.appwrite.io/v1',
     projectId: '69b52c570036d92459ce',
     databaseId: '69b52c820006ab36b33a',
+    functions: {
+      // ID da Appwrite Function `consulta-cpf-hub` (preencher após o deploy).
+      consultaCpf: 'consulta-cpf-hub',
+    },
   },
 };

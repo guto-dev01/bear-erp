@@ -27,6 +27,11 @@ interface RoleDoc {
 export class AuthService {
   private readonly USER_KEY = 'bear_user';
 
+  /** JWT do Appwrite (curta duração) para autenticar no backend Java. */
+  private appwriteJwt: string | null = null;
+  private jwtExpiraEm = 0;
+  private jwtTimer?: ReturnType<typeof setInterval>;
+
   private currentUser = signal<UsuarioInfo | null>(this.loadUser());
 
   readonly user = this.currentUser.asReadonly();
@@ -43,6 +48,7 @@ export class AuthService {
       switchMap(() => this.appwrite.createSession(request.email, request.senha)),
       switchMap(() => this.appwrite.getAccount()),
       switchMap(account => this.buildUsuarioInfo(account.$id, account.name, account.email)),
+      switchMap(usuario => this.iniciarJwt().pipe(map(() => usuario), catchError(() => of(usuario)))),
       tap(usuario => this.handleLoginSuccess(usuario)),
       catchError(error => throwError(() => error)),
     );
@@ -52,6 +58,7 @@ export class AuthService {
     this.appwrite.deleteCurrentSession().subscribe({ next: () => {}, error: () => {} });
     localStorage.removeItem(this.USER_KEY);
     this.currentUser.set(null);
+    this.limparJwt();
     this.router.navigate(['/login']);
   }
 
@@ -59,10 +66,12 @@ export class AuthService {
   refreshToken(): Observable<UsuarioInfo> {
     return this.appwrite.getAccount().pipe(
       switchMap(account => this.buildUsuarioInfo(account.$id, account.name, account.email)),
+      switchMap(usuario => this.iniciarJwt().pipe(map(() => usuario), catchError(() => of(usuario)))),
       tap(usuario => this.handleLoginSuccess(usuario)),
       catchError(error => {
         this.currentUser.set(null);
         localStorage.removeItem(this.USER_KEY);
+        this.limparJwt();
         return throwError(() => error);
       }),
     );
@@ -74,8 +83,38 @@ export class AuthService {
   }
 
   getToken(): string | null {
-    // Sessão é gerenciada pelo SDK do Appwrite (cookie/localStorage). Mantido por compatibilidade.
-    return null;
+    // JWT do Appwrite para o backend Java. O interceptor o envia como Bearer.
+    return Date.now() < this.jwtExpiraEm ? this.appwriteJwt : null;
+  }
+
+  /** Gera o primeiro JWT e agenda renovações proativas (o JWT do Appwrite vive ~15 min). */
+  private iniciarJwt(): Observable<string> {
+    return this.renovarJwt().pipe(tap(() => this.agendarRenovacaoJwt()));
+  }
+
+  private renovarJwt(): Observable<string> {
+    return this.appwrite.createJwt().pipe(
+      tap(jwt => {
+        this.appwriteJwt = jwt;
+        this.jwtExpiraEm = Date.now() + 13 * 60 * 1000; // renova antes dos 15 min
+      }),
+    );
+  }
+
+  private agendarRenovacaoJwt(): void {
+    if (this.jwtTimer) return;
+    this.jwtTimer = setInterval(() => {
+      this.renovarJwt().subscribe({ error: () => {} });
+    }, 13 * 60 * 1000);
+  }
+
+  private limparJwt(): void {
+    this.appwriteJwt = null;
+    this.jwtExpiraEm = 0;
+    if (this.jwtTimer) {
+      clearInterval(this.jwtTimer);
+      this.jwtTimer = undefined;
+    }
   }
 
   hasPermission(permission: string): boolean {
