@@ -7,17 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '@env/environment';
-
-interface ContaBP {
-  codigo: string;
-  descricao: string;
-  nivel: number;
-  saldo: number;
-  tipo: 'GRUPO' | 'ANALITICA';
-  natureza: 'ATIVO' | 'PASSIVO' | 'PL';
-}
+import { ContabilidadeService, ContaBP } from '../contabilidade.service';
 
 @Component({
   selector: 'bear-balanco-patrimonial',
@@ -91,7 +81,7 @@ interface ContaBP {
       @if (!loading() && contas().length > 0) {
         <div class="bear-card overflow-hidden animate-fade-in-up">
           <div class="p-4 flex items-center justify-between" style="border-bottom:1px solid var(--border-subtle)">
-            <h3 class="text-heading text-sm">Balanço Patrimonial — {{ meses[mes - 1]?.label }}/{{ ano }}</h3>
+            <h3 class="text-heading text-sm">Balanço Patrimonial — {{ meses[mes - 1].label }}/{{ ano }}</h3>
           </div>
           <table style="width:100%;border-collapse:collapse;">
             <thead>
@@ -185,50 +175,20 @@ export class BalancoPatrimonialComponent {
   totalPL = computed(() => this.contasPL().filter(c => c.tipo === 'ANALITICA').reduce((s, c) => s + c.saldo, 0));
   isBalanced = computed(() => Math.abs(this.totalAtivo() - this.totalPassivo() - this.totalPL()) < 0.01);
 
-  private apiUrl = `${environment.apiUrl}/contabilidade`;
-
-  constructor(private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(private service: ContabilidadeService, private snackBar: MatSnackBar) {}
 
   gerar() {
     this.loading.set(true);
-    this.http.get<any>(`${this.apiUrl}/balanco-patrimonial`, { params: { mes: this.mes, ano: this.ano } }).subscribe({
+    this.service.gerarBalancoMensal(this.ano, this.mes).subscribe({
       next: (res) => {
-        const data = res?.contas || res || [];
-        this.contas.set(data.length > 0 ? data : this.buildDemoData());
+        this.contas.set(res.contas);
         this.loading.set(false);
         this.snackBar.open('Balanço gerado com sucesso', 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
       },
-      error: () => {
-        this.contas.set(this.buildDemoData());
+      error: (e) => {
         this.loading.set(false);
+        this.snackBar.open(e?.message || 'Erro ao gerar balanço', 'Fechar', { duration: 5000, panelClass: ['error-snackbar'] });
       },
     });
-  }
-
-  private buildDemoData(): ContaBP[] {
-    return [
-      { codigo: '1', descricao: 'ATIVO', nivel: 0, saldo: 0, tipo: 'GRUPO', natureza: 'ATIVO' },
-      { codigo: '1.1', descricao: 'Ativo Circulante', nivel: 1, saldo: 0, tipo: 'GRUPO', natureza: 'ATIVO' },
-      { codigo: '1.1.01', descricao: 'Caixa e Equivalentes', nivel: 2, saldo: 85000, tipo: 'ANALITICA', natureza: 'ATIVO' },
-      { codigo: '1.1.02', descricao: 'Bancos Conta Movimento', nivel: 2, saldo: 234500, tipo: 'ANALITICA', natureza: 'ATIVO' },
-      { codigo: '1.1.03', descricao: 'Clientes a Receber', nivel: 2, saldo: 178200, tipo: 'ANALITICA', natureza: 'ATIVO' },
-      { codigo: '1.1.04', descricao: 'Estoques', nivel: 2, saldo: 92300, tipo: 'ANALITICA', natureza: 'ATIVO' },
-      { codigo: '1.2', descricao: 'Ativo Não Circulante', nivel: 1, saldo: 0, tipo: 'GRUPO', natureza: 'ATIVO' },
-      { codigo: '1.2.01', descricao: 'Imobilizado', nivel: 2, saldo: 450000, tipo: 'ANALITICA', natureza: 'ATIVO' },
-      { codigo: '1.2.02', descricao: '(-) Depreciação Acumulada', nivel: 2, saldo: -67500, tipo: 'ANALITICA', natureza: 'ATIVO' },
-      { codigo: '1.2.03', descricao: 'Intangível', nivel: 2, saldo: 35000, tipo: 'ANALITICA', natureza: 'ATIVO' },
-      { codigo: '2', descricao: 'PASSIVO', nivel: 0, saldo: 0, tipo: 'GRUPO', natureza: 'PASSIVO' },
-      { codigo: '2.1', descricao: 'Passivo Circulante', nivel: 1, saldo: 0, tipo: 'GRUPO', natureza: 'PASSIVO' },
-      { codigo: '2.1.01', descricao: 'Fornecedores', nivel: 2, saldo: 145000, tipo: 'ANALITICA', natureza: 'PASSIVO' },
-      { codigo: '2.1.02', descricao: 'Obrigações Trabalhistas', nivel: 2, saldo: 68200, tipo: 'ANALITICA', natureza: 'PASSIVO' },
-      { codigo: '2.1.03', descricao: 'Obrigações Fiscais', nivel: 2, saldo: 42800, tipo: 'ANALITICA', natureza: 'PASSIVO' },
-      { codigo: '2.1.04', descricao: 'Empréstimos CP', nivel: 2, saldo: 30000, tipo: 'ANALITICA', natureza: 'PASSIVO' },
-      { codigo: '2.2', descricao: 'Passivo Não Circulante', nivel: 1, saldo: 0, tipo: 'GRUPO', natureza: 'PASSIVO' },
-      { codigo: '2.2.01', descricao: 'Empréstimos LP', nivel: 2, saldo: 180000, tipo: 'ANALITICA', natureza: 'PASSIVO' },
-      { codigo: '3', descricao: 'PATRIMÔNIO LÍQUIDO', nivel: 0, saldo: 0, tipo: 'GRUPO', natureza: 'PL' },
-      { codigo: '3.1', descricao: 'Capital Social', nivel: 1, saldo: 400000, tipo: 'ANALITICA', natureza: 'PL' },
-      { codigo: '3.2', descricao: 'Reservas de Lucros', nivel: 1, saldo: 95000, tipo: 'ANALITICA', natureza: 'PL' },
-      { codigo: '3.3', descricao: 'Lucros Acumulados', nivel: 1, saldo: 46500, tipo: 'ANALITICA', natureza: 'PL' },
-    ];
   }
 }

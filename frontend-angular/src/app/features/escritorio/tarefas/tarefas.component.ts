@@ -7,8 +7,28 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface Tarefa {
+  $id: string;
+  titulo: string;
+  descricao?: string;
+  tipo?: string;
+  prioridade?: string;
+  responsavelId?: string;
+  responsavelNome?: string;
+  empresaId?: string;
+  empresaNome?: string;
+  dataVencimento?: string;
+  dataConclusao?: string;
+  status: string;
+  tenantId: string;
+  $createdAt: string;
+  // alias usado pelo template existente
+  id?: string;
+  clienteEmpresaNome?: string;
+}
 
 @Component({
   selector: 'bear-tarefas',
@@ -26,7 +46,7 @@ import { environment } from '@env/environment';
         </div>
         <div class="page-header__actions">
           <button class="bear-btn bear-btn--outline" style="padding:0.5rem 1rem;font-size:0.8125rem;" (click)="carregarAtrasadas()">
-            <span class="material-symbols-rounded text-base mr-1" style="color:#FF3B30">warning</span> Atrasadas
+            <span class="material-symbols-rounded text-base mr-1" style="color:#ef4444">warning</span> Atrasadas
           </button>
           <button class="bear-btn bear-btn--primary" style="padding:0.5rem 1.25rem;font-size:0.875rem;" (click)="showForm.set(true); resetForm()">
             <span class="material-symbols-rounded text-lg mr-1.5">add</span> Nova Tarefa
@@ -72,7 +92,7 @@ import { environment } from '@env/environment';
                   <div class="bear-card p-4 animate-fade-in-up">
                     <div class="flex items-start justify-between mb-2">
                       <span class="text-xs px-2 py-0.5 rounded-md font-medium" [style.background]="getPrioridadeBg(t.prioridade)" [style.color]="getPrioridadeColor(t.prioridade)">{{ t.prioridade }}</span>
-                      <mat-select [value]="t.status" (selectionChange)="atualizarStatus(t.id, $event.value)"
+                      <mat-select [value]="t.status" (selectionChange)="atualizarStatus(t.id!, $event.value)"
                                   style="width:120px;font-size:0.6875rem;" class="text-xs">
                         <mat-option value="PENDENTE">Pendente</mat-option>
                         <mat-option value="EM_ANDAMENTO">Em Andamento</mat-option>
@@ -152,25 +172,24 @@ import { environment } from '@env/environment';
   `,
 })
 export class TarefasComponent implements OnInit {
-  tarefas = signal<any[]>([]);
+  tarefas = signal<Tarefa[]>([]);
   loading = signal(false);
   showForm = signal(false);
   totalElements = signal(0);
   filtroStatus = signal('');
   form!: FormGroup;
-  private apiUrl = `${environment.apiUrl}/escritorio`;
 
   tipos = ['ESCRITURACAO_FISCAL', 'ESCRITURACAO_CONTABIL', 'FOLHA_PAGAMENTO', 'APURACAO_IMPOSTOS', 'OBRIGACAO_ACESSORIA', 'FECHAMENTO_BALANCETE', 'CONCILIACAO', 'DECLARACAO_IR', 'CONSULTORIA', 'OUTROS'];
 
   kanbanCols = [
-    { status: 'PENDENTE', label: 'Pendente', icon: 'schedule', color: '#FF9500', bgColor: '#FFF4E5' },
-    { status: 'EM_ANDAMENTO', label: 'Em Andamento', icon: 'play_circle', color: '#007AFF', bgColor: '#E5F1FF' },
-    { status: 'AGUARDANDO_CLIENTE', label: 'Aguardando', icon: 'hourglass_top', color: '#AF52DE', bgColor: '#F2EBFB' },
-    { status: 'CONCLUIDA', label: 'Concluída', icon: 'check_circle', color: '#34C759', bgColor: '#E9FAEF' },
-    { status: '', label: 'Total', icon: 'task', color: '#007AFF', bgColor: '#ECEBFB' },
+    { status: 'PENDENTE', label: 'Pendente', icon: 'schedule', color: '#f59e0b', bgColor: '#fffbeb' },
+    { status: 'EM_ANDAMENTO', label: 'Em Andamento', icon: 'play_circle', color: '#3b82f6', bgColor: '#eff6ff' },
+    { status: 'AGUARDANDO_CLIENTE', label: 'Aguardando', icon: 'hourglass_top', color: '#8b5cf6', bgColor: '#f5f3ff' },
+    { status: 'CONCLUIDA', label: 'Concluída', icon: 'check_circle', color: '#059669', bgColor: '#ecfdf5' },
+    { status: '', label: 'Total', icon: 'task', color: '#4f46e5', bgColor: '#eef2ff' },
   ];
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(private fb: FormBuilder, private appwrite: AppwriteService, private auth: AuthService, private snackBar: MatSnackBar) {}
 
   ngOnInit() {
     this.form = this.fb.group({
@@ -181,11 +200,24 @@ export class TarefasComponent implements OnInit {
     this.carregar();
   }
 
-  carregar(page = 0) {
+  private mapTarefa(t: Tarefa): Tarefa {
+    // Aliases para manter o template existente funcionando
+    return { ...t, id: t.$id, clienteEmpresaNome: t.empresaNome };
+  }
+
+  carregar() {
     this.loading.set(true);
-    const params = new HttpParams().set('page', page).set('size', 100);
-    this.http.get<any>(`${this.apiUrl}/tarefas`, { params }).subscribe({
-      next: (res) => { this.tarefas.set(res.content || res || []); this.totalElements.set(res.totalElements || 0); this.loading.set(false); },
+    this.appwrite.listDocuments<Tarefa>('tarefas', [
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+      this.appwrite.query.equal('tenantId', this.auth.tenantId() || 'default'),
+    ]).subscribe({
+      next: (res) => {
+        const mapped = res.map(t => this.mapTarefa(t));
+        this.tarefas.set(mapped);
+        this.totalElements.set(mapped.length);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
   }
@@ -197,41 +229,70 @@ export class TarefasComponent implements OnInit {
     return this.tarefas().filter(t => t.status === status).length;
   }
 
-  getByStatus(status: string): any[] {
+  getByStatus(status: string): Tarefa[] {
     return this.tarefas().filter(t => t.status === status);
   }
 
   salvar() {
-    if (this.form.valid) {
-      this.http.post<any>(`${this.apiUrl}/tarefas`, this.form.value).subscribe({
-        next: () => { this.snackBar.open('Tarefa criada!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.showForm.set(false); this.carregar(); },
-        error: () => this.snackBar.open('Erro ao criar tarefa', 'OK', { duration: 3000, panelClass: ['error-snackbar'] }),
-      });
-    }
+    if (!this.form.valid) return;
+    const v = this.form.value;
+    const data: Record<string, unknown> = {
+      titulo: v.titulo,
+      tipo: v.tipo,
+      descricao: v.descricao || '',
+      prioridade: v.prioridade || 'MEDIA',
+      responsavelNome: v.responsavelNome || '',
+      empresaNome: v.clienteEmpresaNome || '',
+      dataVencimento: v.dataVencimento || '',
+      status: 'PENDENTE',
+      tenantId: this.auth.tenantId() || 'default',
+      empresaId: this.auth.empresaId() || '',
+      createdAt: new Date().toISOString(),
+    };
+    this.appwrite.createDocument('tarefas', data).subscribe({
+      next: () => { this.snackBar.open('Tarefa criada!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.showForm.set(false); this.carregar(); },
+      error: () => this.snackBar.open('Erro ao criar tarefa', 'OK', { duration: 3000, panelClass: ['error-snackbar'] }),
+    });
   }
 
   atualizarStatus(id: string, status: string) {
-    this.http.patch<any>(`${this.apiUrl}/tarefas/${id}/status`, null, { params: { status } }).subscribe({
+    const data: Record<string, unknown> = { status };
+    if (status === 'CONCLUIDA') data['dataConclusao'] = new Date().toISOString().slice(0, 10);
+    this.appwrite.updateDocument('tarefas', id, data).subscribe({
       next: () => { this.snackBar.open('Status atualizado!', 'OK', { duration: 2000 }); this.carregar(); },
+      error: () => this.snackBar.open('Erro ao atualizar', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
     });
   }
 
   carregarAtrasadas() {
+    // "atrasadas" = filtro no cliente por dataVencimento (vencidas e não concluídas)
     this.loading.set(true);
-    this.http.get<any[]>(`${this.apiUrl}/tarefas/atrasadas`).subscribe({
-      next: (res) => { this.tarefas.set(res); this.loading.set(false); },
+    this.appwrite.listDocuments<Tarefa>('tarefas', [
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+      this.appwrite.query.equal('tenantId', this.auth.tenantId() || 'default'),
+    ]).subscribe({
+      next: (res) => {
+        const hoje = new Date().toISOString().slice(0, 10);
+        const atrasadas = res
+          .filter(t => t.status !== 'CONCLUIDA' && !!t.dataVencimento && t.dataVencimento < hoje)
+          .map(t => this.mapTarefa(t));
+        this.tarefas.set(atrasadas);
+        this.totalElements.set(atrasadas.length);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
   }
 
   formatTipo(t: string): string { return t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
 
-  getPrioridadeBg(p: string): string {
-    const m: Record<string, string> = { 'BAIXA': '#f3f4f6', 'MEDIA': '#CCE3FF', 'ALTA': '#FFEACC', 'URGENTE': '#FFD0CD' };
-    return m[p] || '#f3f4f6';
+  getPrioridadeBg(p: string | undefined): string {
+    const m: Record<string, string> = { 'BAIXA': '#f3f4f6', 'MEDIA': '#dbeafe', 'ALTA': '#ffedd5', 'URGENTE': '#fee2e2' };
+    return m[p ?? ''] || '#f3f4f6';
   }
-  getPrioridadeColor(p: string): string {
-    const m: Record<string, string> = { 'BAIXA': '#6b7280', 'MEDIA': '#0040DD', 'ALTA': '#c2410c', 'URGENTE': '#FF3B30' };
-    return m[p] || '#6b7280';
+  getPrioridadeColor(p: string | undefined): string {
+    const m: Record<string, string> = { 'BAIXA': '#6b7280', 'MEDIA': '#1d4ed8', 'ALTA': '#c2410c', 'URGENTE': '#dc2626' };
+    return m[p ?? ''] || '#6b7280';
   }
 }

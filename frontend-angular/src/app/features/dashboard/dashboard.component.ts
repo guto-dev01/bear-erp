@@ -4,9 +4,34 @@ import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { HttpClient } from '@angular/common/http';
+import { forkJoin } from 'rxjs';
 import { AuthService } from '@core/auth/auth.service';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+
+interface DashboardMetrics {
+  receitaBruta: number;
+  despesasTotais: number;
+  lucroLiquido: number;
+  margemLucro: number;
+  totalFuncionarios: number;
+  saldoBancario: number;
+  impostosMes: number;
+  contasPagarVencidas: number;
+  contasReceberVencidas: number;
+}
+
+interface ContaPagar { valor: number; valorPago?: number; dataEmissao: string; dataVencimento: string; status: string; }
+interface ContaReceber { valor: number; valorRecebido?: number; dataEmissao: string; dataVencimento: string; status: string; }
+interface Funcionario { status: string; }
+interface ContaBancaria { saldoAtual?: number; }
+interface ApuracaoFiscal { competencia: string; valorRecolher?: number; }
+interface Empresa { status: string; }
+interface NotaFiscal { tipo: string; }
+interface Obrigacao { status: string; }
+interface Certificado { dataValidade: string; status: string; }
+interface Tarefa { status: string; dataVencimento?: string; }
+interface Holerite { competencia: string; valorLiquido?: number; }
+interface Honorario { valor: number; status: string; }
 
 @Component({
   selector: 'bear-dashboard',
@@ -307,7 +332,7 @@ import { environment } from '@env/environment';
   styleUrl: './dashboard.component.scss',
 })
 export class DashboardComponent implements OnInit {
-  dashboard = signal<any>(null);
+  dashboard = signal<DashboardMetrics | null>(null);
   alertItems = signal([
     { label: 'Contas a Pagar Vencidas', count: 0, icon: 'money_off', type: 'error', route: '/financeiro/contas-pagar' },
     { label: 'Contas a Receber Vencidas', count: 0, icon: 'attach_money', type: 'warning', route: '/financeiro/contas-receber' },
@@ -343,20 +368,116 @@ export class DashboardComponent implements OnInit {
     { id: 5, user: 'Sistema', action: 'sincronizou 23 documentos via Robô NF-e', icon: 'sync', type: 'system', time: 'Há 2h' },
   ];
 
-  constructor(public authService: AuthService, private http: HttpClient) {}
+  constructor(public authService: AuthService, private appwrite: AppwriteService) {}
 
   ngOnInit() {
-    this.http.get<any>(`${environment.apiUrl}/relatorios/dashboard`).subscribe({
-      next: (res) => {
-        this.dashboard.set(res);
+    this.load();
+  }
+
+  private load() {
+    const Q = this.appwrite.query;
+    const list = [Q.limit(100), Q.orderDesc('$createdAt')];
+
+    forkJoin({
+      empresas: this.appwrite.listDocuments<Empresa>('empresas', list),
+      contasPagar: this.appwrite.listDocuments<ContaPagar>('contas_pagar', list),
+      contasReceber: this.appwrite.listDocuments<ContaReceber>('contas_receber', list),
+      funcionarios: this.appwrite.listDocuments<Funcionario>('funcionarios', list),
+      contasBancarias: this.appwrite.listDocuments<ContaBancaria>('contas_bancarias', list),
+      apuracoes: this.appwrite.listDocuments<ApuracaoFiscal>('apuracoes_fiscais', list),
+      notasFiscais: this.appwrite.listDocuments<NotaFiscal>('notas_fiscais', list),
+      obrigacoes: this.appwrite.listDocuments<Obrigacao>('obrigacoes', list),
+      certificados: this.appwrite.listDocuments<Certificado>('certificados', list),
+      tarefas: this.appwrite.listDocuments<Tarefa>('tarefas', list),
+      holerites: this.appwrite.listDocuments<Holerite>('holerites', list),
+      honorarios: this.appwrite.listDocuments<Honorario>('honorarios', list),
+    }).subscribe({
+      next: (d) => {
+        const comp = this.currentCompetencia();
+        const hoje = new Date().toISOString().slice(0, 10);
+
+        // ── Financeiro: receita/despesa da competência atual (mês corrente) ──
+        const receitaBruta = d.contasReceber
+          .filter(c => (c.dataEmissao || '').slice(0, 7) === comp)
+          .reduce((s, c) => s + (c.valor || 0), 0);
+        const despesasTotais = d.contasPagar
+          .filter(c => (c.dataEmissao || '').slice(0, 7) === comp)
+          .reduce((s, c) => s + (c.valor || 0), 0);
+        const lucroLiquido = receitaBruta - despesasTotais;
+        const margemLucro = receitaBruta > 0
+          ? Math.round((lucroLiquido / receitaBruta) * 100)
+          : 0;
+
+        // ── Operacional ──
+        const totalFuncionarios = d.funcionarios.filter(f => (f.status || 'ATIVO') === 'ATIVO').length;
+        const saldoBancario = d.contasBancarias.reduce((s, c) => s + (c.saldoAtual || 0), 0);
+        const impostosMes = d.apuracoes
+          .filter(a => a.competencia === comp)
+          .reduce((s, a) => s + (a.valorRecolher || 0), 0);
+
+        // ── Alertas ──
+        const contasPagarVencidas = d.contasPagar
+          .filter(c => !this.isPago(c.status) && (c.dataVencimento || '') < hoje).length;
+        const contasReceberVencidas = d.contasReceber
+          .filter(c => !this.isRecebido(c.status) && (c.dataVencimento || '') < hoje).length;
+        const certificadosVencendo = d.certificados
+          .filter(c => this.diasAte(c.dataValidade) >= 0 && this.diasAte(c.dataValidade) <= 30).length;
+        const tarefasAtrasadas = d.tarefas
+          .filter(t => (t.status || '') !== 'CONCLUIDA' && (t.dataVencimento || '') && (t.dataVencimento as string) < hoje).length;
+
+        const metrics: DashboardMetrics = {
+          receitaBruta, despesasTotais, lucroLiquido, margemLucro,
+          totalFuncionarios, saldoBancario, impostosMes,
+          contasPagarVencidas, contasReceberVencidas,
+        };
+        this.dashboard.set(metrics);
+
         this.alertItems.set([
-          { label: 'Contas a Pagar Vencidas', count: res.contasPagarVencidas || 0, icon: 'money_off', type: 'error', route: '/financeiro/contas-pagar' },
-          { label: 'Contas a Receber Vencidas', count: res.contasReceberVencidas || 0, icon: 'attach_money', type: 'warning', route: '/financeiro/contas-receber' },
-          { label: 'Certificados Próx. Vencimento', count: 0, icon: 'verified', type: 'info', route: '/certificados' },
-          { label: 'Tarefas Atrasadas', count: 0, icon: 'task_alt', type: 'purple', route: '/escritorio/tarefas' },
+          { label: 'Contas a Pagar Vencidas', count: contasPagarVencidas, icon: 'money_off', type: 'error', route: '/financeiro/contas-pagar' },
+          { label: 'Contas a Receber Vencidas', count: contasReceberVencidas, icon: 'attach_money', type: 'warning', route: '/financeiro/contas-receber' },
+          { label: 'Certificados Próx. Vencimento', count: certificadosVencendo, icon: 'verified', type: 'info', route: '/certificados' },
+          { label: 'Tarefas Atrasadas', count: tarefasAtrasadas, icon: 'task_alt', type: 'purple', route: '/escritorio/tarefas' },
         ]);
+
+        // ── KPI strip (mantém layout/visual; só troca os números) ──
+        const empresasAtivas = d.empresas.filter(e => (e.status || 'ATIVA') === 'ATIVA').length;
+        const nfeEmitidas = d.notasFiscais.filter(n => (n.tipo || '').toUpperCase() === 'NFE').length || d.notasFiscais.length;
+        const obrigacoesPendentes = d.obrigacoes.filter(o => (o.status || '') !== 'ENTREGUE').length;
+        const folhaMes = d.holerites
+          .filter(h => h.competencia === comp)
+          .reduce((s, h) => s + (h.valorLiquido || 0), 0);
+        const honorariosAbertos = d.honorarios
+          .filter(h => !this.isPago(h.status))
+          .reduce((s, h) => s + (h.valor || 0), 0);
+
+        this.kpiCards[0] = { ...this.kpiCards[0], value: String(empresasAtivas) };
+        this.kpiCards[1] = { ...this.kpiCards[1], value: String(nfeEmitidas) };
+        this.kpiCards[2] = { ...this.kpiCards[2], value: String(obrigacoesPendentes) };
+        this.kpiCards[3] = { ...this.kpiCards[3], value: this.formatCurrency(folhaMes) };
+        this.kpiCards[4] = { ...this.kpiCards[4], value: this.formatCurrency(honorariosAbertos) };
       },
     });
+  }
+
+  private currentCompetencia(): string {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  private isPago(status?: string): boolean {
+    return ['PAGO', 'PAGA', 'QUITADO', 'QUITADA'].includes((status || '').toUpperCase());
+  }
+
+  private isRecebido(status?: string): boolean {
+    return ['RECEBIDO', 'RECEBIDA', 'PAGO', 'PAGA', 'QUITADO', 'QUITADA'].includes((status || '').toUpperCase());
+  }
+
+  private diasAte(data?: string): number {
+    if (!data) return Number.NaN;
+    const alvo = new Date(data + 'T00:00:00');
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    return Math.round((alvo.getTime() - hoje.getTime()) / 86400000);
   }
 
   getGreeting(): string {

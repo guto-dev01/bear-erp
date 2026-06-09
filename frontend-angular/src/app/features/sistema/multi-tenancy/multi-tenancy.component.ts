@@ -7,8 +7,26 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface Tenant {
+  $id: string;
+  nomeEscritorio: string;
+  cnpj: string;
+  email: string;
+  telefone?: string;
+  responsavel: string;
+  plano: string;
+  limiteClientes?: number;
+  limiteUsuarios?: number;
+  totalClientes?: number;
+  totalUsuarios?: number;
+  endereco?: string;
+  status: string;
+  tenantId: string;
+  $createdAt: string;
+}
 
 @Component({
   selector: 'bear-multi-tenancy',
@@ -68,7 +86,7 @@ import { environment } from '@env/environment';
           </div>
         } @else {
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            @for (e of escritorios(); track e.id || e.cnpj) {
+            @for (e of escritorios(); track e.$id) {
               <div class="bear-card p-5 animate-fade-in-up">
                 <div class="flex items-start justify-between mb-3">
                   <div class="flex items-center gap-3">
@@ -160,15 +178,14 @@ import { environment } from '@env/environment';
   `,
 })
 export class MultiTenancyComponent implements OnInit {
-  escritorios = signal<any[]>([]);
+  escritorios = signal<Tenant[]>([]);
   loading = signal(false);
   showForm = signal(false);
   totalClientes = signal(0);
   totalUsuarios = signal(0);
   form!: FormGroup;
-  private apiUrl = `${environment.apiUrl}/sistema/tenants`;
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(private fb: FormBuilder, private appwrite: AppwriteService, private auth: AuthService, private snackBar: MatSnackBar) {}
 
   ngOnInit() {
     this.form = this.fb.group({
@@ -182,9 +199,11 @@ export class MultiTenancyComponent implements OnInit {
 
   carregar() {
     this.loading.set(true);
-    this.http.get<any[]>(this.apiUrl).subscribe({
-      next: (res) => {
-        const items = Array.isArray(res) ? res : [];
+    this.appwrite.listDocuments<Tenant>('tenants', [
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+    ]).subscribe({
+      next: (items) => {
         this.escritorios.set(items);
         this.totalClientes.set(items.reduce((s, e) => s + (e.totalClientes || 0), 0));
         this.totalUsuarios.set(items.reduce((s, e) => s + (e.totalUsuarios || 0), 0));
@@ -209,11 +228,17 @@ export class MultiTenancyComponent implements OnInit {
   }
 
   salvar() {
-    if (this.form.valid) {
-      this.http.post<any>(this.apiUrl, this.form.value).subscribe({
-        next: () => { this.snackBar.open('Escritório criado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.showForm.set(false); this.carregar(); },
-        error: () => this.snackBar.open('Erro ao criar escritório', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
-      });
-    }
+    if (!this.form.valid) return;
+    const data = {
+      ...this.form.value,
+      status: 'ATIVO',
+      totalClientes: 0,
+      totalUsuarios: 0,
+      tenantId: this.auth.tenantId() || 'default',
+    };
+    this.appwrite.createDocument<Tenant>('tenants', data).subscribe({
+      next: () => { this.snackBar.open('Escritório criado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.showForm.set(false); this.carregar(); },
+      error: (e) => this.snackBar.open(e.message || 'Erro ao criar escritório', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
+    });
   }
 }

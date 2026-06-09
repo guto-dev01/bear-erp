@@ -6,8 +6,35 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface SpedDoc {
+  $id: string;
+  tipo: string;
+  ano: number;
+  competencia: string;
+  status: string;
+  protocolo?: string;
+  empresaId: string;
+  tenantId: string;
+  $createdAt: string;
+}
+
+// View-model exposto ao template (mantém os nomes de campos usados no HTML existente)
+interface SpedView {
+  id: string;
+  ano: number;
+  mes: number;
+  perfil: string;
+  tipo: string;
+  status: string;
+  totalRegistros: number;
+  nomeArquivo: string;
+  protocoloRecibo: string;
+}
+
+const COLLECTION = 'sped_fiscal';
 
 @Component({
   selector: 'bear-sped-fiscal',
@@ -120,12 +147,17 @@ import { environment } from '@env/environment';
 })
 export class SpedFiscalComponent {
   form: FormGroup;
-  spedFiles = signal<any[]>([]); gerando = signal(false);
+  spedFiles = signal<SpedView[]>([]);
+  gerando = signal(false);
   displayedColumns = ['periodo', 'perfil', 'tipo', 'status', 'registros', 'arquivo', 'protocolo', 'acoes'];
   anoAtual = new Date().getFullYear();
-  private apiUrl = `${environment.apiUrl}/obrigacoes/sped-fiscal`;
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {
+  constructor(
+    private fb: FormBuilder,
+    private appwrite: AppwriteService,
+    private auth: AuthService,
+    private snackBar: MatSnackBar,
+  ) {
     const now = new Date();
     this.form = this.fb.group({
       ano: [now.getFullYear(), Validators.required],
@@ -135,24 +167,71 @@ export class SpedFiscalComponent {
     this.buscarPorAno(now.getFullYear());
   }
 
+  private get tenantId(): string { return this.auth.tenantId() || 'default'; }
+  private get empresaId(): string { return this.auth.empresaId() || ''; }
+
+  private toView(d: SpedDoc): SpedView {
+    const mes = Number((d.competencia || '').split('-')[1]) || 0;
+    return {
+      id: d.$id,
+      ano: d.ano,
+      mes,
+      perfil: 'A',
+      tipo: d.tipo,
+      status: d.status,
+      totalRegistros: 0,
+      nomeArquivo: '',
+      protocoloRecibo: d.protocolo ?? '',
+    };
+  }
+
   gerar() {
+    if (this.form.invalid) return;
     this.gerando.set(true);
-    const { ano, mes, perfil } = this.form.value;
-    this.http.post<any>(`${this.apiUrl}/gerar`, null, { params: { ano, mes, perfil } }).subscribe({
-      next: () => { this.gerando.set(false); this.snackBar.open('SPED Fiscal gerado!', 'OK', { duration: 3000 }); this.buscarPorAno(ano); },
-      error: () => { this.gerando.set(false); this.snackBar.open('Erro ao gerar SPED', 'OK', { duration: 3000 }); },
+    const { ano, mes } = this.form.value;
+    const competencia = `${ano}-${String(mes).padStart(2, '0')}`;
+    // A geração do arquivo SPED Fiscal (montagem dos registros e layout oficial) é
+    // dependência externa. Persistimos o registro no Appwrite, mas não geramos o arquivo.
+    // TODO(appwrite): integração externa
+    const data: Record<string, unknown> = {
+      tipo: 'SPED_FISCAL',
+      ano,
+      competencia,
+      status: 'GERADO',
+      empresaId: this.empresaId,
+      tenantId: this.tenantId,
+      createdAt: new Date().toISOString(),
+    };
+    this.appwrite.createDocument<SpedDoc>(COLLECTION, data).subscribe({
+      next: () => {
+        this.gerando.set(false);
+        this.snackBar.open('Geração do arquivo SPED requer integração externa (não disponível nesta versão Appwrite). Registro criado.', 'OK', { duration: 5000 });
+        this.buscarPorAno(ano);
+      },
+      error: () => { this.gerando.set(false); this.snackBar.open('Erro ao registrar SPED', 'OK', { duration: 3000 }); },
     });
   }
 
   buscarPorAno(ano: number) {
-    this.http.get<any[]>(`${this.apiUrl}/ano/${ano}`).subscribe({
-      next: (res) => this.spedFiles.set(res || []),
+    this.appwrite.listDocuments<SpedDoc>(COLLECTION, [
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+      this.appwrite.query.equal('tenantId', this.tenantId),
+      this.appwrite.query.equal('ano', ano),
+    ]).subscribe({
+      next: (res) => this.spedFiles.set(res.map((d) => this.toView(d))),
     });
   }
 
   transmitir(id: string) {
-    this.http.post<any>(`${this.apiUrl}/${id}/transmitir`, {}).subscribe({
-      next: () => { this.snackBar.open('SPED transmitido!', 'OK', { duration: 3000 }); this.buscarPorAno(this.form.value.ano); },
+    // Transmissão do SPED (assinatura digital + envio ao Sped/Receita) é integração externa.
+    // Atualizamos apenas o status do registro no Appwrite.
+    // TODO(appwrite): integração externa
+    this.appwrite.updateDocument<SpedDoc>(COLLECTION, id, { status: 'TRANSMITIDO' }).subscribe({
+      next: () => {
+        this.snackBar.open('Transmissão do SPED requer integração externa (não disponível nesta versão Appwrite). Status atualizado localmente.', 'OK', { duration: 5000 });
+        this.buscarPorAno(this.form.value.ano);
+      },
       error: () => this.snackBar.open('Erro ao transmitir', 'OK', { duration: 3000 }),
     });
   }

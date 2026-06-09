@@ -8,8 +8,65 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface IntegracaoDoc {
+  $id: string;
+  nome: string;
+  tipo: string;
+  provedor?: string;
+  status: string;
+  config?: string;
+  ultimaSincronizacao?: string;
+  tenantId: string;
+  createdAt?: string;
+  $createdAt: string;
+}
+
+interface LogIntegracaoDoc {
+  $id: string;
+  integracaoId: string;
+  nivel: string;
+  mensagem: string;
+  timestamp: string;
+  tenantId: string;
+  createdAt?: string;
+  $createdAt: string;
+}
+
+// Campos extras (não existentes como atributos próprios na coleção) são
+// persistidos serializados no atributo `config` (string JSON).
+interface IntegracaoConfig {
+  descricao?: string;
+  sincronizacaoAutomatica?: boolean;
+  totalSincronizacoes?: number;
+  ultimoErro?: string;
+}
+
+// Modelo de view usado pelo template (mantém os mesmos campos do backend Java).
+interface IntegracaoView {
+  id: string;
+  nome: string;
+  tipo: string;
+  descricao: string;
+  status: string;
+  totalSincronizacoes: number;
+  ultimaSincronizacao: string | null;
+  ultimoErro: string | null;
+  sincronizacaoAutomatica: boolean;
+}
+
+// Modelo de view de log mapeado a partir de logs_integracao.
+interface LogView {
+  dataExecucao: string;
+  direcao: string;
+  status: string;
+  registrosProcessados: number;
+  registrosComErro: number;
+  tempoExecucaoMs: number;
+  mensagem: string;
+}
 
 @Component({
   selector: 'bear-integracoes',
@@ -204,12 +261,14 @@ import { environment } from '@env/environment';
   `,
 })
 export class IntegracoesComponent implements OnInit {
-  integracoes = signal<any[]>([]); loading = signal(false); showForm = signal(false);
-  showLogs = signal(false); logs = signal<any[]>([]); logsTotal = signal(0);
+  integracoes = signal<IntegracaoView[]>([]); loading = signal(false); showForm = signal(false);
+  showLogs = signal(false); logs = signal<LogView[]>([]); logsTotal = signal(0);
   logIntegracaoId = signal(''); logNome = signal('');
   logColumns = ['data', 'direcao', 'status', 'registros', 'tempo', 'mensagem'];
   form!: FormGroup;
-  private apiUrl = `${environment.apiUrl}/integracoes`;
+  private logsCompletos: LogView[] = [];
+  private readonly COL_INTEGRACOES = 'integracoes';
+  private readonly COL_LOGS = 'logs_integracao';
 
   tiposIntegracao = [
     { value: 'BANCO_OFX', label: 'Banco (OFX)' }, { value: 'BANCO_API', label: 'Banco (API)' },
@@ -222,7 +281,12 @@ export class IntegracoesComponent implements OnInit {
     { value: 'WEBHOOK', label: 'Webhook' },
   ];
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(
+    private fb: FormBuilder,
+    private appwrite: AppwriteService,
+    private auth: AuthService,
+    private snackBar: MatSnackBar,
+  ) {}
 
   ngOnInit() {
     this.form = this.fb.group({
@@ -232,10 +296,36 @@ export class IntegracoesComponent implements OnInit {
     this.carregar();
   }
 
+  private tenantId(): string { return this.auth.tenantId() || 'default'; }
+
+  private parseConfig(raw?: string): IntegracaoConfig {
+    if (!raw) return {};
+    try { return JSON.parse(raw) as IntegracaoConfig; } catch { return {}; }
+  }
+
+  private toView(d: IntegracaoDoc): IntegracaoView {
+    const cfg = this.parseConfig(d.config);
+    return {
+      id: d.$id,
+      nome: d.nome,
+      tipo: d.tipo,
+      descricao: cfg.descricao ?? '',
+      status: d.status,
+      totalSincronizacoes: cfg.totalSincronizacoes ?? 0,
+      ultimaSincronizacao: d.ultimaSincronizacao ?? null,
+      ultimoErro: cfg.ultimoErro ?? null,
+      sincronizacaoAutomatica: cfg.sincronizacaoAutomatica ?? false,
+    };
+  }
+
   carregar() {
     this.loading.set(true);
-    this.http.get<any[]>(this.apiUrl).subscribe({
-      next: (res) => { this.integracoes.set(res || []); this.loading.set(false); },
+    this.appwrite.listDocuments<IntegracaoDoc>(this.COL_INTEGRACOES, [
+      this.appwrite.query.equal('tenantId', this.tenantId()),
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+    ]).subscribe({
+      next: (res) => { this.integracoes.set(res.map(d => this.toView(d))); this.loading.set(false); },
       error: () => this.loading.set(false),
     });
   }
@@ -243,35 +333,103 @@ export class IntegracoesComponent implements OnInit {
   resetForm() { this.form.reset({ sincronizacaoAutomatica: false }); }
 
   salvar() {
-    if (this.form.valid) {
-      this.http.post<any>(this.apiUrl, this.form.value).subscribe({
-        next: () => { this.snackBar.open('Integração criada!', 'OK', { duration: 3000 }); this.showForm.set(false); this.carregar(); },
-        error: () => this.snackBar.open('Erro ao criar integração', 'OK', { duration: 3000 }),
-      });
-    }
-  }
-
-  sincronizar(id: string) {
-    this.http.post<any>(`${this.apiUrl}/${id}/sincronizar`, {}).subscribe({
-      next: () => { this.snackBar.open('Sincronização realizada!', 'OK', { duration: 3000 }); this.carregar(); },
-      error: () => this.snackBar.open('Erro na sincronização', 'OK', { duration: 3000 }),
+    if (!this.form.valid) return;
+    const v = this.form.value as { nome: string; tipo: string; descricao: string; sincronizacaoAutomatica: boolean };
+    const config: IntegracaoConfig = {
+      descricao: v.descricao || '',
+      sincronizacaoAutomatica: !!v.sincronizacaoAutomatica,
+      totalSincronizacoes: 0,
+    };
+    const data: Record<string, unknown> = {
+      nome: v.nome,
+      tipo: v.tipo,
+      status: 'CONFIGURANDO',
+      config: JSON.stringify(config),
+      tenantId: this.tenantId(),
+    };
+    this.appwrite.createDocument<IntegracaoDoc>(this.COL_INTEGRACOES, data).subscribe({
+      next: () => { this.snackBar.open('Integração criada!', 'OK', { duration: 3000 }); this.showForm.set(false); this.carregar(); },
+      error: () => this.snackBar.open('Erro ao criar integração', 'OK', { duration: 3000 }),
     });
   }
 
-  ativar(id: string) { this.http.post<any>(`${this.apiUrl}/${id}/ativar`, {}).subscribe({ next: () => { this.snackBar.open('Integração ativada!', 'OK', { duration: 2000 }); this.carregar(); } }); }
-  desativar(id: string) { this.http.post<any>(`${this.apiUrl}/${id}/desativar`, {}).subscribe({ next: () => { this.snackBar.open('Integração desativada', 'OK', { duration: 2000 }); this.carregar(); } }); }
-  excluir(id: string) { this.http.delete(`${this.apiUrl}/${id}`).subscribe({ next: () => { this.snackBar.open('Integração excluída', 'OK', { duration: 2000 }); this.carregar(); } }); }
+  sincronizar(id: string) {
+    // TODO(appwrite): integração externa — a sincronização real depende de
+    // comunicação com sistemas externos (bancos, SEFAZ, eSocial, etc.) que não
+    // roda no navegador. Apenas registra a tentativa como log informativo.
+    const log: Record<string, unknown> = {
+      integracaoId: id,
+      nivel: 'INFO',
+      mensagem: 'Sincronização requer integração externa (não disponível nesta versão Appwrite)',
+      timestamp: new Date().toISOString(),
+      tenantId: this.tenantId(),
+    };
+    this.appwrite.createDocument(this.COL_LOGS, log).subscribe();
+    this.snackBar.open('Sincronização requer integração externa (não disponível nesta versão Appwrite)', 'OK', { duration: 4000 });
+  }
+
+  private mudarStatus(id: string, status: string, msg: string) {
+    this.appwrite.updateDocument<IntegracaoDoc>(this.COL_INTEGRACOES, id, { status }).subscribe({
+      next: () => { this.snackBar.open(msg, 'OK', { duration: 2000 }); this.carregar(); },
+      error: () => this.snackBar.open('Erro ao atualizar integração', 'OK', { duration: 3000 }),
+    });
+  }
+
+  ativar(id: string) { this.mudarStatus(id, 'ATIVA', 'Integração ativada!'); }
+  desativar(id: string) { this.mudarStatus(id, 'INATIVA', 'Integração desativada'); }
+
+  excluir(id: string) {
+    if (!confirm('Excluir esta integração?')) return;
+    this.appwrite.deleteDocument(this.COL_INTEGRACOES, id).subscribe({
+      next: () => { this.snackBar.open('Integração excluída', 'OK', { duration: 2000 }); this.carregar(); },
+      error: () => this.snackBar.open('Erro ao excluir', 'OK', { duration: 3000 }),
+    });
+  }
+
+  private nivelToStatus(nivel: string): string {
+    const n = (nivel || '').toUpperCase();
+    if (n === 'ERROR' || n === 'ERRO' || n === 'FATAL') return 'FALHA';
+    if (n === 'WARN' || n === 'WARNING' || n === 'AVISO') return 'PARCIAL';
+    return 'SUCESSO';
+  }
+
+  private logToView(l: LogIntegracaoDoc): LogView {
+    return {
+      dataExecucao: l.timestamp || l.$createdAt,
+      direcao: '-',
+      status: this.nivelToStatus(l.nivel),
+      registrosProcessados: 0,
+      registrosComErro: this.nivelToStatus(l.nivel) === 'FALHA' ? 1 : 0,
+      tempoExecucaoMs: 0,
+      mensagem: l.mensagem,
+    };
+  }
 
   verLogs(integracaoId: string, nome: string, page = 0) {
     this.logIntegracaoId.set(integracaoId);
     this.logNome.set(nome);
     this.showLogs.set(true);
-    this.http.get<any>(`${this.apiUrl}/${integracaoId}/logs`, { params: { page, size: 20 } }).subscribe({
-      next: (res) => { this.logs.set(res.content || []); this.logsTotal.set(res.totalElements || 0); },
+    this.appwrite.listDocuments<LogIntegracaoDoc>(this.COL_LOGS, [
+      this.appwrite.query.equal('tenantId', this.tenantId()),
+      this.appwrite.query.equal('integracaoId', integracaoId),
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+    ]).subscribe({
+      next: (res) => {
+        this.logsCompletos = res.map(l => this.logToView(l));
+        this.logsTotal.set(this.logsCompletos.length);
+        this.aplicarPaginaLogs(page);
+      },
+      error: () => { this.logsCompletos = []; this.logsTotal.set(0); this.logs.set([]); },
     });
   }
 
-  onLogPage(event: PageEvent) { this.verLogs(this.logIntegracaoId(), this.logNome(), event.pageIndex); }
+  private aplicarPaginaLogs(page: number) {
+    const start = page * 20;
+    this.logs.set(this.logsCompletos.slice(start, start + 20));
+  }
+
+  onLogPage(event: PageEvent) { this.aplicarPaginaLogs(event.pageIndex); }
   contarPorStatus(status: string): number { return this.integracoes().filter(i => i.status === status).length; }
 
   getTipoIcon(tipo: string): string {

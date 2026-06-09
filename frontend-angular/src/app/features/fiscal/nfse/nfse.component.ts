@@ -223,8 +223,9 @@ export class NfseComponent implements OnInit {
 
   autorizar(n: any) {
     if (confirm(`Autorizar NFS-e #${n.numero}?`)) {
+      // TODO(appwrite): integração externa — transmissão à prefeitura não disponível nesta versão.
       this.fiscalService.autorizarNfse(n.id).subscribe({
-        next: () => { this.snackBar.open('NFS-e autorizada!', 'OK', { duration: 3000 }); this.loadNfses(); },
+        next: () => { this.snackBar.open('Autorização da NFS-e requer integração externa (não disponível nesta versão Appwrite)', 'Fechar', { duration: 5000 }); this.loadNfses(); },
         error: err => this.snackBar.open(err.error?.message || 'Erro', 'Fechar', { duration: 5000 })
       });
     }
@@ -233,8 +234,9 @@ export class NfseComponent implements OnInit {
   cancelar(n: any) {
     const motivo = prompt('Motivo do cancelamento:');
     if (motivo) {
+      // TODO(appwrite): integração externa — cancelamento na prefeitura não disponível nesta versão.
       this.fiscalService.cancelarNfse(n.id, motivo).subscribe({
-        next: () => { this.snackBar.open('NFS-e cancelada', 'OK', { duration: 3000 }); this.loadNfses(); },
+        next: () => { this.snackBar.open('Cancelamento da NFS-e requer integração externa (não disponível nesta versão Appwrite)', 'Fechar', { duration: 5000 }); this.loadNfses(); },
         error: err => this.snackBar.open(err.error?.message || 'Erro', 'Fechar', { duration: 5000 })
       });
     }

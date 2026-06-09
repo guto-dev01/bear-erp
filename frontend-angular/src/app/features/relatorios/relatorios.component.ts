@@ -7,8 +7,53 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { forkJoin } from 'rxjs';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+// ── Documento persistido na coleção `relatorios` ──
+interface RelatorioDoc {
+  $id: string;
+  nome: string;
+  tipo: string;
+  parametros?: string;
+  formato?: string;
+  dataGeracao?: string;
+  empresaId?: string;
+  tenantId?: string;
+  $createdAt: string;
+}
+
+// ── Linha exibida na tabela (campos que o template espera) ──
+interface RelatorioView {
+  $id: string;
+  titulo: string;
+  tipo: string;
+  formato: string;
+  periodoInicio: string;
+  periodoFim: string;
+  status: string;
+  dataGeracao: string;
+}
+
+interface DashboardView {
+  receitaBruta: number;
+  despesasTotais: number;
+  lucroLiquido: number;
+  margemLucro: number;
+  saldoBancario: number;
+  contasPagarVencidas: number;
+  contasReceberVencidas: number;
+  totalFuncionarios: number;
+}
+
+// ── Estruturas mínimas das coleções agregadas ──
+interface LancamentoDoc { tipo: string; valor: number; }
+interface ContaPagarDoc { valor: number; valorPago?: number; dataVencimento: string; status: string; }
+interface ContaReceberDoc { valor: number; valorRecebido?: number; dataVencimento: string; status: string; }
+interface NotaFiscalDoc { valorTotal: number; }
+interface ContaBancariaDoc { saldoAtual?: number; }
+interface FuncionarioDoc { status?: string; }
 
 @Component({
   selector: 'bear-relatorios',
@@ -32,71 +77,71 @@ import { environment } from '@env/environment';
       </div>
 
       <!-- Dashboard Gerencial -->
-      @if (dashboard()) {
+      @if (dashboard(); as d) {
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
           <div class="bear-card p-4 flex flex-col gap-1">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #E9FAEF;">
-              <span class="material-symbols-rounded text-lg" style="color: #34C759;">trending_up</span>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #ecfdf5;">
+              <span class="material-symbols-rounded text-lg" style="color: #059669;">trending_up</span>
             </div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Receita Bruta</p>
-            <p class="text-lg font-bold" style="color: #34C759;">{{ dashboard().receitaBruta | currency:'BRL' }}</p>
+            <p class="text-lg font-bold" style="color: #059669;">{{ d.receitaBruta | currency:'BRL' }}</p>
           </div>
           <div class="bear-card p-4 flex flex-col gap-1">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #FFECEB;">
-              <span class="material-symbols-rounded text-lg" style="color: #FF3B30;">trending_down</span>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #fef2f2;">
+              <span class="material-symbols-rounded text-lg" style="color: #dc2626;">trending_down</span>
             </div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Despesas</p>
-            <p class="text-lg font-bold" style="color: #FF3B30;">{{ dashboard().despesasTotais | currency:'BRL' }}</p>
+            <p class="text-lg font-bold" style="color: #dc2626;">{{ d.despesasTotais | currency:'BRL' }}</p>
           </div>
           <div class="bear-card p-4 flex flex-col gap-1">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #ECEBFB;">
-              <span class="material-symbols-rounded text-lg" style="color: #007AFF;">account_balance_wallet</span>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #eef2ff;">
+              <span class="material-symbols-rounded text-lg" style="color: #4f46e5;">account_balance_wallet</span>
             </div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Lucro Líquido</p>
-            <p class="text-lg font-bold" style="color: #007AFF;">{{ dashboard().lucroLiquido | currency:'BRL' }}</p>
+            <p class="text-lg font-bold" style="color: #4f46e5;">{{ d.lucroLiquido | currency:'BRL' }}</p>
           </div>
           <div class="bear-card p-4 flex flex-col gap-1">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #E5F1FF;">
-              <span class="material-symbols-rounded text-lg" style="color: #007AFF;">analytics</span>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #eff6ff;">
+              <span class="material-symbols-rounded text-lg" style="color: #2563eb;">analytics</span>
             </div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Margem Lucro</p>
-            <p class="text-lg font-bold" style="color: #007AFF;">{{ dashboard().margemLucro }}%</p>
+            <p class="text-lg font-bold" style="color: #2563eb;">{{ d.margemLucro }}%</p>
           </div>
           <div class="bear-card p-4 flex flex-col gap-1">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #F2EBFB;">
-              <span class="material-symbols-rounded text-lg" style="color: #5856D6;">account_balance</span>
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #faf5ff;">
+              <span class="material-symbols-rounded text-lg" style="color: #7c3aed;">account_balance</span>
             </div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Saldo Bancário</p>
-            <p class="text-lg font-bold" style="color: #5856D6;">{{ dashboard().saldoBancario | currency:'BRL' }}</p>
+            <p class="text-lg font-bold" style="color: #7c3aed;">{{ d.saldoBancario | currency:'BRL' }}</p>
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #FFECEB;">
-              <span class="material-symbols-rounded" style="color: #FF3B30;">money_off</span>
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #fef2f2;">
+              <span class="material-symbols-rounded" style="color: #dc2626;">money_off</span>
             </div>
             <div>
               <p class="text-xs font-medium" style="color: var(--text-secondary);">Contas a Pagar Vencidas</p>
-              <p class="text-2xl font-bold" style="color: #FF3B30;">{{ dashboard().contasPagarVencidas }}</p>
+              <p class="text-2xl font-bold" style="color: #dc2626;">{{ d.contasPagarVencidas }}</p>
             </div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #FFF4E5;">
-              <span class="material-symbols-rounded" style="color: #FF9500;">attach_money</span>
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #fff7ed;">
+              <span class="material-symbols-rounded" style="color: #ea580c;">attach_money</span>
             </div>
             <div>
               <p class="text-xs font-medium" style="color: var(--text-secondary);">Contas a Receber Vencidas</p>
-              <p class="text-2xl font-bold" style="color: #FF9500;">{{ dashboard().contasReceberVencidas }}</p>
+              <p class="text-2xl font-bold" style="color: #ea580c;">{{ d.contasReceberVencidas }}</p>
             </div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #E5F1FF;">
-              <span class="material-symbols-rounded" style="color: #007AFF;">badge</span>
+            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #eff6ff;">
+              <span class="material-symbols-rounded" style="color: #2563eb;">badge</span>
             </div>
             <div>
               <p class="text-xs font-medium" style="color: var(--text-secondary);">Total Funcionários</p>
-              <p class="text-2xl font-bold" style="color: #007AFF;">{{ dashboard().totalFuncionarios }}</p>
+              <p class="text-2xl font-bold" style="color: #2563eb;">{{ d.totalFuncionarios }}</p>
             </div>
           </div>
         </div>
@@ -228,11 +273,16 @@ import { environment } from '@env/environment';
   `,
 })
 export class RelatoriosComponent implements OnInit {
-  relatorios = signal<any[]>([]); loading = signal(false); showForm = signal(false);
-  totalElements = signal(0); dashboard = signal<any>(null);
+  relatorios = signal<RelatorioView[]>([]);
+  loading = signal(false);
+  showForm = signal(false);
+  totalElements = signal(0);
+  dashboard = signal<DashboardView | null>(null);
   displayedColumns = ['titulo', 'tipo', 'formato', 'periodo', 'status', 'data'];
   form!: FormGroup;
-  private apiUrl = `${environment.apiUrl}/relatorios`;
+
+  private readonly pageSize = 20;
+  private allRelatorios: RelatorioView[] = [];
 
   relatoriosRapidos = [
     { tipo: 'BALANCETE', titulo: 'Balancete', icon: 'balance' },
@@ -251,7 +301,12 @@ export class RelatoriosComponent implements OnInit {
 
   tiposRelatorio = this.relatoriosRapidos.map(r => ({ value: r.tipo, label: r.titulo }));
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(
+    private fb: FormBuilder,
+    private appwrite: AppwriteService,
+    private auth: AuthService,
+    private snackBar: MatSnackBar,
+  ) {}
 
   ngOnInit() {
     this.form = this.fb.group({
@@ -263,43 +318,187 @@ export class RelatoriosComponent implements OnInit {
     this.carregar();
   }
 
+  private get tenantId(): string { return this.auth.tenantId() || 'default'; }
+  private get empresaId(): string { return this.auth.empresaId() || ''; }
+
+  private baseQueries(): string[] {
+    const q = [this.appwrite.query.limit(100), this.appwrite.query.equal('tenantId', this.tenantId)];
+    if (this.empresaId) q.push(this.appwrite.query.equal('empresaId', this.empresaId));
+    return q;
+  }
+
+  /** Dashboard gerencial agregado no cliente a partir das coleções de origem. */
   carregarDashboard() {
-    this.http.get<any>(`${this.apiUrl}/dashboard`).subscribe({
-      next: (res) => this.dashboard.set(res),
+    forkJoin({
+      lancamentos: this.appwrite.listDocuments<LancamentoDoc>('lancamentos', this.baseQueries()),
+      contasPagar: this.appwrite.listDocuments<ContaPagarDoc>('contas_pagar', this.baseQueries()),
+      contasReceber: this.appwrite.listDocuments<ContaReceberDoc>('contas_receber', this.baseQueries()),
+      notas: this.appwrite.listDocuments<NotaFiscalDoc>('notas_fiscais', this.baseQueries()),
+      bancos: this.appwrite.listDocuments<ContaBancariaDoc>('contas_bancarias', this.baseQueries()),
+      funcionarios: this.appwrite.listDocuments<FuncionarioDoc>('funcionarios', this.baseQueries()),
+    }).subscribe({
+      next: ({ lancamentos, contasPagar, contasReceber, notas, bancos, funcionarios }) => {
+        const hoje = this.hojeIso();
+
+        // Receita bruta: faturamento (notas fiscais) + recebimentos previstos.
+        const receitaNotas = notas.reduce((s, n) => s + (n.valorTotal || 0), 0);
+        const receitaReceber = contasReceber.reduce((s, c) => s + (c.valor || 0), 0);
+        const receitaBruta = receitaNotas + receitaReceber;
+
+        // Despesas: total das contas a pagar.
+        const despesasTotais = contasPagar.reduce((s, c) => s + (c.valor || 0), 0);
+
+        const lucroLiquido = receitaBruta - despesasTotais;
+        const margemLucro = receitaBruta > 0
+          ? Math.round((lucroLiquido / receitaBruta) * 1000) / 10
+          : 0;
+
+        const saldoBancario = bancos.reduce((s, b) => s + (b.saldoAtual || 0), 0);
+
+        const contasPagarVencidas = contasPagar.filter(c =>
+          c.status !== 'PAGO' && c.dataVencimento && c.dataVencimento < hoje).length;
+        const contasReceberVencidas = contasReceber.filter(c =>
+          c.status !== 'RECEBIDO' && c.dataVencimento && c.dataVencimento < hoje).length;
+
+        const totalFuncionarios = funcionarios.filter(f => (f.status || 'ATIVO') === 'ATIVO').length;
+
+        // lancamentos lido para manter fidelidade; não há campo dedicado no dashboard além dos acima.
+        void lancamentos;
+
+        this.dashboard.set({
+          receitaBruta, despesasTotais, lucroLiquido, margemLucro,
+          saldoBancario, contasPagarVencidas, contasReceberVencidas, totalFuncionarios,
+        });
+      },
+      error: () => { /* mantém dashboard nulo silenciosamente */ },
     });
   }
 
   carregar(page = 0) {
     this.loading.set(true);
-    const params = new HttpParams().set('page', page).set('size', 20);
-    this.http.get<any>(this.apiUrl, { params }).subscribe({
-      next: (res) => { this.relatorios.set(res.content || []); this.totalElements.set(res.totalElements || 0); this.loading.set(false); },
+    const queries = [
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+      this.appwrite.query.equal('tenantId', this.tenantId),
+    ];
+    if (this.empresaId) queries.push(this.appwrite.query.equal('empresaId', this.empresaId));
+    this.appwrite.listDocuments<RelatorioDoc>('relatorios', queries).subscribe({
+      next: docs => {
+        this.allRelatorios = docs.map(d => this.toView(d));
+        this.totalElements.set(this.allRelatorios.length);
+        this.aplicarPagina(page);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
   }
 
+  private aplicarPagina(page: number) {
+    const start = page * this.pageSize;
+    this.relatorios.set(this.allRelatorios.slice(start, start + this.pageSize));
+  }
+
+  private toView(d: RelatorioDoc): RelatorioView {
+    let periodoInicio = '';
+    let periodoFim = '';
+    let status = 'CONCLUIDO';
+    if (d.parametros) {
+      try {
+        const p = JSON.parse(d.parametros) as { periodoInicio?: string; periodoFim?: string; status?: string };
+        periodoInicio = p.periodoInicio ?? '';
+        periodoFim = p.periodoFim ?? '';
+        status = p.status ?? 'CONCLUIDO';
+      } catch { /* parâmetros inválidos — mantém defaults */ }
+    }
+    return {
+      $id: d.$id,
+      titulo: d.nome,
+      tipo: d.tipo,
+      formato: d.formato ?? 'PDF',
+      periodoInicio,
+      periodoFim,
+      status,
+      dataGeracao: d.dataGeracao ?? d.$createdAt,
+    };
+  }
+
   resetForm() { this.form.reset({ formato: 'PDF' }); }
-  onPage(event: PageEvent) { this.carregar(event.pageIndex); }
+  onPage(event: PageEvent) { this.aplicarPagina(event.pageIndex); }
 
   gerar() {
-    if (this.form.valid) {
-      this.loading.set(true);
-      this.http.post<any>(this.apiUrl, this.form.value).subscribe({
-        next: () => { this.snackBar.open('Relatório gerado!', 'OK', { duration: 3000 }); this.showForm.set(false); this.carregar(); },
-        error: () => { this.loading.set(false); this.snackBar.open('Erro ao gerar', 'OK', { duration: 3000 }); },
-      });
-    }
+    if (!this.form.valid) return;
+    const v = this.form.value as { titulo: string; tipo: string; formato: string; periodoInicio: string; periodoFim: string };
+    this.persistir(v.titulo, v.tipo, v.formato, v.periodoInicio, v.periodoFim, () => {
+      this.snackBar.open('Relatório gerado!', 'OK', { duration: 3000 });
+      this.showForm.set(false);
+    });
   }
 
   gerarRapido(tipo: string, titulo: string) {
     const now = new Date();
     const inicio = `${now.getFullYear()}-01`;
     const fim = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    this.loading.set(true);
-    this.http.post<any>(this.apiUrl, { titulo, tipo, formato: 'PDF', periodoInicio: inicio, periodoFim: fim }).subscribe({
-      next: () => { this.snackBar.open(`${titulo} gerado!`, 'OK', { duration: 3000 }); this.carregar(); },
-      error: () => { this.loading.set(false); this.snackBar.open('Erro ao gerar', 'OK', { duration: 3000 }); },
+    this.persistir(titulo, tipo, 'PDF', inicio, fim, () => {
+      this.snackBar.open(`${titulo} gerado!`, 'OK', { duration: 3000 });
     });
+  }
+
+  /** Persiste o relatório salvo na coleção `relatorios` e oferece export local. */
+  private persistir(titulo: string, tipo: string, formato: string, periodoInicio: string, periodoFim: string, onOk: () => void) {
+    this.loading.set(true);
+    const agora = new Date().toISOString();
+    const data: Record<string, unknown> = {
+      nome: titulo,
+      tipo,
+      formato,
+      dataGeracao: agora,
+      parametros: JSON.stringify({ periodoInicio, periodoFim, status: 'CONCLUIDO' }),
+      tenantId: this.tenantId,
+      empresaId: this.empresaId,
+    };
+    this.appwrite.createDocument<RelatorioDoc>('relatorios', data).subscribe({
+      next: doc => {
+        onOk();
+        this.carregar();
+        // "export" gerado no cliente conforme formato escolhido.
+        this.exportar(this.toView(doc), formato);
+      },
+      error: () => {
+        this.loading.set(false);
+        this.snackBar.open('Erro ao gerar', 'OK', { duration: 3000 });
+      },
+    });
+  }
+
+  /** Export do relatório no cliente (CSV/JSON). PDF/EXCEL não geram binário nesta versão. */
+  private exportar(r: RelatorioView, formato: string) {
+    if (formato === 'CSV') {
+      const headers = ['titulo', 'tipo', 'formato', 'periodoInicio', 'periodoFim', 'status', 'dataGeracao'];
+      const linha = headers.map(h => `"${String((r as unknown as Record<string, unknown>)[h] ?? '').replace(/"/g, '""')}"`).join(',');
+      this.download(`${headers.join(',')}\n${linha}`, `${r.tipo}.csv`, 'text/csv');
+    } else if (formato === 'EXCEL') {
+      // EXCEL real (.xlsx) exige integração externa; exporta JSON como fallback no cliente.
+      this.download(JSON.stringify(r, null, 2), `${r.tipo}.json`, 'application/json');
+    } else {
+      // PDF: geração de binário PDF não disponível no navegador nesta versão.
+      // TODO(appwrite): integração externa
+      this.snackBar.open('Export PDF requer integração externa (não disponível nesta versão Appwrite)', 'OK', { duration: 4000 });
+    }
+  }
+
+  private download(content: string, filename: string, mime: string) {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private hojeIso(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
   getStatusBadge(s: string): string {

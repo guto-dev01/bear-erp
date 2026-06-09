@@ -1,13 +1,37 @@
 const { Client, Databases, Users, ID, Permission, Role, Query } = require('node-appwrite');
+const fs = require('fs');
+const path = require('path');
+
+// Carrega variáveis do .env da raiz do projeto (sem depender de dotenv).
+function loadEnv() {
+  const envPath = path.resolve(__dirname, '..', '.env');
+  if (!fs.existsSync(envPath)) return;
+  for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const idx = trimmed.indexOf('=');
+    if (idx === -1) continue;
+    const key = trimmed.slice(0, idx).trim();
+    const value = trimmed.slice(idx + 1).trim();
+    if (!(key in process.env)) process.env[key] = value;
+  }
+}
+loadEnv();
+
+const API_KEY = process.env.APPWRITE_API_KEY;
+if (!API_KEY) {
+  console.error('❌ APPWRITE_API_KEY ausente. Defina no .env da raiz (nunca commite o valor).');
+  process.exit(1);
+}
 
 const client = new Client()
-  .setEndpoint('https://cloud.appwrite.io/v1')
-  .setProject('69b52c570036d92459ce')
-  .setKey('standard_e04260ebac4f36c6d310aa4cf59c95a7a36fb75ff4960912cf2e0a492e82dde2e7d515b7da5cd401ede97665d987ab95ca0780ccff2b2b71a5b00ba48e1adc570ea5327d1977d173d800a8e51828f5fe584c2f9abe011760ae066fb9b27d0b809cfba0f047fbbadc14957ea1b1b1b9f7e0d2b1864df1ad6218e3544a0a871ee6');
+  .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
+  .setProject(process.env.APPWRITE_PROJECT_ID)
+  .setKey(API_KEY);
 
 const db = new Databases(client);
 const users = new Users(client);
-const DB_ID = '69b52c820006ab36b33a';
+const DB_ID = process.env.APPWRITE_DB_ID;
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -664,25 +688,250 @@ const collections = [
       { key: 'createdAt', type: 'string', size: 30, required: false },
     ],
   },
+  {
+    id: 'operacoes_certificado',
+    name: 'Operacoes Certificado',
+    attrs: [
+      { key: 'certificadoId', type: 'string', size: 50, required: true },
+      { key: 'tipo', type: 'string', size: 50, required: true },
+      { key: 'descricao', type: 'string', size: 500, required: false },
+      { key: 'data', type: 'string', size: 30, required: true },
+      { key: 'resultado', type: 'string', size: 1000, required: false },
+      { key: 'status', type: 'string', size: 20, required: true },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
+  {
+    id: 'integracoes',
+    name: 'Integracoes',
+    attrs: [
+      { key: 'nome', type: 'string', size: 150, required: true },
+      { key: 'tipo', type: 'string', size: 50, required: true },
+      { key: 'provedor', type: 'string', size: 100, required: false },
+      { key: 'status', type: 'string', size: 20, required: true },
+      { key: 'config', type: 'string', size: 10000, required: false },
+      { key: 'ultimaSincronizacao', type: 'string', size: 30, required: false },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
+  {
+    id: 'logs_integracao',
+    name: 'Logs de Integracao',
+    attrs: [
+      { key: 'integracaoId', type: 'string', size: 50, required: true },
+      { key: 'nivel', type: 'string', size: 20, required: true },
+      { key: 'mensagem', type: 'string', size: 2000, required: true },
+      { key: 'timestamp', type: 'string', size: 30, required: true },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
+  {
+    id: 'periodos_contabeis',
+    name: 'Periodos Contabeis',
+    attrs: [
+      { key: 'ano', type: 'integer', required: true },
+      { key: 'mes', type: 'integer', required: true },
+      { key: 'status', type: 'string', size: 20, required: true },
+      { key: 'dataFechamento', type: 'string', size: 30, required: false },
+      { key: 'empresaId', type: 'string', size: 50, required: true },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
+  {
+    id: 'exercicios_contabeis',
+    name: 'Exercicios Contabeis',
+    attrs: [
+      { key: 'ano', type: 'integer', required: true },
+      { key: 'status', type: 'string', size: 20, required: true },
+      { key: 'dataEncerramento', type: 'string', size: 30, required: false },
+      { key: 'empresaId', type: 'string', size: 50, required: true },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
+  {
+    id: 'historicos_padrao',
+    name: 'Historicos Padrao',
+    attrs: [
+      { key: 'codigo', type: 'string', size: 20, required: true },
+      { key: 'descricao', type: 'string', size: 500, required: true },
+      { key: 'empresaId', type: 'string', size: 50, required: true },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
+  {
+    id: 'movimentos_bancarios',
+    name: 'Movimentos Bancarios',
+    attrs: [
+      { key: 'contaBancariaId', type: 'string', size: 50, required: true },
+      { key: 'data', type: 'string', size: 10, required: true },
+      { key: 'descricao', type: 'string', size: 500, required: true },
+      { key: 'tipo', type: 'string', size: 10, required: true },
+      { key: 'valor', type: 'float', required: true },
+      { key: 'conciliado', type: 'boolean', required: false },
+      { key: 'empresaId', type: 'string', size: 50, required: true },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
+  {
+    id: 'escrituracoes_fiscais',
+    name: 'Escrituracoes Fiscais',
+    attrs: [
+      { key: 'tipo', type: 'string', size: 50, required: true },
+      { key: 'competencia', type: 'string', size: 7, required: true },
+      { key: 'status', type: 'string', size: 20, required: true },
+      { key: 'empresaId', type: 'string', size: 50, required: true },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
+  {
+    id: 'ciap',
+    name: 'CIAP',
+    attrs: [
+      { key: 'descricao', type: 'string', size: 500, required: true },
+      { key: 'valor', type: 'float', required: true },
+      { key: 'parcelas', type: 'integer', required: true },
+      { key: 'parcelaAtual', type: 'integer', required: true },
+      { key: 'competencia', type: 'string', size: 7, required: true },
+      { key: 'empresaId', type: 'string', size: 50, required: true },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
+  {
+    id: 'guias_fiscais',
+    name: 'Guias Fiscais',
+    attrs: [
+      { key: 'tipo', type: 'string', size: 50, required: true },
+      { key: 'competencia', type: 'string', size: 7, required: true },
+      { key: 'valor', type: 'float', required: true },
+      { key: 'dataVencimento', type: 'string', size: 10, required: true },
+      { key: 'dataPagamento', type: 'string', size: 10, required: false },
+      { key: 'status', type: 'string', size: 20, required: true },
+      { key: 'empresaId', type: 'string', size: 50, required: true },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
+  {
+    id: 'depreciacoes',
+    name: 'Depreciacoes',
+    attrs: [
+      { key: 'bemId', type: 'string', size: 50, required: true },
+      { key: 'competencia', type: 'string', size: 7, required: true },
+      { key: 'valorDepreciacao', type: 'float', required: true },
+      { key: 'depreciacaoAcumulada', type: 'float', required: true },
+      { key: 'valorAtual', type: 'float', required: true },
+      { key: 'empresaId', type: 'string', size: 50, required: true },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
+  {
+    id: 'eventos_esocial',
+    name: 'Eventos eSocial',
+    attrs: [
+      { key: 'tipoEvento', type: 'string', size: 50, required: true },
+      { key: 'competencia', type: 'string', size: 7, required: true },
+      { key: 'funcionarioId', type: 'string', size: 50, required: false },
+      { key: 'status', type: 'string', size: 20, required: true },
+      { key: 'protocolo', type: 'string', size: 100, required: false },
+      { key: 'empresaId', type: 'string', size: 50, required: true },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
+  {
+    id: 'sped_fiscal',
+    name: 'SPED Fiscal',
+    attrs: [
+      { key: 'tipo', type: 'string', size: 50, required: true },
+      { key: 'ano', type: 'integer', required: true },
+      { key: 'competencia', type: 'string', size: 7, required: true },
+      { key: 'status', type: 'string', size: 20, required: true },
+      { key: 'protocolo', type: 'string', size: 100, required: false },
+      { key: 'empresaId', type: 'string', size: 50, required: true },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
+  {
+    id: 'consultas_ia',
+    name: 'Consultas IA',
+    attrs: [
+      { key: 'pergunta', type: 'string', size: 5000, required: true },
+      { key: 'resposta', type: 'string', size: 20000, required: false },
+      { key: 'data', type: 'string', size: 30, required: true },
+      { key: 'usuario', type: 'string', size: 150, required: false },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
+  {
+    id: 'classificacoes_automaticas',
+    name: 'Classificacoes Automaticas',
+    attrs: [
+      { key: 'descricao', type: 'string', size: 500, required: true },
+      { key: 'contaSugerida', type: 'string', size: 50, required: true },
+      { key: 'confianca', type: 'float', required: true },
+      { key: 'status', type: 'string', size: 20, required: true },
+      { key: 'empresaId', type: 'string', size: 50, required: true },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
+  {
+    id: 'relatorios',
+    name: 'Relatorios',
+    attrs: [
+      { key: 'nome', type: 'string', size: 255, required: true },
+      { key: 'tipo', type: 'string', size: 50, required: true },
+      { key: 'parametros', type: 'string', size: 10000, required: false },
+      { key: 'formato', type: 'string', size: 20, required: false },
+      { key: 'dataGeracao', type: 'string', size: 30, required: false },
+      { key: 'empresaId', type: 'string', size: 50, required: true },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
 ];
 
 // ============================================================
 // CRIAR COLLECTIONS E ATRIBUTOS
 // ============================================================
 
+// Permissões: apenas usuários autenticados (Appwrite Auth) podem ler/gravar.
+// NÃO mais Role.any() (que liberava acesso a qualquer um na internet).
+// Obs.: isolamento total por tenant é um passo seguinte (via Teams ou
+// permissões por documento) — aqui garantimos a base "somente logados".
+const COLLECTION_PERMISSIONS = [
+  Permission.read(Role.users()),
+  Permission.create(Role.users()),
+  Permission.update(Role.users()),
+  Permission.delete(Role.users()),
+];
+
 async function createCollections() {
   for (const col of collections) {
     try {
-      await db.createCollection(DB_ID, col.id, col.name, [
-        Permission.read(Role.any()),
-        Permission.create(Role.any()),
-        Permission.update(Role.any()),
-        Permission.delete(Role.any()),
-      ]);
+      await db.createCollection(DB_ID, col.id, col.name, COLLECTION_PERMISSIONS);
       console.log(`✓ Collection: ${col.name}`);
     } catch (e) {
       if (e.message?.includes('already exists')) {
-        console.log(`~ Collection já existe: ${col.name}`);
+        // Coleção já existe: atualiza as permissões para o modelo seguro.
+        try {
+          await db.updateCollection(DB_ID, col.id, col.name, COLLECTION_PERMISSIONS);
+          console.log(`~ Collection já existe (permissões atualizadas): ${col.name}`);
+        } catch (ue) {
+          console.error(`✗ Erro ao atualizar permissões ${col.name}:`, ue.message);
+        }
       } else {
         console.error(`✗ Erro collection ${col.name}:`, e.message);
         continue;
@@ -718,9 +967,43 @@ async function createCollections() {
 // POPULAR DADOS
 // ============================================================
 
+// Conta no Appwrite Auth (login nativo). Idempotente.
+async function ensureAuthUser(email, senha) {
+  try {
+    await users.create(ID.unique(), email, undefined, senha, 'Administrador Bear ERP');
+    console.log('  ✓ Conta Appwrite Auth criada:', email);
+  } catch (e) {
+    if (e.message?.includes('already exists') || e.code === 409) {
+      console.log('  ~ Conta Appwrite Auth já existe:', email);
+    } else {
+      console.error('  ✗ Erro ao criar conta Auth:', e.message);
+    }
+  }
+}
+
+async function safeCount(colId) {
+  try {
+    return (await db.listDocuments(DB_ID, colId, [Query.limit(1)])).total;
+  } catch {
+    return 0;
+  }
+}
+
 async function populateData() {
   const now = new Date().toISOString();
   const TENANT = 'default';
+  const ADMIN_EMAIL = 'admin@bearerp.com.br';
+  const ADMIN_SENHA = process.env.ADMIN_SENHA || 'Bear@2024!';
+
+  // Idempotência: se o banco já foi semeado, NÃO recria dados (evita duplicatas).
+  // Apenas garante a conta no Appwrite Auth (necessária para o login nativo).
+  if ((await safeCount('roles')) > 0 || (await safeCount('usuarios')) > 0) {
+    console.log('\n⏭️  Dados já existentes — pulando seed para não duplicar.');
+    console.log('👤 Garantindo conta no Appwrite Auth...');
+    await ensureAuthUser(ADMIN_EMAIL, ADMIN_SENHA);
+    console.log(`  → Login: ${ADMIN_EMAIL} / ${ADMIN_SENHA}`);
+    return;
+  }
 
   // --- ROLES ---
   console.log('\n📦 Populando Roles...');
@@ -747,26 +1030,16 @@ async function populateData() {
 
   // --- USUARIO ADMIN ---
   console.log('\n👤 Populando Usuário Admin...');
-  const adminEmail = 'admin@bearerp.com.br';
-  const adminPassword = 'Bear@2024!';
+  await ensureAuthUser(ADMIN_EMAIL, ADMIN_SENHA);
+
+  // Perfil do usuário (tenant/roles/permissões) na coleção `usuarios`.
   await db.createDocument(DB_ID, 'usuarios', ID.unique(), {
-    nome: 'Administrador Bear ERP', email: adminEmail,
-    senha: '$2a$12$LJ3m4ys9PqKP7MfDLH.CQOQ7IhMCOWfMJLKR9OGaUx3VqL5Rq6Km', // Bear@2024!
+    nome: 'Administrador Bear ERP', email: ADMIN_EMAIL,
+    senha: 'managed-by-appwrite-auth', // senha real fica no Appwrite Auth
     status: 'ATIVO', tenantId: TENANT, roleIds: [adminRole.$id],
     empresaIds: [], twoFactorEnabled: false, tentativasLogin: 0, createdAt: now,
   });
-
-  // Cria o usuário no Appwrite Authentication (usado pelo login do frontend)
-  // e copia roles/permissões/tenant para as prefs.
-  const authUser = await users.create(ID.unique(), adminEmail, undefined, adminPassword, 'Administrador Bear ERP');
-  await users.updatePrefs(authUser.$id, {
-    nome: 'Administrador Bear ERP',
-    tenantId: TENANT,
-    empresaAtualId: '',
-    roles: [adminRole.nome],
-    permissoes: adminRole.permissoes,
-  });
-  console.log(`  ✓ ${adminEmail} / ${adminPassword}`);
+  console.log(`  ✓ ${ADMIN_EMAIL} / ${ADMIN_SENHA}`);
 
   // --- EMPRESAS EXEMPLO ---
   console.log('\n🏢 Populando Empresas...');

@@ -8,8 +8,19 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { forkJoin } from 'rxjs';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+import { FaixaInss, FaixaIrrf, calcularInss, calcularIrrf, round2 } from '../folha-calc';
+
+interface FuncionarioDoc {
+  $id: string;
+  nome: string;
+  salario: number;
+  dependentes?: number;
+  dataAdmissao: string;
+  status: string;
+}
 
 @Component({
   selector: 'bear-rescisao',
@@ -169,9 +180,15 @@ export class RescisaoComponent {
   anoDecimo = new Date().getFullYear();
   decimoColumns = ['funcionario', 'salarioBase', 'meses', 'valor13', 'inss', 'irrf', 'liquido'];
   formRescisao!: FormGroup;
-  private apiUrl = `${environment.apiUrl}/folha`;
+  private faixasInss: FaixaInss[] = [];
+  private faixasIrrf: FaixaIrrf[] = [];
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {
+  constructor(
+    private fb: FormBuilder,
+    private appwrite: AppwriteService,
+    private auth: AuthService,
+    private snackBar: MatSnackBar,
+  ) {
     this.formRescisao = this.fb.group({
       funcionarioNome: ['', Validators.required],
       dataAdmissao: ['', Validators.required],
@@ -179,20 +196,60 @@ export class RescisaoComponent {
       salarioBase: [null, [Validators.required, Validators.min(1)]],
       motivoRescisao: ['SEM_JUSTA_CAUSA', Validators.required],
     });
+    this.carregarTabelas();
+  }
+
+  private carregarTabelas() {
+    const Q = this.appwrite.query;
+    const tenant = this.auth.tenantId() || 'default';
+    this.appwrite.listDocuments<FaixaInss>('tabela_inss', [Q.limit(100), Q.equal('tenantId', tenant)])
+      .subscribe({ next: d => this.faixasInss = d, error: () => {} });
+    this.appwrite.listDocuments<FaixaIrrf>('tabela_irrf', [Q.limit(100), Q.equal('tenantId', tenant)])
+      .subscribe({ next: d => this.faixasIrrf = d, error: () => {} });
   }
 
   calcularRescisao() {
     if (this.formRescisao.invalid) return;
     this.loading.set(true);
     const data = this.formRescisao.value;
-
-    this.http.post<any>(`${this.apiUrl}/rescisao/calcular`, data).subscribe({
-      next: (res) => { this.resultadoRescisao.set(res); this.loading.set(false); },
-      error: () => {
-        this.resultadoRescisao.set(this.calcularRescisaoLocal(data));
-        this.loading.set(false);
-      },
+    const calc = this.calcularRescisaoLocal(data);
+    this.resultadoRescisao.set(calc);
+    // Persiste a rescisão calculada na coleção `rescisoes`.
+    const doc = this.toRescisaoDoc(data, calc);
+    this.appwrite.createDocument('rescisoes', doc).subscribe({
+      next: () => { this.loading.set(false); this.snackBar.open('Rescisão calculada e salva!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); },
+      error: (e) => { this.loading.set(false); this.snackBar.open(e?.message || 'Erro ao salvar rescisão', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }); },
     });
+  }
+
+  private valor(itens: { descricao: string; valor: number }[], desc: string): number {
+    return Math.abs(itens.find(i => i.descricao === desc)?.valor ?? 0);
+  }
+
+  private toRescisaoDoc(data: any, calc: { itens: { descricao: string; valor: number }[]; totalLiquido: number }): Record<string, unknown> {
+    const i = calc.itens;
+    const proventos = i.filter(x => x.valor > 0).reduce((s, x) => s + x.valor, 0);
+    const descontos = i.filter(x => x.valor < 0).reduce((s, x) => s + Math.abs(x.valor), 0);
+    return {
+      funcionarioId: data.funcionarioId || '',
+      funcionarioNome: data.funcionarioNome,
+      dataDesligamento: data.dataDemissao,
+      tipo: data.motivoRescisao,
+      saldoSalario: this.valor(i, 'Saldo de Salário'),
+      avisoPreviolIndenizado: this.valor(i, 'Aviso Prévio Indenizado'),
+      decimoTerceiroProporcional: this.valor(i, '13º Proporcional'),
+      feriasProporcionais: this.valor(i, 'Férias Proporcionais'),
+      tercoFerias: this.valor(i, '1/3 Constitucional Férias'),
+      multaFgts: this.valor(i, 'Multa FGTS'),
+      descontoInss: this.valor(i, 'INSS'),
+      descontoIrrf: this.valor(i, 'IRRF'),
+      totalProventos: round2(proventos),
+      totalDescontos: round2(descontos),
+      valorLiquido: round2(calc.totalLiquido),
+      status: 'CALCULADA',
+      empresaId: this.auth.empresaId() || '',
+      tenantId: this.auth.tenantId() || 'default',
+    };
   }
 
   private calcularRescisaoLocal(data: any): { itens: { descricao: string; valor: number }[]; totalLiquido: number } {
@@ -204,18 +261,18 @@ export class RescisaoComponent {
     const anosTrabalho = (demissao.getTime() - admissao.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
     const motivo = data.motivoRescisao;
 
-    const saldoSalario = (salario / 30) * diasMes;
-    const avisoIndenizado = motivo === 'SEM_JUSTA_CAUSA' ? salario : motivo === 'ACORDO_MUTUO' ? salario * 0.5 : 0;
-    const feriasProp = (salario / 12) * (mesesAno);
-    const tercoFerias = feriasProp / 3;
-    const decimoProp = (salario / 12) * mesesAno;
-    const fgtsMes = salario * 0.08;
+    const saldoSalario = round2((salario / 30) * diasMes);
+    const avisoIndenizado = round2(motivo === 'SEM_JUSTA_CAUSA' ? salario : motivo === 'ACORDO_MUTUO' ? salario * 0.5 : 0);
+    const feriasProp = round2((salario / 12) * mesesAno);
+    const tercoFerias = round2(feriasProp / 3);
+    const decimoProp = round2((salario / 12) * mesesAno);
+    const fgtsMes = round2(salario * 0.08);
     const fgtsSaldo = fgtsMes * Math.max(anosTrabalho * 12, 1);
-    const multa40 = motivo === 'SEM_JUSTA_CAUSA' ? fgtsSaldo * 0.40 : motivo === 'ACORDO_MUTUO' ? fgtsSaldo * 0.20 : 0;
+    const multa40 = round2(motivo === 'SEM_JUSTA_CAUSA' ? fgtsSaldo * 0.40 : motivo === 'ACORDO_MUTUO' ? fgtsSaldo * 0.20 : 0);
 
-    const bruto = saldoSalario + avisoIndenizado + feriasProp + tercoFerias + decimoProp;
-    const inss = Math.min(bruto * 0.11, 877.24);
-    const irrf = bruto > 4664.68 ? (bruto - 4664.68) * 0.275 : bruto > 3751.06 ? (bruto - 3751.06) * 0.225 : bruto > 2826.66 ? (bruto - 2826.66) * 0.15 : bruto > 2259.21 ? (bruto - 2259.21) * 0.075 : 0;
+    // Descontos de INSS/IRRF incidem sobre o saldo de salário (verbas salariais).
+    const inss = calcularInss(saldoSalario, this.faixasInss);
+    const irrf = calcularIrrf(saldoSalario, inss, 0, this.faixasIrrf).valor;
 
     const itens = [
       { descricao: 'Saldo de Salário', valor: saldoSalario },
@@ -228,21 +285,47 @@ export class RescisaoComponent {
       { descricao: 'INSS', valor: -inss },
       { descricao: 'IRRF', valor: -irrf },
     ];
-    const totalLiquido = itens.reduce((s, i) => s + i.valor, 0);
+    const totalLiquido = round2(itens.reduce((s, i) => s + i.valor, 0));
     return { itens, totalLiquido };
   }
 
   calcularDecimo() {
     this.loading.set(true);
-    this.http.post<any[]>(`${this.apiUrl}/decimo-terceiro/calcular/${this.anoDecimo}`, {}).subscribe({
-      next: (res) => {
+    const Q = this.appwrite.query;
+    const tenant = this.auth.tenantId() || 'default';
+    const queries = [Q.limit(100), Q.orderDesc('$createdAt'), Q.equal('tenantId', tenant)];
+    const empresaId = this.auth.empresaId();
+    if (empresaId) queries.push(Q.equal('empresaId', empresaId));
+    this.appwrite.listDocuments<FuncionarioDoc>('funcionarios', queries).subscribe({
+      next: (funcionarios) => {
+        const ativos = funcionarios.filter(f => f.status === 'ATIVO');
+        const res = ativos.map(f => this.calcularDecimoFuncionario(f));
         this.decimoResultados.set(res);
-        this.decimoBruto.set(res.reduce((s, d) => s + (d.valorDecimo || 0), 0));
-        this.decimoDescontos.set(res.reduce((s, d) => s + (d.inss || 0) + (d.irrf || 0), 0));
-        this.decimoLiquido.set(res.reduce((s, d) => s + (d.liquido || 0), 0));
+        this.decimoBruto.set(round2(res.reduce((s, d) => s + d.valorDecimo, 0)));
+        this.decimoDescontos.set(round2(res.reduce((s, d) => s + d.inss + d.irrf, 0)));
+        this.decimoLiquido.set(round2(res.reduce((s, d) => s + d.liquido, 0)));
         this.loading.set(false);
       },
       error: () => { this.loading.set(false); this.snackBar.open('Erro ao calcular 13º', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }); },
     });
+  }
+
+  /** 13º proporcional: meses trabalhados no ano (>= 15 dias conta o mês). */
+  private calcularDecimoFuncionario(f: FuncionarioDoc) {
+    const salarioBase = f.salario || 0;
+    const admissao = new Date(f.dataAdmissao);
+    let mesesTrabalhados = 12;
+    if (admissao.getFullYear() === this.anoDecimo) {
+      // mês de admissão conta se admitido até dia 15
+      const mesAdm = admissao.getMonth() + (admissao.getDate() <= 15 ? 0 : 1);
+      mesesTrabalhados = Math.max(0, 12 - mesAdm);
+    } else if (admissao.getFullYear() > this.anoDecimo) {
+      mesesTrabalhados = 0;
+    }
+    const valorDecimo = round2((salarioBase / 12) * mesesTrabalhados);
+    const inss = calcularInss(valorDecimo, this.faixasInss);
+    const irrf = calcularIrrf(valorDecimo, inss, f.dependentes ?? 0, this.faixasIrrf).valor;
+    const liquido = round2(valorDecimo - inss - irrf);
+    return { funcionarioNome: f.nome, salarioBase, mesesTrabalhados, valorDecimo, inss, irrf, liquido };
   }
 }

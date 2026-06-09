@@ -8,8 +8,30 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTabsModule } from '@angular/material/tabs';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface EventoEsocialDoc {
+  $id: string;
+  $createdAt: string;
+  tipoEvento: string;
+  competencia: string;
+  funcionarioId?: string;
+  funcionarioCpf?: string;
+  funcionarioNome?: string;
+  status: string;
+  protocolo?: string;
+  observacao?: string;
+  empresaId: string;
+  tenantId: string;
+}
+
+/** Modelo enriquecido usado pelo template (deriva grupo e protocoloEnvio). */
+interface EventoEsocialView extends EventoEsocialDoc {
+  id: string;
+  grupoEvento: string;
+  protocoloEnvio: string;
+}
 
 @Component({
   selector: 'bear-esocial',
@@ -148,10 +170,11 @@ import { environment } from '@env/environment';
   `,
 })
 export class EsocialComponent implements OnInit {
-  eventos = signal<any[]>([]); loading = signal(false); showForm = signal(false); totalElements = signal(0);
+  eventos = signal<EventoEsocialView[]>([]); loading = signal(false); showForm = signal(false); totalElements = signal(0);
   displayedColumns = ['tipo', 'grupo', 'funcionario', 'competencia', 'status', 'protocolo', 'acoes'];
   form!: FormGroup;
-  private apiUrl = `${environment.apiUrl}/esocial`;
+  private readonly COLLECTION = 'eventos_esocial';
+  private filtroTipo = '';
 
   gruposEventos = [
     { grupo: 'Tabelas', tipos: ['S1000', 'S1005', 'S1010', 'S1020', 'S1030', 'S1035', 'S1040', 'S1050', 'S1060', 'S1070', 'S1080'] },
@@ -159,7 +182,7 @@ export class EsocialComponent implements OnInit {
     { grupo: 'Periódicos', tipos: ['S1200', 'S1202', 'S1207', 'S1210', 'S1260', 'S1270', 'S1280', 'S1298', 'S1299'] },
   ];
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(private fb: FormBuilder, private appwrite: AppwriteService, private auth: AuthService, private snackBar: MatSnackBar) {}
 
   ngOnInit() {
     this.form = this.fb.group({
@@ -169,67 +192,134 @@ export class EsocialComponent implements OnInit {
     this.carregar();
   }
 
-  carregar(page = 0) {
+  private grupoDoTipo(tipo: string): string {
+    const g = this.gruposEventos.find(grp => grp.tipos.includes(tipo));
+    return g ? g.grupo : '';
+  }
+
+  private toView(d: EventoEsocialDoc): EventoEsocialView {
+    return {
+      ...d,
+      id: d.$id,
+      grupoEvento: this.grupoDoTipo(d.tipoEvento),
+      protocoloEnvio: d.protocolo ?? '',
+    };
+  }
+
+  private baseQueries(): string[] {
+    const q = [
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+      this.appwrite.query.equal('tenantId', this.auth.tenantId() || 'default'),
+    ];
+    const empresaId = this.auth.empresaId();
+    if (empresaId) q.push(this.appwrite.query.equal('empresaId', empresaId));
+    return q;
+  }
+
+  carregar(_page = 0) {
     this.loading.set(true);
-    const params = new HttpParams().set('page', page).set('size', 20);
-    this.http.get<any>(this.apiUrl, { params }).subscribe({
-      next: (res) => { this.eventos.set(res.content || []); this.totalElements.set(res.totalElements || 0); this.loading.set(false); },
+    const queries = this.baseQueries();
+    if (this.filtroTipo) queries.push(this.appwrite.query.equal('tipoEvento', this.filtroTipo));
+    this.appwrite.listDocuments<EventoEsocialDoc>(this.COLLECTION, queries).subscribe({
+      next: (res) => {
+        const views = res.map(d => this.toView(d));
+        this.eventos.set(views);
+        this.totalElements.set(views.length);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
   }
 
-  onPage(event: PageEvent) { this.carregar(event.pageIndex); }
+  onPage(_event: PageEvent) { /* paginação client-side: todos os itens já carregados (limit 100) */ }
   resetForm() { this.form.reset(); }
 
   filtrarPorTipo(tipo: string) {
-    if (!tipo) { this.carregar(); return; }
-    this.loading.set(true);
-    const params = new HttpParams().set('tipo', tipo).set('page', 0).set('size', 20);
-    this.http.get<any>(this.apiUrl, { params }).subscribe({
-      next: (res) => { this.eventos.set(res.content || []); this.totalElements.set(res.totalElements || 0); this.loading.set(false); },
-      error: () => this.loading.set(false),
-    });
+    this.filtroTipo = tipo || '';
+    this.carregar();
   }
 
   filtrarPorCompetencia(event: Event) {
     const comp = (event.target as HTMLInputElement).value;
     if (!comp) { this.carregar(); return; }
     this.loading.set(true);
-    this.http.get<any[]>(`${this.apiUrl}/competencia/${comp}`).subscribe({
-      next: (res) => { this.eventos.set(res || []); this.loading.set(false); },
+    const queries = this.baseQueries();
+    queries.push(this.appwrite.query.equal('competencia', comp));
+    this.appwrite.listDocuments<EventoEsocialDoc>(this.COLLECTION, queries).subscribe({
+      next: (res) => {
+        const views = res.map(d => this.toView(d));
+        this.eventos.set(views);
+        this.totalElements.set(views.length);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
   }
 
   carregarPendentes() {
     this.loading.set(true);
-    this.http.get<any[]>(`${this.apiUrl}/pendentes`).subscribe({
-      next: (res) => { this.eventos.set(res || []); this.loading.set(false); },
+    const queries = this.baseQueries();
+    // Pendentes = ainda não aceitos pelo governo (rascunho/validado/enviado/processado).
+    this.appwrite.listDocuments<EventoEsocialDoc>(this.COLLECTION, queries).subscribe({
+      next: (res) => {
+        const finalizados = ['ACEITO', 'REJEITADO'];
+        const views = res.filter(d => !finalizados.includes(d.status)).map(d => this.toView(d));
+        this.eventos.set(views);
+        this.totalElements.set(views.length);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
   }
 
   salvar() {
-    if (this.form.valid) {
-      this.http.post<any>(this.apiUrl, this.form.value).subscribe({
-        next: () => { this.snackBar.open('Evento criado!', 'OK', { duration: 3000 }); this.showForm.set(false); this.carregar(); },
-        error: () => this.snackBar.open('Erro ao criar evento', 'OK', { duration: 3000 }),
-      });
-    }
+    if (!this.form.valid) return;
+    const v = this.form.value;
+    const data: Record<string, unknown> = {
+      tipoEvento: v.tipoEvento,
+      competencia: v.competencia ?? '',
+      funcionarioId: v.funcionarioId ?? '',
+      funcionarioCpf: v.funcionarioCpf ?? '',
+      funcionarioNome: v.funcionarioNome ?? '',
+      observacao: v.observacao ?? '',
+      status: 'RASCUNHO',
+      protocolo: '',
+      tenantId: this.auth.tenantId() || 'default',
+      empresaId: this.auth.empresaId() || '',
+    };
+    this.appwrite.createDocument<EventoEsocialDoc>(this.COLLECTION, data).subscribe({
+      next: () => { this.snackBar.open('Evento criado!', 'OK', { duration: 3000 }); this.showForm.set(false); this.carregar(); },
+      error: () => this.snackBar.open('Erro ao criar evento', 'OK', { duration: 3000 }),
+    });
   }
 
   validar(id: string) {
-    this.http.post<any>(`${this.apiUrl}/${id}/validar`, {}).subscribe({
+    const evento = this.eventos().find(e => e.id === id);
+    if (!evento) { this.snackBar.open('Evento não encontrado', 'OK', { duration: 3000 }); return; }
+    // Validação local simples: confere campos obrigatórios do layout eSocial.
+    const erros: string[] = [];
+    if (!evento.tipoEvento) erros.push('tipo do evento');
+    if (!evento.competencia || !/^\d{4}-\d{2}$/.test(evento.competencia)) erros.push('competência (YYYY-MM)');
+    const grupoNaoPeriodicos = this.grupoDoTipo(evento.tipoEvento) === 'Não Periódicos';
+    if (grupoNaoPeriodicos && !evento.funcionarioId && !evento.funcionarioCpf) {
+      erros.push('identificação do funcionário');
+    }
+    if (erros.length > 0) {
+      this.snackBar.open(`Validação falhou: faltam ${erros.join(', ')}`, 'OK', { duration: 5000 });
+      return;
+    }
+    this.appwrite.updateDocument<EventoEsocialDoc>(this.COLLECTION, id, { status: 'VALIDADO' }).subscribe({
       next: () => { this.snackBar.open('Evento validado!', 'OK', { duration: 3000 }); this.carregar(); },
       error: () => this.snackBar.open('Erro ao validar', 'OK', { duration: 3000 }),
     });
   }
 
-  enviar(id: string) {
-    this.http.post<any>(`${this.apiUrl}/${id}/enviar`, {}).subscribe({
-      next: () => { this.snackBar.open('Evento enviado!', 'OK', { duration: 3000 }); this.carregar(); },
-      error: () => this.snackBar.open('Erro ao enviar', 'OK', { duration: 3000 }),
-    });
+  enviar(_id: string) {
+    // TODO(appwrite): integração externa
+    // Transmissão de eventos ao ambiente do governo (eSocial) requer assinatura com
+    // certificado digital e webservice oficial — não disponível no navegador.
+    this.snackBar.open('Transmissão do eSocial requer integração externa (não disponível nesta versão Appwrite)', 'OK', { duration: 5000 });
   }
 
   getStatusBadge(s: string): string {

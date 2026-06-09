@@ -6,8 +6,34 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+
+interface ObrigacaoDoc {
+  $id: string;
+  tipo: string;
+  competencia: string;
+  dataVencimento: string;
+  dataEntrega?: string;
+  protocolo?: string;
+  status: string;
+  empresaId: string;
+  tenantId: string;
+  $createdAt: string;
+}
+
+// View-model exposto ao template (mantém os nomes de campos usados no HTML existente)
+interface ObrigacaoView {
+  id: string;
+  tipo: string;
+  competencia: string;
+  prazoEntrega: string;
+  status: string;
+  protocoloRecibo: string;
+  retificacao: boolean;
+}
+
+const COLLECTION = 'obrigacoes';
 
 @Component({
   selector: 'bear-obrigacoes',
@@ -134,13 +160,22 @@ import { environment } from '@env/environment';
   `,
 })
 export class ObrigacoesComponent implements OnInit {
-  obrigacoes = signal<any[]>([]); loading = signal(false); showForm = signal(false);
+  obrigacoes = signal<ObrigacaoView[]>([]);
+  loading = signal(false);
+  showForm = signal(false);
   displayedColumns = ['tipo', 'competencia', 'prazo', 'status', 'protocolo', 'retificacao', 'acoes'];
   tiposObrigacao = ['SPED_FISCAL', 'SPED_CONTABIL', 'EFD_CONTRIBUICOES', 'ECF', 'DCTF', 'DIRF', 'RAIS', 'CAGED', 'SEFIP_GFIP', 'DEFIS', 'DASN', 'GIA'];
   form!: FormGroup;
-  private apiUrl = `${environment.apiUrl}/obrigacoes`;
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(
+    private fb: FormBuilder,
+    private appwrite: AppwriteService,
+    private auth: AuthService,
+    private snackBar: MatSnackBar,
+  ) {}
+
+  private get tenantId(): string { return this.auth.tenantId() || 'default'; }
+  private get empresaId(): string { return this.auth.empresaId() || ''; }
 
   ngOnInit() {
     this.form = this.fb.group({
@@ -150,10 +185,27 @@ export class ObrigacoesComponent implements OnInit {
     this.carregarPendentes();
   }
 
+  private toView(d: ObrigacaoDoc): ObrigacaoView {
+    return {
+      id: d.$id,
+      tipo: d.tipo,
+      competencia: d.competencia,
+      prazoEntrega: d.dataVencimento,
+      status: d.status,
+      protocoloRecibo: d.protocolo ?? '',
+      retificacao: false,
+    };
+  }
+
   carregarPendentes() {
     this.loading.set(true);
-    this.http.get<any[]>(`${this.apiUrl}/pendentes`).subscribe({
-      next: (res) => { this.obrigacoes.set(res || []); this.loading.set(false); },
+    this.appwrite.listDocuments<ObrigacaoDoc>(COLLECTION, [
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+      this.appwrite.query.equal('tenantId', this.tenantId),
+      this.appwrite.query.equal('status', 'PENDENTE'),
+    ]).subscribe({
+      next: (res) => { this.obrigacoes.set(res.map((d) => this.toView(d))); this.loading.set(false); },
       error: () => this.loading.set(false),
     });
   }
@@ -161,8 +213,13 @@ export class ObrigacoesComponent implements OnInit {
   buscarPorCompetencia(comp: string) {
     if (!comp) return;
     this.loading.set(true);
-    this.http.get<any[]>(`${this.apiUrl}/competencia/${comp}`).subscribe({
-      next: (res) => { this.obrigacoes.set(res || []); this.loading.set(false); },
+    this.appwrite.listDocuments<ObrigacaoDoc>(COLLECTION, [
+      this.appwrite.query.limit(100),
+      this.appwrite.query.orderDesc('$createdAt'),
+      this.appwrite.query.equal('tenantId', this.tenantId),
+      this.appwrite.query.equal('competencia', comp),
+    ]).subscribe({
+      next: (res) => { this.obrigacoes.set(res.map((d) => this.toView(d))); this.loading.set(false); },
       error: () => this.loading.set(false),
     });
   }
@@ -170,17 +227,35 @@ export class ObrigacoesComponent implements OnInit {
   resetForm() { this.form.reset({ retificacao: false }); }
 
   salvar() {
-    if (this.form.valid) {
-      this.http.post<any>(this.apiUrl, this.form.value).subscribe({
-        next: () => { this.snackBar.open('Obrigação criada!', 'OK', { duration: 3000 }); this.showForm.set(false); this.carregarPendentes(); },
-        error: () => this.snackBar.open('Erro ao criar obrigação', 'OK', { duration: 3000 }),
-      });
-    }
+    if (!this.form.valid) return;
+    const v = this.form.value;
+    const data: Record<string, unknown> = {
+      tipo: v.tipo,
+      competencia: v.competencia,
+      dataVencimento: v.prazoEntrega,
+      status: 'PENDENTE',
+      empresaId: this.empresaId,
+      tenantId: this.tenantId,
+      createdAt: new Date().toISOString(),
+    };
+    this.appwrite.createDocument<ObrigacaoDoc>(COLLECTION, data).subscribe({
+      next: () => { this.snackBar.open('Obrigação criada!', 'OK', { duration: 3000 }); this.showForm.set(false); this.carregarPendentes(); },
+      error: () => this.snackBar.open('Erro ao criar obrigação', 'OK', { duration: 3000 }),
+    });
   }
 
   transmitir(id: string) {
-    this.http.post<any>(`${this.apiUrl}/${id}/transmitir`, {}).subscribe({
-      next: () => { this.snackBar.open('Obrigação transmitida!', 'OK', { duration: 3000 }); this.carregarPendentes(); },
+    // Transmissão real da obrigação acessória depende de integração externa (Receita/SEFAZ).
+    // Aqui apenas atualizamos o status/registro no Appwrite.
+    // TODO(appwrite): integração externa
+    this.appwrite.updateDocument<ObrigacaoDoc>(COLLECTION, id, {
+      status: 'ENTREGUE',
+      dataEntrega: new Date().toISOString().slice(0, 10),
+    }).subscribe({
+      next: () => {
+        this.snackBar.open('Transmissão de obrigação requer integração externa (não disponível nesta versão Appwrite). Status atualizado localmente.', 'OK', { duration: 5000 });
+        this.carregarPendentes();
+      },
       error: () => this.snackBar.open('Erro ao transmitir', 'OK', { duration: 3000 }),
     });
   }

@@ -6,8 +6,38 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+import { FaixaInss, FaixaIrrf, calcularInss, calcularIrrf, round2 } from '../folha-calc';
+
+interface FuncionarioDoc {
+  $id: string;
+  nome: string;
+  salario: number;
+  dependentes?: number;
+}
+
+interface FeriasDoc {
+  $id: string;
+  funcionarioId: string;
+  funcionarioNome?: string;
+  periodoAquisitivoInicio?: string;
+  periodoAquisitivoFim?: string;
+  dataInicio: string;
+  dataFim?: string;
+  diasGozo: number;
+  diasAbono?: number;
+  abonoSolicitado?: boolean;
+  valorFerias?: number;
+  valorTerco?: number;
+  valorAbono?: number;
+  totalBruto?: number;
+  descontoInss?: number;
+  descontoIrrf?: number;
+  valorLiquido?: number;
+  status: string;
+  $createdAt: string;
+}
 
 @Component({
   selector: 'bear-ferias',
@@ -146,27 +176,58 @@ export class FeriasComponent {
   displayedColumns = ['funcionario', 'inicio', 'fim', 'dias', 'abono', 'valor', 'status'];
   feriasVencidasCols = ['funcionario', 'periodoAquisitivo', 'limiteConcessao', 'diasPendentes'];
   form!: FormGroup;
-  private apiUrl = `${environment.apiUrl}/folha`;
+  private faixasInss: FaixaInss[] = [];
+  private faixasIrrf: FaixaIrrf[] = [];
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {
+  constructor(
+    private fb: FormBuilder,
+    private appwrite: AppwriteService,
+    private auth: AuthService,
+    private snackBar: MatSnackBar,
+  ) {
     this.form = this.fb.group({
       funcionarioId: ['', Validators.required], dataInicio: ['', Validators.required],
       diasGozo: [30, [Validators.required, Validators.min(5), Validators.max(30)]],
       diasAbono: [0, [Validators.min(0), Validators.max(10)]],
       adiantamento13: [false],
     });
+    this.carregarTabelas();
     this.carregar();
+  }
+
+  private carregarTabelas() {
+    const Q = this.appwrite.query;
+    const tenant = this.auth.tenantId() || 'default';
+    this.appwrite.listDocuments<FaixaInss>('tabela_inss', [Q.limit(100), Q.equal('tenantId', tenant)])
+      .subscribe({ next: d => this.faixasInss = d, error: () => {} });
+    this.appwrite.listDocuments<FaixaIrrf>('tabela_irrf', [Q.limit(100), Q.equal('tenantId', tenant)])
+      .subscribe({ next: d => this.faixasIrrf = d, error: () => {} });
+  }
+
+  /** Mapeia documento Appwrite -> objeto de visualização compatível com o template. */
+  private toView(d: FeriasDoc) {
+    return {
+      ...d,
+      id: d.$id,
+      valorTotal: d.totalBruto ?? 0,
+      limiteConcessao: d.periodoAquisitivoFim,
+      diasPendentes: d.diasGozo,
+    };
   }
 
   carregar() {
     this.loading.set(true);
-    this.http.get<any[]>(`${this.apiUrl}/ferias`).subscribe({
-      next: (res) => {
-        const all = res || [];
+    const Q = this.appwrite.query;
+    const queries = [Q.limit(100), Q.orderDesc('$createdAt'), Q.equal('tenantId', this.auth.tenantId() || 'default')];
+    const empresaId = this.auth.empresaId();
+    if (empresaId) queries.push(Q.equal('empresaId', empresaId));
+    this.appwrite.listDocuments<FeriasDoc>('ferias', queries).subscribe({
+      next: (docs) => {
+        const all = docs.map(d => this.toView(d));
         this.ferias.set(all);
-        this.feriasVencidas.set(all.filter((f: any) => f.status === 'VENCIDA'));
-        this.feriasProgramadas.set(all.filter((f: any) => f.status === 'PROGRAMADA'));
-        this.feriasEmGozo.set(all.filter((f: any) => f.status === 'EM_GOZO'));
+        this.feriasVencidas.set(all.filter(f => f.status === 'VENCIDA'));
+        this.feriasProgramadas.set(all.filter(f => f.status === 'PROGRAMADA'));
+        this.feriasEmGozo.set(all.filter(f => f.status === 'EM_GOZO'));
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
@@ -176,12 +237,62 @@ export class FeriasComponent {
   resetForm() { this.form.reset({ diasGozo: 30, diasAbono: 0, adiantamento13: false }); }
 
   salvar() {
-    if (this.form.valid) {
-      this.http.post<any>(`${this.apiUrl}/ferias`, this.form.value).subscribe({
-        next: () => { this.snackBar.open('Férias programadas!', 'OK', { duration: 3000 }); this.showForm.set(false); this.carregar(); },
-        error: () => this.snackBar.open('Erro ao programar férias', 'OK', { duration: 3000 }),
-      });
-    }
+    if (!this.form.valid) return;
+    const v = this.form.value;
+    // Busca o funcionário para obter salário e nome para o cálculo.
+    this.appwrite.getDocument<FuncionarioDoc>('funcionarios', v.funcionarioId).subscribe({
+      next: (func) => this.persistir(v, func),
+      error: () => this.persistir(v, null),
+    });
+  }
+
+  private persistir(v: any, func: FuncionarioDoc | null) {
+    const salario = func?.salario ?? 0;
+    const dependentes = func?.dependentes ?? 0;
+    const calc = this.calcularFerias(salario, v.diasGozo, v.diasAbono || 0, dependentes);
+
+    const inicio = new Date(v.dataInicio);
+    const fim = new Date(inicio);
+    fim.setDate(fim.getDate() + (Number(v.diasGozo) || 0) - 1);
+
+    const data: Record<string, unknown> = {
+      funcionarioId: v.funcionarioId,
+      funcionarioNome: func?.nome ?? '',
+      dataInicio: v.dataInicio,
+      dataFim: fim.toISOString().slice(0, 10),
+      diasGozo: Number(v.diasGozo) || 0,
+      diasAbono: Number(v.diasAbono) || 0,
+      abonoSolicitado: (Number(v.diasAbono) || 0) > 0,
+      valorFerias: calc.valorFerias,
+      valorTerco: calc.valorTerco,
+      valorAbono: calc.valorAbono,
+      totalBruto: calc.totalBruto,
+      descontoInss: calc.descontoInss,
+      descontoIrrf: calc.descontoIrrf,
+      valorLiquido: calc.valorLiquido,
+      status: 'PROGRAMADA',
+      empresaId: this.auth.empresaId() || '',
+      tenantId: this.auth.tenantId() || 'default',
+    };
+    this.appwrite.createDocument('ferias', data).subscribe({
+      next: () => { this.snackBar.open('Férias programadas!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.showForm.set(false); this.carregar(); },
+      error: (e) => this.snackBar.open(e?.message || 'Erro ao programar férias', 'OK', { duration: 3000, panelClass: ['error-snackbar'] }),
+    });
+  }
+
+  /** Cálculo de férias: (salário/30 * diasGozo) + 1/3 + abono pecuniário; descontos de INSS/IRRF. */
+  private calcularFerias(salario: number, diasGozo: number, diasAbono: number, dependentes: number) {
+    const diaria = salario / 30;
+    const valorFerias = round2(diaria * diasGozo);
+    const valorTerco = round2(valorFerias / 3);
+    const valorAbono = round2(diaria * diasAbono * (4 / 3)); // abono + 1/3 sobre o abono
+    // Tributação incide sobre férias gozadas + 1/3 (o abono pecuniário é isento).
+    const baseTributavel = round2(valorFerias + valorTerco);
+    const descontoInss = calcularInss(baseTributavel, this.faixasInss);
+    const descontoIrrf = calcularIrrf(baseTributavel, descontoInss, dependentes, this.faixasIrrf).valor;
+    const totalBruto = round2(valorFerias + valorTerco + valorAbono);
+    const valorLiquido = round2(totalBruto - descontoInss - descontoIrrf);
+    return { valorFerias, valorTerco, valorAbono, totalBruto, descontoInss, descontoIrrf, valorLiquido };
   }
 
   getStatusBadge(s: string): string {

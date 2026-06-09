@@ -8,8 +8,16 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '@env/environment';
+import { ContabilidadeService, RegraView, LancamentoView } from '../contabilidade.service';
+
+interface LancamentoAutoView {
+  data: string;
+  regraNome: string;
+  historico: string;
+  contaDebito: string;
+  contaCredito: string;
+  valor: number;
+}
 
 @Component({
   selector: 'bear-contabilidade-automatica',
@@ -150,8 +158,8 @@ import { environment } from '@env/environment';
   `,
 })
 export class ContabilidadeAutomaticaComponent implements OnInit {
-  regras = signal<any[]>([]);
-  lancamentosAuto = signal<any[]>([]);
+  regras = signal<RegraView[]>([]);
+  lancamentosAuto = signal<LancamentoAutoView[]>([]);
   loading = signal(false);
   showForm = signal(false);
   form!: FormGroup;
@@ -162,9 +170,8 @@ export class ContabilidadeAutomaticaComponent implements OnInit {
     { value: 'PAGAMENTO', label: 'Pagamento' }, { value: 'RECEBIMENTO', label: 'Recebimento' },
     { value: 'FOLHA', label: 'Folha de Pagamento' },
   ];
-  private apiUrl = `${environment.apiUrl}/contabilidade/regras-contabilizacao`;
 
-  constructor(private fb: FormBuilder, private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(private fb: FormBuilder, private service: ContabilidadeService, private snackBar: MatSnackBar) {}
 
   ngOnInit() {
     this.form = this.fb.group({
@@ -177,8 +184,8 @@ export class ContabilidadeAutomaticaComponent implements OnInit {
 
   carregar() {
     this.loading.set(true);
-    this.http.get<any[]>(this.apiUrl).subscribe({
-      next: (res) => { this.regras.set(Array.isArray(res) ? res : []); this.loading.set(false); },
+    this.service.listRegras().subscribe({
+      next: (res) => { this.regras.set(res); this.loading.set(false); },
       error: () => this.loading.set(false),
     });
   }
@@ -190,7 +197,7 @@ export class ContabilidadeAutomaticaComponent implements OnInit {
 
   salvar() {
     if (this.form.valid) {
-      this.http.post<any>(this.apiUrl, { ...this.form.value, ativa: true }).subscribe({
+      this.service.createRegra({ ...this.form.value, ativa: true }).subscribe({
         next: () => { this.snackBar.open('Regra criada!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.showForm.set(false); this.carregar(); },
         error: () => this.snackBar.open('Erro ao criar regra', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
       });
@@ -199,11 +206,18 @@ export class ContabilidadeAutomaticaComponent implements OnInit {
 
   executarRegras() {
     this.loading.set(true);
-    this.http.post<any[]>(`${this.apiUrl}/executar`, {}).subscribe({
-      next: (res) => {
-        this.lancamentosAuto.set(Array.isArray(res) ? res : []);
+    this.service.executarRegras().subscribe({
+      next: (res: LancamentoView[]) => {
+        this.lancamentosAuto.set(res.map(l => ({
+          data: l.data,
+          regraNome: l.historico,
+          historico: l.historico,
+          contaDebito: l.contaDebito?.codigo ?? '',
+          contaCredito: l.contaCredito?.codigo ?? '',
+          valor: l.valor,
+        })));
         this.loading.set(false);
-        this.snackBar.open(`${(res || []).length} lançamentos gerados`, 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
+        this.snackBar.open(`${res.length} lançamentos gerados`, 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
       },
       error: () => { this.loading.set(false); this.snackBar.open('Erro ao executar', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }); },
     });
