@@ -139,6 +139,21 @@ module.exports = async ({ req, res, log, error }) => {
 
     // ── Parsing / validação ──
     const resposta = parseCadastro(texto, tipoPessoa, tipoDocumento);
+
+    // PDF cujo texto nativo NÃO contém os dados do documento — caso típico da
+    // CNH/RG digital (gov.br), onde a carteira é uma imagem e o único texto
+    // extraível é a página de assinatura digital (Assinador Serpro / SENATRAN).
+    // Sem rasterizador nativo no runtime, não dá para OCR a imagem embutida.
+    // Em vez de devolver um cadastro vazio (confiança 0%), orienta o usuário.
+    const semIdentificador = !resposta.cpf && !resposta.cnpj;
+    if (isPdf && resposta.confidence === 0 && semIdentificador) {
+      log?.('PDF sem dados em texto (provável documento digital com imagem) — manual.');
+      return res.json(fallbackManual(
+        'Este PDF não traz os dados em texto (provável CNH/RG digital, onde o '
+        + 'documento aparece como imagem). Envie uma foto ou print nítido do '
+        + 'documento — ou preencha manualmente.'));
+    }
+
     resposta.preenchimentoManual = false;
     if (resposta.confidence < 85) {
       resposta.avisos.push('Confiança abaixo de 85% — revise os campos destacados.');
