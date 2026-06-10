@@ -10,14 +10,29 @@
  *
  * Uso:  node scripts/appwrite-create-auth-user.js
  */
+const fs = require('fs');
+const path = require('path');
+
+// Carrega o .env (mesmo parsing dos outros scripts). Segredos ficam SÓ no .env.
+const envPath = path.join(__dirname, '..', '.env');
+if (fs.existsSync(envPath)) {
+  for (const linha of fs.readFileSync(envPath, 'utf8').split('\n')) {
+    const m = linha.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+  }
+}
+
 const { Client, Databases, Users, Query, ID } = require('node-appwrite');
 
 const ENDPOINT = process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
 const PROJECT = process.env.APPWRITE_PROJECT_ID || '69b52c570036d92459ce';
-// TODO: mover esta chave para o .env e rotacioná-la (ver README).
-const API_KEY = process.env.APPWRITE_API_KEY ||
-  'standard_e04260ebac4f36c6d310aa4cf59c95a7a36fb75ff4960912cf2e0a492e82dde2e7d515b7da5cd401ede97665d987ab95ca0780ccff2b2b71a5b00ba48e1adc570ea5327d1977d173d800a8e51828f5fe584c2f9abe011760ae066fb9b27d0b809cfba0f047fbbadc14957ea1b1b1b9f7e0d2b1864df1ad6218e3544a0a871ee6';
+const API_KEY = process.env.APPWRITE_API_KEY;
 const DB_ID = process.env.APPWRITE_DB_ID || '69b52c820006ab36b33a';
+
+if (!API_KEY) {
+  console.error('Falta APPWRITE_API_KEY no .env');
+  process.exit(1);
+}
 
 // Não conseguimos recuperar a senha em texto a partir do hash bcrypt guardado.
 // Senhas conhecidas do seed (dev); demais usuários recebem a senha padrão.
