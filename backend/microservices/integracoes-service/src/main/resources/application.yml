@@ -1,9 +1,14 @@
 server:
-  port: 8113
+  # Railway injeta a porta via $PORT; localmente cai no 8113.
+  port: ${PORT:8113}
 
 spring:
   application:
     name: integracoes-service
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
   data:
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/bear_erp_integracoes}
@@ -30,9 +35,22 @@ integracoes:
     cpf-token: ${CPF_API_TOKEN:}
   cnpj:
     url: ${CNPJ_API_URL:https://brasilapi.com.br/api/cnpj/v1}
+  # OCR de documentos de cadastro (RG/CNH/Comprovante/Cartão CNPJ/Contrato Social).
+  # tessdata-path: pasta com os arquivos *.traineddata do Tesseract (por.traineddata).
+  # Se vazio, usa a variável de ambiente TESSDATA_PREFIX / instalação padrão do sistema.
+  ocr:
+    cadastro:
+      tessdata-path: ${TESSDATA_PATH:}
+      language: ${OCR_LANGUAGE:por}
+      # DPI usado ao rasterizar PDFs escaneados antes do OCR.
+      pdf-render-dpi: ${OCR_PDF_DPI:300}
+      # Se o texto nativo do PDF tiver menos caracteres que isto, tratamos como escaneado e aplicamos OCR.
+      min-native-text-length: ${OCR_MIN_TEXT:40}
 
 eureka:
   client:
+    # Na Railway não há Eureka (serviços se acham por DNS interno): EUREKA_CLIENT_ENABLED=false.
+    enabled: ${EUREKA_CLIENT_ENABLED:true}
     service-url:
       defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
   instance:

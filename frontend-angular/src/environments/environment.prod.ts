@@ -8,8 +8,11 @@ export const environment = {
     projectId: '69b52c570036d92459ce',
     databaseId: '69b52c820006ab36b33a',
     functions: {
-      // ID da Appwrite Function `consulta-cpf-hub` (preencher após o deploy).
-      consultaCpf: 'consulta-cpf-hub',
+      // IDs das Appwrite Functions (ajustar conforme o ID gerado no deploy).
+      // CPF e CNPJ atendidos pela mesma função (limite de funções do plano Appwrite).
+      consultaCpf: 'consulta-cnpj',
+      consultaCnpj: 'consulta-cnpj',
+      ocrCadastro: 'ocr-cadastro',
     },
   },
 };

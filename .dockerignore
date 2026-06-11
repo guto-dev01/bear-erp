@@ -1,0 +1,26 @@
+# Não enviar para o build context da Railway / Docker
+.git
+.gitignore
+**/node_modules
+node_modules
+logs
+*.log
+.env
+.env.*
+!.env.example
+
+# Frontend não entra na imagem do integracoes-service
+frontend-angular
+
+# Funções Appwrite (deploy separado)
+functions
+
+# Artefatos de build Java
+**/target
+backend/**/target
+
+# IDE / OS
+.idea
+.vscode
+*.iml
+.DS_Store

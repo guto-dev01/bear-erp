@@ -1,0 +1,52 @@
+# Dockerfile dedicado do integracoes-service.
+# Difere do Dockerfile.service porque o OCR usa Tess4J (Tesseract via JNA), que NÃO
+# funciona em Alpine/musl — precisa de glibc. Por isso a base é Debian (eclipse-temurin
+# não-alpine) e o Tesseract + dados de português são instalados via apt.
+
+# === Build Stage ===
+FROM maven:3.9.6-eclipse-temurin-21 AS builder
+
+WORKDIR /app
+
+# POM pai + libs compartilhadas
+COPY backend/pom.xml ./pom.xml
+COPY backend/shared ./shared
+
+# POMs dos módulos de infra (necessários para o reactor do Maven)
+COPY backend/api-gateway/pom.xml ./api-gateway/pom.xml
+COPY backend/service-discovery/pom.xml ./service-discovery/pom.xml
+COPY backend/config-server/pom.xml ./config-server/pom.xml
+
+# Todos os microservices (o parent referencia todos no reactor)
+COPY backend/microservices ./microservices
+
+# Compila libs compartilhadas + integracoes-service
+RUN mvn package -pl shared/common-lib,shared/security-lib,microservices/integracoes-service \
+    -am -DskipTests -Dmaven.test.skip=true -B -q
+
+# === Runtime Stage ===
+FROM eclipse-temurin:21-jre
+
+# Tesseract + idioma português. Cria /usr/share/tessdata apontando para o diretório real
+# dos *.traineddata (o caminho varia por versão no Debian/Ubuntu).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-por \
+    && rm -rf /var/lib/apt/lists/* \
+    && TESSDIR="$(dirname "$(dpkg -L tesseract-ocr-por | grep por.traineddata | head -1)")" \
+    && [ -d /usr/share/tessdata ] || ln -s "$TESSDIR" /usr/share/tessdata
+
+RUN groupadd -r bearerp && useradd -r -g bearerp bearerp
+
+WORKDIR /app
+
+COPY --from=builder /app/microservices/integracoes-service/target/*.jar app.jar
+
+RUN chown -R bearerp:bearerp /app
+
+USER bearerp
+
+ENTRYPOINT ["java", \
+  "-XX:+UseContainerSupport", \
+  "-XX:MaxRAMPercentage=75.0", \
+  "-Djava.security.egd=file:/dev/./urandom", \
+  "-jar", "app.jar"]

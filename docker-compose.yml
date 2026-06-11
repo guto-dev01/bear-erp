@@ -736,9 +736,8 @@ services:
   integracoes-service:
     build:
       context: .
-      dockerfile: infra/docker/Dockerfile.service
-      args:
-        SERVICE_NAME: integracoes-service
+      # Dockerfile dedicado: base Debian (glibc) + Tesseract, pois Tess4J não roda em Alpine.
+      dockerfile: infra/docker/Dockerfile.integracoes
     image: bear-erp/integracoes-service:latest
     container_name: bear-integracoes-service
     restart: unless-stopped
@@ -751,6 +750,9 @@ services:
       CPF_API_TOKEN: ${CPF_API_TOKEN:-}
       CPF_API_URL: ${CPF_API_URL:-https://ws.hubdodesenvolvedor.com.br/v2/cpf/}
       CNPJ_API_URL: ${CNPJ_API_URL:-https://brasilapi.com.br/api/cnpj/v1}
+      # OCR de cadastro: diretório dos traineddata do Tesseract dentro da imagem.
+      TESSDATA_PATH: /usr/share/tessdata
+      OCR_LANGUAGE: por
     depends_on: *service-deps
     networks:
       - bear-network
