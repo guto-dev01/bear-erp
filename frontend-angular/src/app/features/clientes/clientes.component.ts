@@ -4,9 +4,27 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { AppwriteService } from '@core/services/appwrite.service';
+import { AuthService } from '@core/auth/auth.service';
+import { OcrClienteService, type OcrResultado } from '@core/ocr/ocr-cliente.service';
 
 type TipoCadastro = 'PF' | 'PJ';
+type TipoDocumento = 'CNH' | 'RG' | 'COMPROVANTE_ENDERECO' | 'CNPJ' | 'CONTRATO_SOCIAL';
 interface DocReq { key: string; title: string; desc: string; icon: string; required: boolean; }
+
+/** Resposta do endpoint POST /api/v1/integracoes/cadastros/ocr */
+interface OcrResponse {
+  nomeCompleto?: string; cpf?: string; rg?: string; dataNascimento?: string;
+  nomeMae?: string; nomePai?: string;
+  cep?: string; logradouro?: string; numero?: string; bairro?: string; cidade?: string; estado?: string;
+  cnpj?: string; razaoSocial?: string; nomeFantasia?: string; dataAbertura?: string;
+  naturezaJuridica?: string; cnaePrincipal?: string; capitalSocial?: string;
+  socios?: { nome?: string; cpf?: string; participacao?: string }[];
+  confidence: number;
+  camposComBaixaConfianca?: string[];
+  avisos?: string[];
+  preenchimentoManual?: boolean;
+  mensagem?: string;
+}
 
 interface Cliente {
   $id: string;
@@ -181,14 +199,16 @@ interface Cliente {
             }
           </div>
 
-          <!-- Abas de tipo -->
-          <div class="nc-tabs">
-            @for (t of tipos; track t.key) {
-              <button class="nc-tab" [class.is-active]="tipoCadastro() === t.key" (click)="setTipo(t.key)">
-                <span class="material-symbols-rounded">{{ t.icon }}</span> {{ t.label }}
-              </button>
-            }
-          </div>
+          <!-- Abas de tipo: a escolha PF/PJ acontece só na 1ª etapa (documentos). -->
+          @if (flow() === 'docs') {
+            <div class="nc-tabs">
+              @for (t of tipos; track t.key) {
+                <button class="nc-tab" [class.is-active]="tipoCadastro() === t.key" (click)="setTipo(t.key)">
+                  <span class="material-symbols-rounded">{{ t.icon }}</span> {{ t.label }}
+                </button>
+              }
+            </div>
+          }
 
           @if (flow() === 'docs') {
             <!-- Stepper -->
@@ -231,30 +251,76 @@ interface Cliente {
               }
             </div>
 
+            <!-- Progresso do OCR -->
+            @if (ocrProcessing() || ocrStatus()) {
+              <div class="nc-ocr" [class.is-done]="!ocrProcessing()">
+                @if (ocrProcessing()) {
+                  <span class="nc-ocr__spin material-symbols-rounded">progress_activity</span>
+                } @else {
+                  <span class="nc-ocr__ok material-symbols-rounded">check_circle</span>
+                }
+                <span class="nc-ocr__txt">{{ ocrStatus() }}</span>
+              </div>
+            }
+
             <div class="nc-foot">
-              <button class="nc-link" (click)="flow.set('manual')">Não tenho os documentos — preencher manualmente</button>
+              <button class="nc-link" (click)="flow.set('manual')" [disabled]="ocrProcessing()">Não tenho os documentos — preencher manualmente</button>
               <div class="nc-foot__actions">
-                <button class="crm-btn-outline" (click)="closeForm()">Cancelar</button>
-                <button class="crm-btn-primary" (click)="flow.set('manual')">
-                  Continuar <span class="material-symbols-rounded">arrow_forward</span>
+                <button class="crm-btn-outline" (click)="closeForm()" [disabled]="ocrProcessing()">Cancelar</button>
+                <button class="crm-btn-primary" (click)="continuar()" [disabled]="ocrProcessing()">
+                  @if (ocrProcessing()) {
+                    Processando… <span class="nc-ocr__spin material-symbols-rounded">progress_activity</span>
+                  } @else {
+                    Continuar <span class="material-symbols-rounded">arrow_forward</span>
+                  }
                 </button>
               </div>
             </div>
           } @else {
-            <!-- Cadastro manual -->
+            <!-- Cadastro manual / revisão -->
             <form [formGroup]="form" (ngSubmit)="save()">
+              <!-- Banner de confiança do OCR -->
+              @if (ocrConfidence() !== null) {
+                <div class="nc-conf" [class.nc-conf--warn]="ocrConfidence()! < 85">
+                  <span class="material-symbols-rounded">{{ ocrConfidence()! < 85 ? 'warning' : 'task_alt' }}</span>
+                  <span>
+                    Cadastro preenchido pelo sistema — confiança <b>{{ ocrConfidence() }}%</b>.
+                    {{ ocrConfidence()! < 85 ? 'Revise com atenção os campos destacados.' : 'Confira e confirme os dados.' }}
+                  </span>
+                </div>
+                @if (ocrAvisos().length) {
+                  <ul class="nc-avisos">
+                    @for (a of ocrAvisos(); track a) { <li><span class="material-symbols-rounded">info</span> {{ a }}</li> }
+                  </ul>
+                }
+              }
               <div class="nc-form-grid">
-                <div class="nc-field span-2"><label>Razão Social / Nome <span class="nc-req">*</span></label><input class="nc-input" formControlName="razaoSocial"></div>
-                <div class="nc-field"><label>Nome Fantasia <span class="nc-req">*</span></label><input class="nc-input" formControlName="nomeFantasia"></div>
-                <div class="nc-field"><label>Tipo</label><select class="nc-input" formControlName="tipo"><option value="PJ">Pessoa Jurídica</option><option value="PF">Pessoa Física</option></select></div>
-                <div class="nc-field"><label>CNPJ / CPF <span class="nc-req">*</span></label><input class="nc-input" formControlName="cnpjCpf" maxlength="14"></div>
+                @if (tipoCadastro() === 'PF') {
+                  <div class="nc-field span-2"><label>Nome completo <span class="nc-req">*</span></label><input class="nc-input" [class.is-low]="isLowConf('razaoSocial')" formControlName="razaoSocial"></div>
+                } @else {
+                  <div class="nc-field"><label>Razão Social <span class="nc-req">*</span></label><input class="nc-input" [class.is-low]="isLowConf('razaoSocial')" formControlName="razaoSocial"></div>
+                  <div class="nc-field"><label>Nome Fantasia <span class="nc-req">*</span></label><input class="nc-input" [class.is-low]="isLowConf('nomeFantasia')" formControlName="nomeFantasia"></div>
+                }
+                <div class="nc-field"><label>{{ tipoCadastro() === 'PF' ? 'CPF' : 'CNPJ' }} <span class="nc-req">*</span></label><input class="nc-input" [class.is-low]="isLowConf('cnpjCpf')" formControlName="cnpjCpf" maxlength="18"></div>
                 <div class="nc-field"><label>Inscrição Estadual</label><input class="nc-input" formControlName="inscricaoEstadual"></div>
                 <div class="nc-field"><label>Email <span class="nc-req">*</span></label><input class="nc-input" type="email" formControlName="email"></div>
                 <div class="nc-field"><label>Telefone</label><input class="nc-input" formControlName="telefone"></div>
-                <div class="nc-field span-2"><label>Endereço</label><input class="nc-input" formControlName="endereco"></div>
-                <div class="nc-field"><label>Cidade</label><input class="nc-input" formControlName="cidade"></div>
-                <div class="nc-field"><label>Estado</label><select class="nc-input" formControlName="estado"><option value="">—</option>@for(uf of ufs;track uf){<option [value]="uf">{{uf}}</option>}</select></div>
-                <div class="nc-field"><label>CEP</label><input class="nc-input" formControlName="cep" maxlength="8"></div>
+
+                @if (tipoCadastro() === 'PF') {
+                  <div class="nc-field"><label>RG</label><input class="nc-input" [class.is-low]="isLowConf('rg')" formControlName="rg"></div>
+                  <div class="nc-field"><label>Data de Nascimento</label><input class="nc-input" [class.is-low]="isLowConf('dataNascimento')" formControlName="dataNascimento" placeholder="dd/mm/aaaa"></div>
+                  <div class="nc-field"><label>Nome da Mãe</label><input class="nc-input" [class.is-low]="isLowConf('nomeMae')" formControlName="nomeMae"></div>
+                  <div class="nc-field"><label>Nome do Pai</label><input class="nc-input" [class.is-low]="isLowConf('nomePai')" formControlName="nomePai"></div>
+                } @else {
+                  <div class="nc-field"><label>Capital Social</label><input class="nc-input" [class.is-low]="isLowConf('capitalSocial')" formControlName="capitalSocial"></div>
+                }
+
+                <div class="nc-field span-2"><label>Endereço</label><input class="nc-input" [class.is-low]="isLowConf('endereco')" formControlName="endereco"></div>
+                <div class="nc-field"><label>Número</label><input class="nc-input" [class.is-low]="isLowConf('numero')" formControlName="numero"></div>
+                <div class="nc-field"><label>Bairro</label><input class="nc-input" [class.is-low]="isLowConf('bairro')" formControlName="bairro"></div>
+                <div class="nc-field"><label>Cidade</label><input class="nc-input" [class.is-low]="isLowConf('cidade')" formControlName="cidade"></div>
+                <div class="nc-field"><label>Estado</label><select class="nc-input" [class.is-low]="isLowConf('estado')" formControlName="estado"><option value="">—</option>@for(uf of ufs;track uf){<option [value]="uf">{{uf}}</option>}</select></div>
+                <div class="nc-field"><label>CEP</label><input class="nc-input" [class.is-low]="isLowConf('cep')" formControlName="cep" maxlength="9"></div>
               </div>
               <div class="nc-foot">
                 @if (!editingId()) {
@@ -487,6 +553,25 @@ interface Cliente {
       background-repeat:no-repeat; background-position:right .8rem center; }
     select.nc-input option { background:var(--panel-2); color:var(--txt); }
 
+    /* OCR — progresso e revisão */
+    .nc-ocr { display:flex; align-items:center; gap:.6rem; margin-top:1.25rem; padding:.85rem 1rem;
+      border:1px solid var(--accent-softer); background:var(--accent-soft); border-radius:12px; color:var(--accent); font-size:.85rem; font-weight:600; }
+    .nc-ocr.is-done { border-color:var(--color-success-muted); background:var(--color-success-light); color:var(--color-success); }
+    .nc-ocr__txt { color:inherit; }
+    .nc-ocr__spin { animation:nc-spin 1s linear infinite; font-size:1.2rem; }
+    .nc-ocr__ok { font-size:1.2rem; }
+    @keyframes nc-spin { to { transform:rotate(360deg); } }
+
+    .nc-conf { display:flex; align-items:flex-start; gap:.55rem; margin-bottom:1rem; padding:.8rem 1rem; border-radius:12px;
+      font-size:.82rem; line-height:1.4; border:1px solid var(--color-success-muted); background:var(--color-success-light); color:var(--color-success); }
+    .nc-conf b { font-weight:800; }
+    .nc-conf .material-symbols-rounded { font-size:1.15rem; margin-top:.05rem; }
+    .nc-conf--warn { border-color:var(--color-warning-muted); background:var(--color-warning-light); color:var(--color-warning); }
+    .nc-avisos { list-style:none; margin:0 0 1rem; padding:0; display:flex; flex-direction:column; gap:.35rem; }
+    .nc-avisos li { display:flex; align-items:center; gap:.4rem; font-size:.78rem; color:var(--txt-2); }
+    .nc-avisos .material-symbols-rounded { font-size:1rem; color:var(--color-warning); }
+    .nc-input.is-low { border-color:var(--color-warning); box-shadow:0 0 0 3px var(--color-warning-light); }
+
     /* Tablet */
     @media (max-width:1024px) {
       .crm-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -550,7 +635,15 @@ export class ClientesComponent implements OnInit {
   flow = signal<'docs' | 'manual'>('docs');
   tipoCadastro = signal<TipoCadastro>('PF');
   currentStep = signal(1);
-  uploads = signal<Record<string, string>>({});
+  uploads = signal<Record<string, string>>({});      // nome do arquivo (exibição)
+  uploadFiles = signal<Record<string, File>>({});     // arquivo real para upload
+
+  // ── Estado do OCR ──
+  ocrProcessing = signal(false);
+  ocrStatus = signal<string | null>(null);            // mensagem de progresso atual
+  ocrConfidence = signal<number | null>(null);
+  lowConf = signal<string[]>([]);                     // nomes dos campos do form a destacar
+  ocrAvisos = signal<string[]>([]);
 
   tipos: { key: TipoCadastro; label: string; icon: string }[] = [
     { key: 'PF', label: 'Pessoa Física', icon: 'person' },
@@ -577,26 +670,179 @@ export class ClientesComponent implements OnInit {
   docsForTipo(): DocReq[] { return this.docsConfig[this.tipoCadastro()]; }
 
   setTipo(k: TipoCadastro) {
-    this.tipoCadastro.set(k);
     this.uploads.set({});
-    this.form.patchValue({ tipo: k === 'PJ' ? 'PJ' : 'PF' });
+    this.uploadFiles.set({});
+    this.resetOcrState();
+    this.aplicarTipo(k);
+  }
+
+  /**
+   * Aplica o tipo (PF/PJ) ao formulário: sincroniza o sinal, o controle `tipo` e os
+   * validadores. "Nome Fantasia" é conceito de PJ — para PF não é obrigatório (o campo
+   * fica oculto e é preenchido a partir do nome ao salvar).
+   */
+  private aplicarTipo(k: TipoCadastro) {
+    this.tipoCadastro.set(k);
+    const nf = this.form.get('nomeFantasia');
+    if (k === 'PF') nf?.clearValidators();
+    else nf?.setValidators(Validators.required);
+    nf?.updateValueAndValidity();
+    this.form.patchValue({ tipo: k });
   }
 
   onFile(key: string, ev: Event) {
     const file = (ev.target as HTMLInputElement).files?.[0];
-    if (file) this.uploads.update(u => ({ ...u, [key]: file.name }));
+    if (file) {
+      this.uploads.update(u => ({ ...u, [key]: file.name }));
+      this.uploadFiles.update(u => ({ ...u, [key]: file }));
+    }
   }
+
+  // ─────────────── OCR: lê os documentos e preenche o cadastro ───────────────
+
+  /** Mapeia a chave do documento (docsConfig) para o tipoDocumento do backend. */
+  private tipoDocumentoDe(key: string): TipoDocumento {
+    switch (key) {
+      case 'rg': return 'CNH';            // "RG ou CNH" — assume CNH; usuário revisa na etapa final
+      case 'cnpj': return 'CNPJ';
+      case 'contrato': return 'CONTRATO_SOCIAL';
+      case 'end': return 'COMPROVANTE_ENDERECO';
+      default: return 'COMPROVANTE_ENDERECO';
+    }
+  }
+
+  /** Ação do botão "Continuar": se houver documentos, roda o OCR; senão, vai pro manual. */
+  continuar() {
+    const files = this.uploadFiles();
+    const docs = this.docsForTipo().filter(d => files[d.key]);
+    if (docs.length === 0) { this.flow.set('manual'); return; }
+    this.processarDocumentos(docs.map(d => d.key));
+  }
+
+  private async processarDocumentos(keys: string[]) {
+    this.ocrProcessing.set(true);
+    this.resetOcrState();
+    const acumulado: Partial<OcrResponse> = {};
+    const lowConf = new Set<string>();
+    const avisos: string[] = [];
+    let confTotal = 0, n = 0;
+    let algumSucesso = false;
+
+    try {
+      for (const key of keys) {
+        const file = this.uploadFiles()[key];
+        if (!file) continue;
+        this.ocrStatus.set('Lendo documento…');
+
+        // OCR roda 100% no navegador (pdf.js + tesseract.js) — sem backend/API.
+        const resp = await this.ocr.extrair(
+          file,
+          this.tipoCadastro(),
+          this.tipoDocumentoDe(key),
+          (s) => this.ocrStatus.set(s),
+        );
+
+        if (resp.preenchimentoManual) {
+          if (resp.mensagem) avisos.push(resp.mensagem);
+          continue;
+        }
+        algumSucesso = true;
+        this.mesclar(acumulado, resp);
+        (resp.camposComBaixaConfianca || []).forEach(c => lowConf.add(c));
+        (resp.avisos || []).forEach(a => avisos.push(a));
+        confTotal += resp.confidence; n++;
+      }
+
+      const confidence = n ? Math.round(confTotal / n) : 0;
+      this.ocrConfidence.set(algumSucesso ? confidence : null);
+      this.ocrAvisos.set([...new Set(avisos)]);
+
+      if (!algumSucesso) {
+        this.ocrStatus.set(null);
+        this.snackBar.open('Não foi possível ler os documentos. Preencha manualmente.', 'OK', { duration: 5000 });
+        this.flow.set('manual');
+        return;
+      }
+
+      this.aplicarNoForm(acumulado);
+      this.lowConf.set([...lowConf].map(c => this.campoOcrParaForm(c)).filter((c): c is string => !!c));
+      this.ocrStatus.set('Cadastro preenchido automaticamente ✓');
+      this.currentStep.set(4);
+      await this.delay(700);
+      this.flow.set('manual');
+    } catch {
+      this.snackBar.open('Erro ao processar o documento. Preencha manualmente.', 'OK', { duration: 5000 });
+      this.flow.set('manual');
+    } finally {
+      this.ocrProcessing.set(false);
+      this.ocrStatus.set(null);
+    }
+  }
+
+  /** Mescla campos preenchidos, sem sobrescrever valores já obtidos. */
+  private mesclar(acc: Partial<OcrResponse>, resp: OcrResultado) {
+    for (const [k, v] of Object.entries(resp)) {
+      if (k === 'confidence' || k === 'camposComBaixaConfianca' || k === 'avisos'
+        || k === 'preenchimentoManual' || k === 'mensagem') continue;
+      if (v != null && v !== '' && !(acc as any)[k]) (acc as any)[k] = v;
+    }
+  }
+
+  /** Converte o nome do campo do OCR para o nome do controle no formulário. */
+  private campoOcrParaForm(campo: string): string | null {
+    const map: Record<string, string> = {
+      nomeCompleto: 'razaoSocial', razaoSocial: 'razaoSocial', nomeFantasia: 'nomeFantasia',
+      cpf: 'cnpjCpf', cnpj: 'cnpjCpf', rg: 'rg', dataNascimento: 'dataNascimento',
+      nomeMae: 'nomeMae', nomePai: 'nomePai', cep: 'cep', logradouro: 'endereco',
+      numero: 'numero', bairro: 'bairro', cidade: 'cidade', estado: 'estado',
+      capitalSocial: 'capitalSocial',
+    };
+    return map[campo] ?? null;
+  }
+
+  private aplicarNoForm(d: Partial<OcrResponse>) {
+    const pf = this.tipoCadastro() === 'PF';
+    const nome = pf ? d.nomeCompleto : d.razaoSocial;
+    const endereco = [d.logradouro, d.numero, d.bairro].filter(Boolean).join(', ');
+    this.form.patchValue({
+      razaoSocial: nome ?? this.form.value.razaoSocial,
+      nomeFantasia: (pf ? nome : d.nomeFantasia) ?? this.form.value.nomeFantasia,
+      cnpjCpf: (pf ? d.cpf : d.cnpj) ?? this.form.value.cnpjCpf,
+      cep: d.cep ?? '', cidade: d.cidade ?? '', estado: d.estado ?? '',
+      endereco: endereco || this.form.value.endereco,
+      rg: d.rg ?? '', dataNascimento: d.dataNascimento ?? '',
+      nomeMae: d.nomeMae ?? '', nomePai: d.nomePai ?? '',
+      numero: d.numero ?? '', bairro: d.bairro ?? '',
+      capitalSocial: d.capitalSocial ?? '',
+    });
+  }
+
+  private resetOcrState() {
+    this.ocrConfidence.set(null);
+    this.lowConf.set([]);
+    this.ocrAvisos.set([]);
+    this.ocrStatus.set(null);
+  }
+
+  private delay(ms: number) { return new Promise(r => setTimeout(r, ms)); }
+
+  isLowConf(controlName: string): boolean { return this.lowConf().includes(controlName); }
 
   constructor(
     private fb: FormBuilder,
     private appwrite: AppwriteService,
     private snackBar: MatSnackBar,
+    private ocr: OcrClienteService,
+    private auth: AuthService,
   ) {
     this.form = this.fb.group({
       razaoSocial: ['', Validators.required], nomeFantasia: ['', Validators.required],
       tipo: ['PJ'], cnpjCpf: ['', Validators.required], inscricaoEstadual: [''],
       email: ['', [Validators.required, Validators.email]], telefone: [''],
       endereco: [''], cidade: [''], estado: [''], cep: [''],
+      // Campos extraídos pelo OCR (exibidos na revisão; persistir exige os atributos na coleção Appwrite).
+      rg: [''], dataNascimento: [''], nomeMae: [''], nomePai: [''],
+      numero: [''], bairro: [''], capitalSocial: [''],
     });
   }
 
@@ -605,7 +851,20 @@ export class ClientesComponent implements OnInit {
   load() {
     this.loading.set(true);
     this.appwrite.listDocuments<Cliente>('clientes').subscribe({
-      next: d => { this.clientes.set(d); this.loading.set(false); },
+      next: docs => {
+        // A coleção usa nome/cpfCnpj/uf; o componente/form usa razaoSocial/cnpjCpf/estado.
+        this.clientes.set(docs.map((d) => {
+          const r = d as Cliente & { nome?: string; cpfCnpj?: string; uf?: string };
+          return {
+            ...r,
+            razaoSocial: r.nome ?? r.razaoSocial,
+            nomeFantasia: r.nome ?? r.nomeFantasia,
+            cnpjCpf: r.cpfCnpj ?? r.cnpjCpf,
+            estado: r.uf ?? r.estado,
+          } as Cliente;
+        }));
+        this.loading.set(false);
+      },
       error: () => { this.loading.set(false); },
     });
   }
@@ -643,15 +902,17 @@ export class ClientesComponent implements OnInit {
   openForm(c?: Cliente) {
     this.currentStep.set(1);
     this.uploads.set({});
+    this.uploadFiles.set({});
+    this.resetOcrState();
     if (c) {
       this.editingId.set(c.$id);
       this.form.patchValue(c);
-      this.tipoCadastro.set(c.tipo === 'PF' ? 'PF' : 'PJ');
+      this.aplicarTipo(c.tipo === 'PF' ? 'PF' : 'PJ');
       this.flow.set('manual');
     } else {
       this.editingId.set(null);
       this.form.reset({ tipo: 'PF' });
-      this.tipoCadastro.set('PF');
+      this.aplicarTipo('PF');
       this.flow.set('docs');
     }
     this.showForm.set(true);
@@ -661,7 +922,25 @@ export class ClientesComponent implements OnInit {
 
   save() {
     if (this.form.invalid) return;
-    const data = { ...this.form.value, status: 'ATIVO', tenantId: 'default' };
+    const v = this.form.value;
+    // Mapeia os campos do formulário para os atributos REAIS da coleção Appwrite
+    // 'clientes' (nome/cpfCnpj/uf/empresaId). Campos extras do OCR (rg, dataNascimento,
+    // nomeMae, nomePai, numero, bairro) só persistem após serem adicionados à coleção.
+    const data = {
+      nome: v.razaoSocial || '',
+      cpfCnpj: v.cnpjCpf || '',
+      tipo: v.tipo || 'PF',
+      inscricaoEstadual: v.inscricaoEstadual || '',
+      email: v.email || '',
+      telefone: v.telefone || '',
+      endereco: v.endereco || '',
+      cidade: v.cidade || '',
+      uf: v.estado || '',
+      cep: v.cep || '',
+      status: 'ATIVO',
+      empresaId: this.auth.empresaId() || 'default',
+      tenantId: 'default',
+    };
     const id = this.editingId();
     const obs = id ? this.appwrite.updateDocument('clientes', id, data) : this.appwrite.createDocument('clientes', data);
     obs.subscribe({

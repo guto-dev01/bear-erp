@@ -1,6 +1,5 @@
 import { Component, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -94,7 +93,6 @@ export class EmpresasComponent implements OnInit {
     private fb: FormBuilder,
     private appwrite: AppwriteService,
     private snackBar: MatSnackBar,
-    private http: HttpClient,
   ) {
     this.empresaForm = this.fb.group({
       razaoSocial: ['', Validators.required],
@@ -197,8 +195,14 @@ export class EmpresasComponent implements OnInit {
     if (this.cnpjLoading()) return;
     this.cnpjLoading.set(true);
 
-    this.http.get<DadosCnpj>(`${environment.apiUrl}/integracoes/cnpj/${cnpj}`).subscribe({
+    this.appwrite.executeFunction<DadosCnpj & { ok?: boolean; erro?: string }>(
+      environment.appwrite.functions.consultaCnpj, { cnpj }).subscribe({
       next: (d) => {
+        this.cnpjLoading.set(false);
+        if (!d || d.ok === false) {
+          this.snackBar.open(d?.erro || 'CNPJ não encontrado na Receita', 'Fechar', { duration: 4000, panelClass: ['error-snackbar'] });
+          return;
+        }
         const endereco = [d.logradouro, d.numero]
           .filter((p): p is string => !!p && p.trim().length > 0)
           .join(' ')
@@ -215,14 +219,11 @@ export class EmpresasComponent implements OnInit {
           cep: (d.cep || '').toString().replace(/\D/g, '') || this.empresaForm.value.cep,
         });
 
-        this.cnpjLoading.set(false);
         this.snackBar.open('Dados preenchidos pela Receita Federal', 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
       },
-      error: (err) => {
+      error: () => {
         this.cnpjLoading.set(false);
-        const msg = err.status === 404 ? 'CNPJ não encontrado na Receita'
-          : (err.error?.message || 'Não foi possível consultar o CNPJ');
-        this.snackBar.open(msg, 'Fechar', { duration: 4000, panelClass: ['error-snackbar'] });
+        this.snackBar.open('Não foi possível consultar o CNPJ', 'Fechar', { duration: 4000, panelClass: ['error-snackbar'] });
       },
     });
   }

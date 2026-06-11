@@ -9,7 +9,6 @@ import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { HttpClient, HttpParams } from '@angular/common/http';
 import { AppwriteService } from '@core/services/appwrite.service';
 import { AuthService } from '@core/auth/auth.service';
 import { environment } from '@env/environment';
@@ -267,7 +266,6 @@ export class FuncionariosComponent implements OnInit {
     private appwrite: AppwriteService,
     private auth: AuthService,
     private snackBar: MatSnackBar,
-    private http: HttpClient,
   ) {}
 
   ngOnInit() {
@@ -341,26 +339,28 @@ export class FuncionariosComponent implements OnInit {
     if (digits.length !== 11 || this.cpfLoading()) return;
     this.cpfLoading.set(true);
 
-    let params = new HttpParams();
     const nasc = this.form.get('dataNascimento')?.value;
-    if (nasc) params = params.set('dataNascimento', nasc); // alguns planos exigem a data
 
-    this.http
-      .get<DadosCpf>(`${environment.apiUrl}/integracoes/cpf/${digits}`, { params })
+    this.appwrite
+      .executeFunction<{ ok?: boolean; erro?: string; normalizado?: DadosCpf }>(
+        environment.appwrite.functions.consultaCpf, { cpf: digits, dataNascimento: nasc || undefined })
       .subscribe({
-        next: (d) => {
+        next: (resp) => {
           this.cpfLoading.set(false);
+          if (!resp || resp.ok === false) {
+            this.snackBar.open(resp?.erro || 'CPF não encontrado', 'Fechar', { duration: 4000, panelClass: ['error-snackbar'] });
+            return;
+          }
+          const d = resp.normalizado || ({} as DadosCpf);
           this.form.patchValue({
             nome: d.nome || this.form.value.nome,
             dataNascimento: d.dataNascimento || this.form.value.dataNascimento,
           });
           this.snackBar.open('Dados preenchidos pela Receita Federal', 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
         },
-        error: (err) => {
+        error: () => {
           this.cpfLoading.set(false);
-          const msg = err.status === 404 ? 'CPF não encontrado'
-            : (err.error?.message || 'Não foi possível consultar o CPF');
-          this.snackBar.open(msg, 'Fechar', { duration: 4000, panelClass: ['error-snackbar'] });
+          this.snackBar.open('Não foi possível consultar o CPF', 'Fechar', { duration: 4000, panelClass: ['error-snackbar'] });
         },
       });
   }
