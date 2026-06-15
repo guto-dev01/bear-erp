@@ -3,6 +3,7 @@
 const { getConfig } = require('../config/environment');
 const { carregarCertificado } = require('../certificado/certificado-service');
 const { montarS1000 } = require('./eventos/s1000');
+const { montarS2210 } = require('./eventos/sst/s2210');
 const { assinarEvento } = require('./assinatura/xmldsig');
 const { montarLote } = require('./lote/monta-lote');
 const { enviarLote, consultarLote } = require('./operacoes');
@@ -22,6 +23,7 @@ const log = criarLogger('esocial:transmissao');
 /** Registro de montadores por tipo de evento (cresce nas próximas etapas). */
 const MONTADORES = Object.freeze({
   'S-1000': montarS1000,
+  'S-2210': montarS2210, // CAT (evento não-periódico, grupo 1)
 });
 
 /**

@@ -855,6 +855,44 @@ const collections = [
     ],
   },
   {
+    // Detalhe do evento S-2210 (CAT). Vínculo com `eventos_esocial` por `eventoId`
+    // (string), mesma convenção do repo. Grupos aninhados/repetitivos (local,
+    // partes, agentes, atestado) ficam como JSON-string — padrão já usado p/ `erros`.
+    id: 'esocial_s2210',
+    name: 'eSocial S-2210 (CAT)',
+    attrs: [
+      { key: 'eventoId', type: 'string', size: 50, required: true }, // -> eventos_esocial.$id
+      // ideVinculo
+      { key: 'cpfTrab', type: 'string', size: 11, required: true },
+      { key: 'matricula', type: 'string', size: 30, required: false },
+      // bloco cat (escalares)
+      { key: 'dtAcid', type: 'string', size: 10, required: true },
+      { key: 'tpAcid', type: 'string', size: 6, required: false },
+      { key: 'hrAcid', type: 'string', size: 4, required: false },
+      { key: 'hrsTrabAntesAcid', type: 'string', size: 4, required: false },
+      { key: 'tpCat', type: 'integer', required: true },
+      { key: 'indCatObito', type: 'string', size: 1, required: false },
+      { key: 'dtObito', type: 'string', size: 10, required: false },
+      { key: 'indComunPolicia', type: 'string', size: 1, required: true },
+      { key: 'codSitGeradora', type: 'string', size: 12, required: true },
+      { key: 'iniciatCAT', type: 'integer', required: true },
+      { key: 'obsCAT', type: 'string', size: 999, required: false },
+      { key: 'ultDiaTrab', type: 'string', size: 10, required: false },
+      { key: 'houveAfast', type: 'string', size: 1, required: true },
+      // Grupos aninhados/repetitivos como JSON — tamanhos enxutos: o Appwrite
+      // reserva o varchar na largura da linha (~65535 bytes), então valores
+      // grandes demais estouram a coleção ("max size reached").
+      { key: 'localAcidenteJson', type: 'string', size: 1500, required: true },
+      { key: 'partesAtingidasJson', type: 'string', size: 2500, required: true }, // [] 1..N
+      { key: 'agentesCausadoresJson', type: 'string', size: 1200, required: true }, // [] 1..N
+      { key: 'atestadoJson', type: 'string', size: 1200, required: false }, // 0..1
+      // multi-tenant
+      { key: 'empresaId', type: 'string', size: 50, required: true },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
+  {
     id: 'sped_fiscal',
     name: 'SPED Fiscal',
     attrs: [
