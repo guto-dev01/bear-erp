@@ -5,6 +5,7 @@ import { Observable, of, throwError } from 'rxjs';
 import { catchError, map, switchMap, tap } from 'rxjs/operators';
 import { AppwriteService } from '@core/services/appwrite.service';
 import { LoginRequest, UsuarioInfo } from '@core/models/auth.model';
+import { SESSION_USER_KEY } from '@core/auth/session-context';
 
 interface UsuarioDoc {
   $id: string;
@@ -39,7 +40,7 @@ interface UsuarioPrefs {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly USER_KEY = 'bear_user';
+  private readonly USER_KEY = SESSION_USER_KEY;
 
   /** JWT do Appwrite (curta duração) para autenticar no backend Java. */
   private appwriteJwt: string | null = null;

@@ -1,6 +1,6 @@
 import { Component, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -9,6 +9,15 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { AppwriteService } from '@core/services/appwrite.service';
 import { AuthService } from '@core/auth/auth.service';
+import { environment } from '@env/environment';
+
+interface EmpresaRef { $id: string; razaoSocial: string; cnpj: string; }
+
+interface UploadResultado {
+  ok: boolean;
+  erro?: string;
+  metadados?: { titular?: string; cnpjCpf?: string; validoAte?: string; diasParaVencer?: number; vencido?: boolean; alerta?: boolean };
+}
 
 interface Certificado {
   $id: string;
@@ -40,7 +49,7 @@ interface OperacaoCertificado {
 @Component({
   selector: 'bear-certificados',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatTableModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSnackBarModule, MatPaginatorModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, MatTableModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatSnackBarModule, MatPaginatorModule],
   template: `
     <div class="page-container animate-fade-in-up">
       <div class="page-header">
@@ -55,9 +64,14 @@ interface OperacaoCertificado {
             Próximos a Vencer
           </button>
           <button class="bear-btn bear-btn--primary" style="padding: 0.5rem 1rem; font-size: 0.8125rem;"
+                  (click)="abrirUpload()">
+            <span class="material-symbols-rounded text-base mr-1.5">lock</span>
+            Enviar Certificado A1
+          </button>
+          <button class="bear-btn bear-btn--outline" style="padding: 0.5rem 1rem; font-size: 0.8125rem;"
                   (click)="showForm.set(true); resetForm()">
             <span class="material-symbols-rounded text-base mr-1.5">add</span>
-            Novo Certificado
+            Cadastro manual
           </button>
         </div>
       </div>
@@ -193,6 +207,74 @@ interface OperacaoCertificado {
         </div>
       }
 
+      @if (showUpload()) {
+        <div class="bear-card p-6 max-w-2xl animate-fade-in-up">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-heading text-base">Enviar Certificado A1 (.pfx / .p12)</h3>
+            <button class="bear-btn bear-btn--ghost p-2" (click)="showUpload.set(false)">
+              <span class="material-symbols-rounded">close</span>
+            </button>
+          </div>
+          <p class="text-xs mb-5" style="color: var(--text-secondary);">
+            O arquivo e a senha vão direto para o cofre seguro (server-side). A senha é
+            cifrada e <strong>nunca</strong> fica salva no navegador. Validamos a senha, o
+            CNPJ contra a empresa e a validade antes de aceitar.
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <mat-form-field appearance="outline">
+              <mat-label>Empresa</mat-label>
+              <mat-select [(value)]="uploadEmpresaId">
+                @for (e of empresas(); track e.$id) {
+                  <mat-option [value]="e.$id">{{ e.razaoSocial }} — {{ e.cnpj }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Senha do certificado</mat-label>
+              <input matInput type="password" [(ngModel)]="uploadSenha" autocomplete="off">
+            </mat-form-field>
+          </div>
+
+          <div class="flex items-center gap-3 mb-4">
+            <button class="bear-btn bear-btn--outline" type="button" (click)="fileInput.click()">
+              <span class="material-symbols-rounded text-base mr-1.5">upload_file</span>
+              {{ nomeArquivo() || 'Escolher arquivo .pfx' }}
+            </button>
+            <input #fileInput type="file" accept=".pfx,.p12" hidden (change)="onFileSelected($event)">
+          </div>
+
+          @if (uploadResultado(); as r) {
+            @if (r.ok && r.metadados) {
+              <div class="bear-card p-4 mb-4" style="border-left:3px solid #34C759;">
+                <p class="text-sm font-semibold mb-1" style="color:#34C759;">Certificado válido e armazenado</p>
+                <p class="text-xs" style="color:var(--text-secondary);">Titular: {{ r.metadados.titular }}</p>
+                <p class="text-xs" style="color:var(--text-secondary);">CNPJ: {{ r.metadados.cnpjCpf }}</p>
+                <p class="text-xs" style="color:var(--text-secondary);">
+                  Validade: {{ r.metadados.validoAte | date:'dd/MM/yyyy' }} —
+                  <span [style.color]="statusCor(r.metadados)">{{ statusVigencia(r.metadados) }}</span>
+                </p>
+              </div>
+            } @else {
+              <div class="bear-card p-4 mb-4" style="border-left:3px solid #dc2626;">
+                <p class="text-sm" style="color:#dc2626;">{{ r.erro }}</p>
+              </div>
+            }
+          }
+
+          <div class="flex gap-3 justify-end">
+            <button class="bear-btn bear-btn--outline" type="button" (click)="showUpload.set(false)">Fechar</button>
+            <button class="bear-btn bear-btn--primary" type="button"
+                    [disabled]="!uploadEmpresaId || !uploadSenha || !arquivo() || uploading()"
+                    (click)="enviarA1()">
+              @if (uploading()) { <span class="material-symbols-rounded text-base mr-1.5 animate-spin">progress_activity</span> Enviando… }
+              @else { <span class="material-symbols-rounded text-base mr-1.5">cloud_upload</span> Enviar ao cofre }
+            </button>
+          </div>
+        </div>
+      }
+
       @if (showForm()) {
         <div class="bear-card p-6">
           <div class="flex items-center justify-between mb-6">
@@ -232,6 +314,16 @@ export class CertificadosComponent implements OnInit {
   displayedColumns = ['nome', 'tipo', 'cnpjCpf', 'razaoSocial', 'validade', 'status', 'usos', 'acoes'];
   operacoesCols = ['data', 'tipo', 'status', 'descricao', 'documento'];
   form!: FormGroup;
+
+  // ── Upload seguro do A1 (server-side) ──────────────────────────────────────
+  showUpload = signal(false);
+  empresas = signal<EmpresaRef[]>([]);
+  uploadEmpresaId = '';
+  uploadSenha = '';
+  arquivo = signal<File | null>(null);
+  nomeArquivo = signal('');
+  uploading = signal(false);
+  uploadResultado = signal<UploadResultado | null>(null);
 
   constructor(
     private fb: FormBuilder,
@@ -293,6 +385,97 @@ export class CertificadosComponent implements OnInit {
   }
 
   resetForm() { this.form.reset({ tipo: 'A1' }); }
+
+  // ── Upload seguro do A1 ────────────────────────────────────────────────────
+  abrirUpload() {
+    this.showUpload.set(true);
+    this.showForm.set(false);
+    this.uploadResultado.set(null);
+    this.arquivo.set(null);
+    this.nomeArquivo.set('');
+    this.uploadSenha = '';
+    this.uploadEmpresaId = this.empresaId() || '';
+    this.carregarEmpresas();
+  }
+
+  private carregarEmpresas() {
+    const Q = this.appwrite.query;
+    this.appwrite.listDocuments<EmpresaRef>('empresas', [Q.limit(100), Q.equal('tenantId', this.tenantId())]).subscribe({
+      next: (res) => this.empresas.set(res || []),
+      error: () => this.empresas.set([]),
+    });
+  }
+
+  onFileSelected(ev: Event) {
+    const input = ev.target as HTMLInputElement;
+    const f = input.files?.[0] || null;
+    this.arquivo.set(f);
+    this.nomeArquivo.set(f?.name || '');
+  }
+
+  async enviarA1() {
+    const file = this.arquivo();
+    const tenantId = this.tenantId();
+    if (!this.uploadEmpresaId || !this.uploadSenha || !file || !tenantId) return;
+    this.uploading.set(true);
+    this.uploadResultado.set(null);
+    let pfxBase64: string;
+    try {
+      pfxBase64 = await this.fileToBase64(file);
+    } catch {
+      this.uploading.set(false);
+      this.snackBar.open('Não foi possível ler o arquivo', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] });
+      return;
+    }
+    const senha = this.uploadSenha;
+    // A senha sai da memória do componente já na chamada — nunca em localStorage.
+    this.uploadSenha = '';
+    this.appwrite.executeFunction<UploadResultado>(environment.appwrite.functions.certificadoUpload, {
+      empresaId: this.uploadEmpresaId,
+      tenantId,
+      pfxBase64,
+      senha,
+      nomeArquivo: file.name,
+    }).subscribe({
+      next: (r) => {
+        this.uploading.set(false);
+        this.uploadResultado.set(r);
+        if (r.ok) {
+          this.snackBar.open('Certificado A1 enviado ao cofre!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
+          this.carregar();
+        } else {
+          this.snackBar.open(r.erro || 'Falha ao enviar o certificado', 'Fechar', { duration: 4000, panelClass: ['error-snackbar'] });
+        }
+      },
+      error: (e) => {
+        this.uploading.set(false);
+        this.snackBar.open(e?.message || 'Erro ao enviar o certificado', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] });
+      },
+    });
+  }
+
+  private fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const s = String(reader.result || '');
+        resolve(s.includes(',') ? s.split(',')[1] : s);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  statusVigencia(m: { diasParaVencer?: number; vencido?: boolean }): string {
+    if (m.vencido) return 'Vencido';
+    const d = m.diasParaVencer ?? 0;
+    return d <= 30 ? `Vence em ${d} dia(s)` : 'Vigente';
+  }
+
+  statusCor(m: { diasParaVencer?: number; vencido?: boolean }): string {
+    if (m.vencido) return '#dc2626';
+    return (m.diasParaVencer ?? 0) <= 30 ? '#d97706' : '#34C759';
+  }
 
   salvar() {
     if (!this.form.valid) return;
