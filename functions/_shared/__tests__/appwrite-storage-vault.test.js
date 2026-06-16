@@ -4,15 +4,16 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 const { AppwriteStorageVault, paraBuffer } = require('../cofre/appwrite-storage-vault');
+const { cifrar } = require('../cripto/segredo');
 
-function fakesComArquivo(pfxBuffer) {
+function fakesComArquivo(pfxBuffer, certExtra = {}) {
   const databases = {
     async getDocument(_db, col, id) {
       if (col === 'empresas' && id === 'emp1') {
         return { $id: 'emp1', certificadoDigitalId: 'cert1' };
       }
       if (col === 'certificados' && id === 'cert1') {
-        return { $id: 'cert1', storageFileId: 'file1' };
+        return { $id: 'cert1', storageFileId: 'file1', ...certExtra };
       }
       throw new Error(`doc inesperado ${col}/${id}`);
     },
@@ -47,6 +48,32 @@ test('AppwriteStorageVault resolve fileId pela empresa e lê senha do env', asyn
   assert.ok(Buffer.isBuffer(pfx));
   assert.equal(pfx.toString(), 'conteudo-pfx-fake');
   assert.equal(senha, 'segredo-da-emp1');
+});
+
+test('AppwriteStorageVault DECIFRA a senhaCofre com a chave mestra (caminho padrão)', async () => {
+  const MASTER = { CERT_MASTER_KEY: Buffer.alloc(32, 5).toString('base64') };
+  const senhaCofre = cifrar('senha-real-da-emp1', MASTER);
+  const { databases, storage } = fakesComArquivo(Buffer.from('pfx-bytes'), { senhaCofre });
+
+  const vault = new AppwriteStorageVault({
+    storage,
+    databases,
+    bucketId: 'certificados-a1',
+    dbId: 'db1',
+    env: MASTER, // sem CERT_SENHA_* — vem do cofre cifrado
+  });
+
+  const { senha } = await vault.carregar('emp1');
+  assert.equal(senha, 'senha-real-da-emp1');
+});
+
+test('senhaCofre tem prioridade sobre o fallback de env', async () => {
+  const MASTER = { CERT_MASTER_KEY: Buffer.alloc(32, 5).toString('base64'), CERT_SENHA: 'env-antiga' };
+  const senhaCofre = cifrar('senha-do-cofre', MASTER);
+  const { databases, storage } = fakesComArquivo(Buffer.from('x'), { senhaCofre });
+  const vault = new AppwriteStorageVault({ storage, databases, bucketId: 'certificados-a1', dbId: 'db1', env: MASTER });
+  const { senha } = await vault.carregar('emp1');
+  assert.equal(senha, 'senha-do-cofre');
 });
 
 test('AppwriteStorageVault usa CERT_SENHA como fallback', async () => {

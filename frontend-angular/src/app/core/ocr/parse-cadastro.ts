@@ -141,7 +141,14 @@ const RE_DATA_LINHA = /\d{2}\/\d{2}\/\d{4}/;
  */
 function extrairNomePessoa(orig: string[], norm: string[], labels: string[]): string | null {
   const ehNome = (c: string | null): c is string =>
-    !!c && c.split(/\s+/).length >= 2 && !contemRuidoNome(c);
+    !!c && c.split(/\s+/).length >= 2
+    // Letra solta (1 caractere) no meio do nome é ruído de OCR (texto de segurança/
+    // holograma lido como token). Nome oficial vem com palavras inteiras.
+    && c.split(/\s+/).every((t) => t.length >= 2)
+    // Nome real tem ao menos uma palavra "de verdade" (≥3 letras). Candidato só com
+    // tokens de 2 letras (ex.: "PP RO") é ruído de holograma/segurança lido pelo OCR.
+    && c.split(/\s+/).some((t) => t.length >= 3)
+    && !contemRuidoNome(c);
 
   for (let i = 0; i < norm.length; i++) {
     for (const label of labels) {
@@ -338,17 +345,17 @@ function extrairSocios(orig: string[], norm: string[]): ParseResult['socios'] {
 }
 
 function extrairUf(orig: string[], norm: string[]): string | null {
-  const porLabel = valorAposLabel(orig, norm, ['UF', 'ESTADO']);
+  // 1) Logo após um rótulo explícito (UF / ESTADO) — fonte mais confiável.
+  const porLabel = valorLocalAposLabel(orig, norm, ['UF', 'ESTADO'], 1);
   if (porLabel) {
-    const cand = porLabel.trim().toUpperCase().substring(0, 2);
+    const cand = normalizar(porLabel).replace(/[^A-Z]/g, '').substring(0, 2);
     if (UFS.has(cand)) return cand;
   }
+  // 2) Padrão "CIDADE/UF" ou "CIDADE - UF" no fim da linha (conta de luz, cartão CNPJ).
+  //    NÃO fazemos scan global de pares de letras — em prosa isso pega UF aleatória.
   for (const linha of orig) {
-    const re = /\b([A-Z]{2})\b/g;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(linha.toUpperCase()))) {
-      if (UFS.has(m[1])) return m[1];
-    }
+    const m = normalizar(linha).match(/[/\-]\s*([A-Z]{2})\s*$/);
+    if (m && UFS.has(m[1])) return m[1];
   }
   return null;
 }
@@ -479,19 +486,155 @@ function resolverFiliacao(orig: string[], norm: string[], titular: string | null
   return [mae, pai];
 }
 
-function preencherEndereco(texto: string, orig: string[], norm: string[], r: ParseResult): void {
-  const cepM = texto.match(RE.cep);
-  if (cepM) r.cep = mascararCep(cepM[0]);
-  const logradouro = valorAposLabel(orig, norm, ['LOGRADOURO', 'ENDERECO', 'RUA', 'AVENIDA']);
-  r.logradouro = logradouro;
-  r.numero = valorAposLabel(orig, norm, ['NUMERO']);
-  r.bairro = valorAposLabel(orig, norm, ['BAIRRO', 'DISTRITO']);
-  r.cidade = valorAposLabel(orig, norm, ['MUNICIPIO', 'CIDADE']);
-  r.estado = extrairUf(orig, norm);
-  if (!r.numero && logradouro) {
-    const numM = logradouro.match(/,\s*(\d{1,6})/);
-    if (numM) r.numero = numM[1];
+/** Tipos de logradouro mais comuns no início de um endereço brasileiro. */
+const TIPOS_LOGRADOURO = ['RUA', 'R', 'AV', 'AVENIDA', 'TRAVESSA', 'TV', 'ALAMEDA', 'AL',
+  'PRACA', 'PCA', 'RODOVIA', 'ROD', 'ESTRADA', 'ESTR', 'VILA', 'VIELA', 'LARGO',
+  'QUADRA', 'CONJUNTO', 'LOTEAMENTO', 'LADEIRA', 'BECO', 'PASSAGEM', 'SETOR', 'NUCLEO'];
+
+function pareceLogradouro(linha: string): boolean {
+  const n = normalizar(linha);
+  return TIPOS_LOGRADOURO.some((t) => n === t || n.startsWith(t + ' ') || n.startsWith(t + '.'));
+}
+
+/**
+ * Como valorAposLabel, mas só olha a própria linha do rótulo e até `maxAhead` linhas
+ * seguintes — evita capturar prosa distante (o caso da conta de luz que enchia o
+ * endereço com texto explicativo de DEC/FEC, 0800 etc.).
+ */
+function valorLocalAposLabel(orig: string[], norm: string[], labels: string[], maxAhead: number): string | null {
+  for (let i = 0; i < norm.length; i++) {
+    for (const label of labels) {
+      const idx = norm[i].indexOf(normalizar(label));
+      if (idx < 0) continue;
+      const resto = orig[i].substring(Math.min(idx + label.length, orig[i].length))
+        .replace(/^[\s:\-/]+/, '').trim();
+      if (resto && !ehLabel(resto)) return resto;
+      for (let j = i + 1; j <= Math.min(i + maxAhead, orig.length - 1); j++) {
+        const linha = orig[j].trim();
+        if (linha && !ehLabel(linha)) return linha;
+      }
+    }
   }
+  return null;
+}
+
+/**
+ * Aceita só valores que parecem parte de um endereço: curtos, poucas palavras, sem
+ * prosa/telefone/URL/parênteses. Melhor deixar em branco do que preencher lixo de OCR.
+ */
+function plausivelEndereco(valor: string | null, maxPalavras: number): string | null {
+  if (!valor) return null;
+  let v = valor.replace(/\s+/g, ' ').trim();
+  // Corta no primeiro "salto" de campo (2+ espaços, ; ou |).
+  v = v.split(/\s{2,}|[;|]/)[0].trim();
+  if (v.length < 2 || v.length > 60) return null;
+  if (/[()]/.test(v)) return null;                       // prosa explicativa
+  if (/\b0800\b|https?:|www\.|@/i.test(v)) return null;  // telefone/URL/e-mail
+  if (v.split(/\s+/).length > maxPalavras) return null;  // frase, não endereço
+  return v;
+}
+
+/** CEP só de fonte confiável: logo após o rótulo "CEP", ou hifenizado numa linha de
+ *  endereço (que também traga UF). Sem isso, qualquer 8 dígitos viraria CEP. */
+function extrairCep(orig: string[], norm: string[]): string | null {
+  for (let i = 0; i < norm.length; i++) {
+    const idx = norm[i].indexOf('CEP');
+    if (idx < 0) continue;
+    const resto = orig[i].substring(idx + 3);
+    const m = resto.match(/\d{5}-?\d{3}/);
+    if (m) return mascararCep(m[0]);
+    for (let j = i + 1; j <= Math.min(i + 2, orig.length - 1); j++) {
+      const m2 = orig[j].match(/\d{5}-?\d{3}/);
+      if (m2) return mascararCep(m2[0]);
+    }
+  }
+  for (const linha of orig) {
+    const cepM = linha.match(/\d{5}-\d{3}/);
+    if (cepM && /[/\-]\s*[A-Z]{2}\b/.test(normalizar(linha))) return mascararCep(cepM[0]);
+  }
+  return null;
+}
+
+/** Número: embutido no logradouro ("…, 123" / "… Nº 123") ou após o rótulo NÚMERO. */
+function extrairNumeroEndereco(logradouro: string | null, orig: string[], norm: string[]): string | null {
+  if (logradouro) {
+    const m = logradouro.match(/(?:,|N[º°O]\.?)\s*(\d{1,6})\b/i) || logradouro.match(/\b(\d{1,6})\b\s*$/);
+    if (m) return m[1];
+  }
+  const v = valorLocalAposLabel(orig, norm, ['NUMERO'], 1);
+  const m = v?.match(/^\s*(?:N[º°O]\.?\s*)?(\d{1,6})\b/i);
+  return m ? m[1] : null;
+}
+
+/** Abreviações de logradouro → forma por extenso (só para exibição no cadastro). */
+const EXPANDE_LOGR: Record<string, string> = {
+  R: 'RUA', AV: 'AVENIDA', TV: 'TRAVESSA', AL: 'ALAMEDA', ROD: 'RODOVIA',
+  PCA: 'PRACA', EST: 'ESTRADA', VL: 'VILA', QD: 'QUADRA',
+};
+const TIPOS_LOGR_RE = 'RUA|R|AVENIDA|AV|TRAVESSA|TV|ALAMEDA|AL|PRACA|PCA|RODOVIA|ROD'
+  + '|ESTRADA|EST|VILA|VL|QUADRA|QD|LADEIRA|LARGO|BECO|PASSAGEM|SETOR|CONJUNTO';
+
+/**
+ * Extrai endereço de documentos cujo OCR NÃO preserva quebras de linha (conta de luz,
+ * boleto): a página inteira vira um "blob". Ancora no CEP, que costuma ficar grudado no
+ * endereço completo — ex.: "<LOGRADOURO> <Nº> <COMPL> - <BAIRRO> CEP: <CEP> - <CIDADE>/<UF>".
+ * Só preenche campos que ainda estão vazios (a extração por rótulo tem prioridade).
+ */
+function extrairEnderecoBlob(texto: string, r: ParseResult): void {
+  const t = normalizar(texto).replace(/\s+/g, ' ');
+  const cep = t.match(/CEP:?\s*\d{5}-?\d{3}/);
+  const cepStart = cep?.index ?? -1;
+  const cepEnd = cep ? cep.index! + cep[0].length : -1;
+
+  // CIDADE / UF: logo após o CEP ("- SAO PAULO/SP") ou logo antes ("SAO PAULO/SP CEP").
+  if (!r.cidade || !r.estado) {
+    let m: RegExpMatchArray | null = null;
+    if (cepEnd >= 0) {
+      m = t.slice(cepEnd, cepEnd + 60).match(/^\s*[-–/]?\s*([A-Z][A-Z '.]{2,40}?)\s*[/-]\s*([A-Z]{2})\b/);
+    }
+    if (!m && cepStart > 0) {
+      m = t.slice(Math.max(0, cepStart - 60), cepStart).match(/([A-Z][A-Z '.]{2,40}?)\s*[/-]\s*([A-Z]{2})\s*[-–]?\s*$/);
+    }
+    if (m && UFS.has(m[2])) {
+      if (!r.cidade) r.cidade = m[1].trim();
+      if (!r.estado) r.estado = m[2];
+    }
+  }
+
+  // LOGRADOURO + NÚMERO + BAIRRO: na janela imediatamente antes do CEP.
+  const win = (cepStart > 0 ? t.slice(Math.max(0, cepStart - 170), cepStart) : t).trim();
+  if (!r.logradouro) {
+    const lm = win.match(new RegExp(`(?:^|\\s)(${TIPOS_LOGR_RE})\\.?\\s+([A-Z][A-Z ]*?)\\s+(\\d{1,6})\\b`));
+    if (lm) {
+      r.logradouro = `${EXPANDE_LOGR[lm[1]] ?? lm[1]} ${lm[2].trim()}`.trim();
+      if (!r.numero) r.numero = lm[3].replace(/^0+/, '') || lm[3];
+    }
+  }
+  if (!r.bairro) {
+    const bm = win.match(/[-–]\s*([A-Z][A-Z ]{2,40}?)\s*$/);
+    const b = bm?.[1].trim();
+    if (b && b.length >= 3 && !/\d/.test(b)) r.bairro = b;
+  }
+}
+
+function preencherEndereco(orig: string[], norm: string[], r: ParseResult): void {
+  r.cep = extrairCep(orig, norm);
+
+  // 1) Documentos com rótulos por linha (cartão CNPJ, contrato): extração por rótulo.
+  let logradouro: string | null = null;
+  for (const linha of orig) {
+    if (pareceLogradouro(linha)) { logradouro = plausivelEndereco(linha, 8); if (logradouro) break; }
+  }
+  if (!logradouro) logradouro = plausivelEndereco(valorLocalAposLabel(orig, norm, ['LOGRADOURO', 'ENDERECO'], 1), 8);
+  r.logradouro = logradouro;
+  r.numero = extrairNumeroEndereco(logradouro, orig, norm);
+  r.bairro = plausivelEndereco(valorLocalAposLabel(orig, norm, ['BAIRRO', 'DISTRITO'], 1), 5);
+  r.cidade = plausivelEndereco(valorLocalAposLabel(orig, norm, ['MUNICIPIO', 'CIDADE'], 1), 5);
+  r.estado = extrairUf(orig, norm);
+
+  // 2) Documentos "blob" (conta de luz/boleto, OCR sem quebras): ancora no CEP e
+  //    preenche o que ficou vazio.
+  extrairEnderecoBlob(orig.join('\n'), r);
 }
 
 function verificarValidadeCnh(orig: string[], norm: string[], r: ParseResult): void {
@@ -569,7 +712,7 @@ export function parseCadastro(texto: string, tipoPessoa: TipoPessoa, tipoDocumen
       [r.nomeMae, r.nomePai] = resolverFiliacao(orig, norm, r.nomeCompleto);
       break;
     case 'COMPROVANTE_ENDERECO':
-      preencherEndereco(texto, orig, norm, r);
+      preencherEndereco(orig, norm, r);
       break;
     case 'CNPJ':
       r.cnpj = extrairCnpj(texto, r);
@@ -578,15 +721,29 @@ export function parseCadastro(texto: string, tipoPessoa: TipoPessoa, tipoDocumen
       r.dataAbertura = primeiraDataLabel(orig, norm, ['DATA DE ABERTURA', 'ABERTURA']);
       r.naturezaJuridica = valorAposLabel(orig, norm, ['NATUREZA JURIDICA']);
       r.cnaePrincipal = extrairCnae(orig, norm);
-      preencherEndereco(texto, orig, norm, r);
+      preencherEndereco(orig, norm, r);
       break;
     case 'CONTRATO_SOCIAL':
       r.cnpj = extrairCnpj(texto, r);
       r.razaoSocial = limparNome(valorAposLabel(orig, norm, ['RAZAO SOCIAL', 'DENOMINACAO', 'NOME EMPRESARIAL']));
       r.capitalSocial = extrairCapitalSocial(texto);
       r.socios = extrairSocios(orig, norm);
-      preencherEndereco(texto, orig, norm, r);
+      preencherEndereco(orig, norm, r);
       break;
+  }
+
+  // Nome do titular não pode conter o nome COMPLETO da mãe/pai: é sinal de que o OCR
+  // embaralhou a filiação dentro do campo nome (CNH/RG em 2 colunas). Limpa para o MRZ
+  // tentar o nome correto e, na falta dele, deixar em branco p/ revisão manual.
+  if ((tipoDocumento === 'CNH' || tipoDocumento === 'RG') && r.nomeCompleto) {
+    const nomeNorm = normalizar(r.nomeCompleto);
+    for (const parente of [r.nomeMae, r.nomePai]) {
+      if (parente && nomeNorm !== normalizar(parente) && nomeNorm.includes(normalizar(parente))) {
+        r.nomeCompleto = null;
+        marcar(r, 'nomeCompleto');
+        break;
+      }
+    }
   }
 
   // MRZ (rodapé da CNH-e/CIN) é a fonte mais confiável p/ nome e nascimento quando o

@@ -1,9 +1,11 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
+import { Models } from 'appwrite';
 import { Observable, of, throwError } from 'rxjs';
 import { catchError, map, switchMap, tap } from 'rxjs/operators';
 import { AppwriteService } from '@core/services/appwrite.service';
 import { LoginRequest, UsuarioInfo } from '@core/models/auth.model';
+import { SESSION_USER_KEY } from '@core/auth/session-context';
 
 interface UsuarioDoc {
   $id: string;
@@ -23,9 +25,22 @@ interface RoleDoc {
   tenantId?: string;
 }
 
+/**
+ * Perfil guardado no `prefs` da conta Appwrite (Account service). Espelha o registro
+ * da coleção `usuarios` e é a fonte CONFIÁVEL — funciona mesmo quando o serviço de
+ * banco do Appwrite está fora (a coleção `usuarios` fica inacessível, o prefs não).
+ */
+interface UsuarioPrefs {
+  nome?: string;
+  tenantId?: string;
+  empresaAtualId?: string;
+  roles?: string[];
+  permissoes?: string[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly USER_KEY = 'bear_user';
+  private readonly USER_KEY = SESSION_USER_KEY;
 
   /** JWT do Appwrite (curta duração) para autenticar no backend Java. */
   private appwriteJwt: string | null = null;
@@ -47,7 +62,7 @@ export class AuthService {
       catchError(() => of(null)),
       switchMap(() => this.appwrite.createSession(request.email, request.senha)),
       switchMap(() => this.appwrite.getAccount()),
-      switchMap(account => this.buildUsuarioInfo(account.$id, account.name, account.email)),
+      switchMap(account => this.buildUsuarioInfo(account)),
       switchMap(usuario => this.iniciarJwt().pipe(map(() => usuario), catchError(() => of(usuario)))),
       tap(usuario => this.handleLoginSuccess(usuario)),
       catchError(error => throwError(() => error)),
@@ -65,7 +80,7 @@ export class AuthService {
   /** Revalida a sessão Appwrite (ex.: no boot ou após 401) e re-hidrata o usuário. */
   refreshToken(): Observable<UsuarioInfo> {
     return this.appwrite.getAccount().pipe(
-      switchMap(account => this.buildUsuarioInfo(account.$id, account.name, account.email)),
+      switchMap(account => this.buildUsuarioInfo(account)),
       switchMap(usuario => this.iniciarJwt().pipe(map(() => usuario), catchError(() => of(usuario)))),
       tap(usuario => this.handleLoginSuccess(usuario)),
       catchError(error => {
@@ -125,40 +140,61 @@ export class AuthService {
     return this.currentUser()?.roles?.includes(role) ?? false;
   }
 
-  /** Enriquece os dados da conta Appwrite com tenant/roles/permissões da coleção `usuarios`. */
-  private buildUsuarioInfo(accountId: string, nome: string, email: string): Observable<UsuarioInfo> {
+  /** Monta o perfil base a partir do `prefs` da conta Appwrite (fonte confiável). */
+  private usuarioDeAccount(account: Models.User<Models.Preferences>): UsuarioInfo {
+    const prefs = (account.prefs ?? {}) as UsuarioPrefs;
+    return {
+      id: account.$id,
+      nome: prefs.nome || account.name,
+      email: account.email,
+      tenantId: prefs.tenantId || 'default',
+      empresaAtualId: prefs.empresaAtualId ?? '',
+      roles: prefs.roles ?? [],
+      permissoes: prefs.permissoes ?? [],
+    };
+  }
+
+  /**
+   * Perfil do usuário: base vinda do `account.prefs` (Account service, sempre disponível)
+   * e, quando possível, enriquecida pela coleção `usuarios`/`roles`. A consulta à coleção
+   * é best-effort — se o serviço de banco do Appwrite estiver fora (500/timeout), mantém
+   * o perfil do prefs, então o login funciona com papéis/permissões corretos mesmo assim.
+   */
+  private buildUsuarioInfo(account: Models.User<Models.Preferences>): Observable<UsuarioInfo> {
+    const base = this.usuarioDeAccount(account);
     const Q = this.appwrite.query;
-    return this.appwrite.listDocuments<UsuarioDoc>('usuarios', [Q.equal('email', email), Q.limit(1)]).pipe(
+    return this.appwrite.listDocuments<UsuarioDoc>('usuarios', [Q.equal('email', base.email), Q.limit(1)]).pipe(
       switchMap(docs => {
         const doc = docs[0];
-        if (!doc) {
-          // Conta existe no Appwrite Auth mas sem registro de perfil — usa defaults.
-          return of<UsuarioInfo>({
-            id: accountId, nome, email, tenantId: 'default',
-            empresaAtualId: '', roles: [], permissoes: [],
-          });
-        }
-        const tenantId = doc.tenantId ?? 'default';
+        if (!doc) return of(base); // sem registro de perfil — usa o do prefs
+        const tenantId = doc.tenantId ?? base.tenantId;
         const roleIds = doc.roleIds ?? [];
         const rolesObs = roleIds.length
-          ? this.appwrite.listDocuments<RoleDoc>('roles', [Q.equal('tenantId', tenantId)])
+          ? this.appwrite.listDocuments<RoleDoc>('roles', [Q.equal('tenantId', tenantId)]).pipe(
+              // Falha ao ler papéis não pode travar o login — cai no que o prefs já tem.
+              catchError(() => of<RoleDoc[]>([])),
+            )
           : of<RoleDoc[]>([]);
         return rolesObs.pipe(
           map(allRoles => {
             const myRoles = allRoles.filter(r => roleIds.includes(r.$id));
             const permissoes = Array.from(new Set(myRoles.flatMap(r => r.permissoes ?? [])));
             return {
-              id: doc.$id || accountId,
-              nome: doc.nome || nome,
-              email: doc.email || email,
+              id: doc.$id || base.id,
+              nome: doc.nome || base.nome,
+              email: doc.email || base.email,
               tenantId,
-              empresaAtualId: doc.empresaAtualId ?? (doc.empresaIds?.[0] ?? ''),
-              roles: myRoles.map(r => r.nome),
-              permissoes,
+              empresaAtualId: doc.empresaAtualId ?? (doc.empresaIds?.[0] ?? base.empresaAtualId),
+              // Coleção sem papéis/permissões → preserva o que veio do prefs.
+              roles: myRoles.length ? myRoles.map(r => r.nome) : base.roles,
+              permissoes: permissoes.length ? permissoes : base.permissoes,
             } as UsuarioInfo;
           }),
         );
       }),
+      // Serviço de banco fora (ex.: 500/timeout) não pode trancar o login — a sessão
+      // Appwrite já foi criada e o prefs tem o perfil. Mantém o perfil base.
+      catchError(() => of(base)),
     );
   }
 
