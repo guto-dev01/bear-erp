@@ -1,4 +1,4 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
@@ -69,7 +69,7 @@ interface OperacaoCertificado {
             Enviar Certificado A1
           </button>
           <button class="bear-btn bear-btn--outline" style="padding: 0.5rem 1rem; font-size: 0.8125rem;"
-                  (click)="showForm.set(true); resetForm()">
+                  (click)="abrirFormManual()">
             <span class="material-symbols-rounded text-base mr-1.5">add</span>
             Cadastro manual
           </button>
@@ -82,6 +82,7 @@ interface OperacaoCertificado {
         </div>
       }
 
+      @if (modoLista()) {
       <!-- KPI Cards -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
@@ -174,6 +175,7 @@ interface OperacaoCertificado {
           </div>
         </div>
       }
+      }
 
       @if (showOperacoes()) {
         <div class="bear-card">
@@ -208,68 +210,114 @@ interface OperacaoCertificado {
       }
 
       @if (showUpload()) {
-        <div class="bear-card p-6 max-w-2xl animate-fade-in-up">
-          <div class="flex items-center justify-between mb-2">
-            <h3 class="text-heading text-base">Enviar Certificado A1 (.pfx / .p12)</h3>
+        <div class="bear-card max-w-2xl mx-auto animate-fade-in-up">
+          <!-- Cabeçalho -->
+          <div class="flex items-start justify-between px-6 py-5 border-b" style="border-color: var(--border-subtle);">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style="background:#ECEBFB;">
+                <span class="material-symbols-rounded" style="color:#5856D6;">enterprise</span>
+              </div>
+              <div>
+                <h3 class="text-heading text-base">Enviar Certificado A1</h3>
+                <p class="text-xs" style="color: var(--text-secondary);">Arquivo .pfx ou .p12 + senha</p>
+              </div>
+            </div>
             <button class="bear-btn bear-btn--ghost p-2" (click)="showUpload.set(false)">
               <span class="material-symbols-rounded">close</span>
             </button>
           </div>
-          <p class="text-xs mb-5" style="color: var(--text-secondary);">
-            O arquivo e a senha vão direto para o cofre seguro (server-side). A senha é
-            cifrada e <strong>nunca</strong> fica salva no navegador. Validamos a senha, o
-            CNPJ contra a empresa e a validade antes de aceitar.
-          </p>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <mat-form-field appearance="outline">
-              <mat-label>Empresa</mat-label>
-              <mat-select [(value)]="uploadEmpresaId">
-                @for (e of empresas(); track e.$id) {
-                  <mat-option [value]="e.$id">{{ e.razaoSocial }} — {{ e.cnpj }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
+          <div class="p-6">
+            <!-- Aviso de segurança -->
+            <div class="flex items-start gap-2 p-3 rounded-lg mb-5" style="background: var(--surface-2);">
+              <span class="material-symbols-rounded text-base mt-0.5" style="color:#34C759;">shield_lock</span>
+              <p class="text-xs leading-relaxed" style="color: var(--text-secondary);">
+                Arquivo e senha vão direto ao cofre seguro (server-side). A senha é cifrada e
+                <strong style="color: var(--text-primary);">nunca</strong> fica salva no navegador.
+                Validamos a senha, o CNPJ contra a empresa e a validade antes de aceitar.
+              </p>
+            </div>
 
-            <mat-form-field appearance="outline">
-              <mat-label>Senha do certificado</mat-label>
-              <input matInput type="password" [(ngModel)]="uploadSenha" autocomplete="off">
-            </mat-form-field>
-          </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-1">
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>Empresa</mat-label>
+                <mat-select [(value)]="uploadEmpresaId">
+                  @for (e of empresas(); track e.$id) {
+                    <mat-option [value]="e.$id">{{ e.razaoSocial }} — {{ e.cnpj }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
 
-          <div class="flex items-center gap-3 mb-4">
-            <button class="bear-btn bear-btn--outline" type="button" (click)="fileInput.click()">
-              <span class="material-symbols-rounded text-base mr-1.5">upload_file</span>
-              {{ nomeArquivo() || 'Escolher arquivo .pfx' }}
-            </button>
-            <input #fileInput type="file" accept=".pfx,.p12" hidden (change)="onFileSelected($event)">
-          </div>
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>Senha do certificado</mat-label>
+                <input matInput type="password" [(ngModel)]="uploadSenha" name="cert-pass" autocomplete="new-password">
+              </mat-form-field>
+            </div>
 
-          @if (uploadResultado(); as r) {
-            @if (r.ok && r.metadados) {
-              <div class="bear-card p-4 mb-4" style="border-left:3px solid #34C759;">
-                <p class="text-sm font-semibold mb-1" style="color:#34C759;">Certificado válido e armazenado</p>
-                <p class="text-xs" style="color:var(--text-secondary);">Titular: {{ r.metadados.titular }}</p>
-                <p class="text-xs" style="color:var(--text-secondary);">CNPJ: {{ r.metadados.cnpjCpf }}</p>
-                <p class="text-xs" style="color:var(--text-secondary);">
-                  Validade: {{ r.metadados.validoAte | date:'dd/MM/yyyy' }} —
-                  <span [style.color]="statusCor(r.metadados)">{{ statusVigencia(r.metadados) }}</span>
-                </p>
+            <!-- Seletor de arquivo -->
+            <p class="text-label mb-2">Arquivo do certificado</p>
+            @if (arquivo(); as f) {
+              <div class="flex items-center justify-between gap-3 p-3 rounded-lg mb-5" style="border:1px solid var(--border-subtle);">
+                <div class="flex items-center gap-3 min-w-0">
+                  <span class="material-symbols-rounded shrink-0" style="color:#5856D6;">lock</span>
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium truncate" style="color: var(--text-primary);">{{ f.name }}</p>
+                    <p class="text-2xs" style="color: var(--text-tertiary);">{{ (f.size / 1024) | number:'1.0-1' }} KB</p>
+                  </div>
+                </div>
+                <button class="bear-btn bear-btn--ghost p-2 shrink-0" type="button" title="Remover" (click)="limparArquivo()">
+                  <span class="material-symbols-rounded text-base">close</span>
+                </button>
               </div>
             } @else {
-              <div class="bear-card p-4 mb-4" style="border-left:3px solid #dc2626;">
-                <p class="text-sm" style="color:#dc2626;">{{ r.erro }}</p>
-              </div>
+              <button type="button" (click)="fileInput.click()"
+                      class="w-full flex flex-col items-center justify-center gap-1 py-6 rounded-lg mb-5"
+                      style="border:1.5px dashed var(--border-subtle); background: var(--surface-2);">
+                <span class="material-symbols-rounded text-2xl" style="color: var(--text-secondary);">upload_file</span>
+                <span class="text-sm font-medium" style="color: var(--text-primary);">Escolher arquivo .pfx / .p12</span>
+                <span class="text-2xs" style="color: var(--text-tertiary);">clique para selecionar</span>
+              </button>
             }
-          }
+            <input #fileInput type="file" accept=".pfx,.p12" hidden (change)="onFileSelected($event)">
 
-          <div class="flex gap-3 justify-end">
-            <button class="bear-btn bear-btn--outline" type="button" (click)="showUpload.set(false)">Fechar</button>
-            <button class="bear-btn bear-btn--primary" type="button"
+            <!-- Feedback -->
+            @if (uploadResultado(); as r) {
+              @if (r.ok && r.metadados) {
+                <div class="p-4 rounded-lg mb-5" style="background:#E9FAEF; border:1px solid #34C75933;">
+                  <p class="text-sm font-semibold mb-1.5 flex items-center gap-1.5" style="color:#1f9d4d;">
+                    <span class="material-symbols-rounded text-base">check_circle</span> Certificado válido e armazenado
+                  </p>
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-1 text-xs" style="color: var(--text-secondary);">
+                    <p><span style="color: var(--text-tertiary);">Titular:</span> {{ r.metadados.titular }}</p>
+                    <p><span style="color: var(--text-tertiary);">CNPJ:</span> {{ r.metadados.cnpjCpf }}</p>
+                    <p>
+                      <span style="color: var(--text-tertiary);">Validade:</span>
+                      {{ r.metadados.validoAte | date:'dd/MM/yyyy' }}
+                      <span class="font-medium" [style.color]="statusCor(r.metadados)"> · {{ statusVigencia(r.metadados) }}</span>
+                    </p>
+                  </div>
+                </div>
+              } @else {
+                <div class="p-3 rounded-lg mb-5 flex items-start gap-2" style="background:#FDECEC; border:1px solid #dc262633;">
+                  <span class="material-symbols-rounded text-base mt-0.5" style="color:#dc2626;">error</span>
+                  <p class="text-sm" style="color:#b91c1c;">{{ r.erro }}</p>
+                </div>
+              }
+            }
+          </div>
+
+          <!-- Rodapé -->
+          <div class="flex items-center justify-end gap-3 px-6 py-4 border-t" style="border-color: var(--border-subtle);">
+            <button class="bear-btn bear-btn--outline" type="button" style="padding: 0.5rem 1.25rem; font-size: 0.8125rem;"
+                    (click)="showUpload.set(false)">Fechar</button>
+            <button class="bear-btn bear-btn--primary" type="button" style="padding: 0.5rem 1.25rem; font-size: 0.8125rem;"
                     [disabled]="!uploadEmpresaId || !uploadSenha || !arquivo() || uploading()"
                     (click)="enviarA1()">
-              @if (uploading()) { <span class="material-symbols-rounded text-base mr-1.5 animate-spin">progress_activity</span> Enviando… }
-              @else { <span class="material-symbols-rounded text-base mr-1.5">cloud_upload</span> Enviar ao cofre }
+              @if (uploading()) {
+                <span class="material-symbols-rounded text-base mr-1.5 animate-spin">progress_activity</span> Enviando…
+              } @else {
+                <span class="material-symbols-rounded text-base mr-1.5">cloud_upload</span> Enviar ao cofre
+              }
             </button>
           </div>
         </div>
@@ -324,6 +372,9 @@ export class CertificadosComponent implements OnInit {
   nomeArquivo = signal('');
   uploading = signal(false);
   uploadResultado = signal<UploadResultado | null>(null);
+
+  /** Modo lista: KPIs + tabela só aparecem quando nenhum painel está aberto. */
+  modoLista = computed(() => !this.showForm() && !this.showUpload() && !this.showOperacoes());
 
   constructor(
     private fb: FormBuilder,
@@ -386,16 +437,29 @@ export class CertificadosComponent implements OnInit {
 
   resetForm() { this.form.reset({ tipo: 'A1' }); }
 
+  /** Abre o cadastro manual (e fecha o painel de upload — são exclusivos). */
+  abrirFormManual() {
+    this.showUpload.set(false);
+    this.showOperacoes.set(false);
+    this.showForm.set(true);
+    this.resetForm();
+  }
+
   // ── Upload seguro do A1 ────────────────────────────────────────────────────
   abrirUpload() {
-    this.showUpload.set(true);
     this.showForm.set(false);
+    this.showOperacoes.set(false);
+    this.showUpload.set(true);
     this.uploadResultado.set(null);
-    this.arquivo.set(null);
-    this.nomeArquivo.set('');
+    this.limparArquivo();
     this.uploadSenha = '';
     this.uploadEmpresaId = this.empresaId() || '';
     this.carregarEmpresas();
+  }
+
+  limparArquivo() {
+    this.arquivo.set(null);
+    this.nomeArquivo.set('');
   }
 
   private carregarEmpresas() {
