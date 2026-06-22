@@ -53,6 +53,7 @@ export class AuthService {
   readonly isAuthenticated = computed(() => !!this.currentUser());
   readonly tenantId = computed(() => this.currentUser()?.tenantId ?? '');
   readonly empresaId = computed(() => this.currentUser()?.empresaAtualId ?? '');
+  readonly empresaIds = computed(() => this.currentUser()?.empresaIds ?? []);
 
   constructor(private appwrite: AppwriteService, private router: Router) {}
 
@@ -95,6 +96,18 @@ export class AuthService {
   /** Re-hidrata silenciosamente a sessão no carregamento do app. */
   restoreSession(): Observable<UsuarioInfo | null> {
     return this.refreshToken().pipe(catchError(() => of(null)));
+  }
+
+  /** Troca a empresa ativa: atualiza a sessão, persiste localmente e no perfil do usuário. */
+  setEmpresaAtual(empresaId: string): void {
+    const u = this.currentUser();
+    if (!u || u.empresaAtualId === empresaId) return;
+    const novo: UsuarioInfo = { ...u, empresaAtualId: empresaId };
+    this.currentUser.set(novo);
+    localStorage.setItem(this.USER_KEY, JSON.stringify(novo));
+    // Persiste no perfil para sobreviver a recarregamentos (best-effort).
+    this.appwrite.updateDocument('usuarios', u.id, { empresaAtualId: empresaId })
+      .subscribe({ next: () => {}, error: () => {} });
   }
 
   getToken(): string | null {

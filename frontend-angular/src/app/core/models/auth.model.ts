@@ -18,6 +18,7 @@ export interface UsuarioInfo {
   email: string;
   tenantId: string;
   empresaAtualId: string;
+  empresaIds?: string[];
   roles: string[];
   permissoes: string[];
 }
