@@ -20,25 +20,53 @@ interface DadosCnpj {
   telefone?: string;
   logradouro?: string;
   numero?: string;
+  complemento?: string;
+  bairro?: string;
   municipio?: string;
+  codigoMunicipio?: string;
   uf?: string;
   cep?: string;
+  cnae?: string;
+  naturezaJuridica?: string;
+  dataInicioAtividades?: string;
+  capitalSocial?: string;
 }
 
 interface Empresa {
   $id: string;
+  // Identificação
   razaoSocial: string;
   nomeFantasia: string;
   cnpj: string;
   inscricaoEstadual: string;
   inscricaoMunicipal: string;
+  nire: string;
+  naturezaJuridica: string;
+  cnae: string;
+  codigoMunicipio: string;
   regimeTributario: string;
+  tipoEstabelecimento: string;   // MATRIZ | FILIAL
+  dataInicioAtividades: string;
+  capitalSocial: string;
+  // Contato
   email: string;
   telefone: string;
+  // Endereço
   endereco: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
   cidade: string;
   uf: string;
   cep: string;
+  // Contabilista e responsável (termos dos livros e registro J930 da ECD)
+  contadorNome: string;
+  contadorCpf: string;
+  contadorCrc: string;
+  contadorCrcUf: string;
+  responsavelNome: string;
+  responsavelCpf: string;
+  responsavelQualificacao: string;
   status: string;
   $createdAt: string;
 }
@@ -60,7 +88,7 @@ export class EmpresasComponent implements OnInit {
   loading = signal(true);
   showForm = signal(false);
   editingId = signal<string | null>(null);
-  activeTab = signal<'dados' | 'contato' | 'endereco'>('dados');
+  activeTab = signal<'dados' | 'contato' | 'endereco' | 'contabil'>('dados');
   searchTerm = signal('');
   regimeFilter = signal<string | null>(null);
   cnpjLoading = signal(false);
@@ -95,18 +123,39 @@ export class EmpresasComponent implements OnInit {
     private snackBar: MatSnackBar,
   ) {
     this.empresaForm = this.fb.group({
+      // Identificação
       razaoSocial: ['', Validators.required],
       nomeFantasia: ['', Validators.required],
       cnpj: ['', [Validators.required, Validators.minLength(14)]],
       inscricaoEstadual: [''],
       inscricaoMunicipal: [''],
+      nire: [''],
+      naturezaJuridica: [''],
+      cnae: [''],
+      codigoMunicipio: [''],
       regimeTributario: ['SIMPLES_NACIONAL', Validators.required],
+      tipoEstabelecimento: ['MATRIZ'],
+      dataInicioAtividades: [''],
+      capitalSocial: [''],
+      // Contato
       email: ['', [Validators.email]],
       telefone: [''],
+      // Endereço
       endereco: [''],
+      numero: [''],
+      complemento: [''],
+      bairro: [''],
       cidade: [''],
       uf: [''],
       cep: [''],
+      // Contabilista e responsável
+      contadorNome: [''],
+      contadorCpf: [''],
+      contadorCrc: [''],
+      contadorCrcUf: [''],
+      responsavelNome: [''],
+      responsavelCpf: [''],
+      responsavelQualificacao: ['SOCIO'],
     });
   }
 
@@ -203,20 +252,24 @@ export class EmpresasComponent implements OnInit {
           this.snackBar.open(d?.erro || 'CNPJ não encontrado na Receita', 'Fechar', { duration: 4000, panelClass: ['error-snackbar'] });
           return;
         }
-        const endereco = [d.logradouro, d.numero]
-          .filter((p): p is string => !!p && p.trim().length > 0)
-          .join(' ')
-          .trim();
-
+        const v = this.empresaForm.value;
         this.empresaForm.patchValue({
-          razaoSocial: d.razaoSocial || this.empresaForm.value.razaoSocial,
-          nomeFantasia: d.nomeFantasia || d.razaoSocial || this.empresaForm.value.nomeFantasia,
-          email: d.email || this.empresaForm.value.email,
-          telefone: d.telefone || this.empresaForm.value.telefone,
-          endereco: endereco || this.empresaForm.value.endereco,
-          cidade: d.municipio || this.empresaForm.value.cidade,
-          uf: d.uf || this.empresaForm.value.uf,
-          cep: (d.cep || '').toString().replace(/\D/g, '') || this.empresaForm.value.cep,
+          razaoSocial: d.razaoSocial || v.razaoSocial,
+          nomeFantasia: d.nomeFantasia || d.razaoSocial || v.nomeFantasia,
+          email: d.email || v.email,
+          telefone: d.telefone || v.telefone,
+          endereco: d.logradouro || v.endereco,
+          numero: d.numero || v.numero,
+          complemento: d.complemento || v.complemento,
+          bairro: d.bairro || v.bairro,
+          cidade: d.municipio || v.cidade,
+          codigoMunicipio: d.codigoMunicipio || v.codigoMunicipio,
+          uf: d.uf || v.uf,
+          cep: (d.cep || '').toString().replace(/\D/g, '') || v.cep,
+          cnae: d.cnae || v.cnae,
+          naturezaJuridica: d.naturezaJuridica || v.naturezaJuridica,
+          dataInicioAtividades: d.dataInicioAtividades || v.dataInicioAtividades,
+          capitalSocial: d.capitalSocial || v.capitalSocial,
         });
 
         this.snackBar.open('Dados preenchidos pela Receita Federal', 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
@@ -290,11 +343,16 @@ export class EmpresasComponent implements OnInit {
   };
 
   /** Aba em que cada campo do formulário vive (usado para focar erros). */
-  private readonly fieldTab: Record<string, 'dados' | 'contato' | 'endereco'> = {
+  private readonly fieldTab: Record<string, 'dados' | 'contato' | 'endereco' | 'contabil'> = {
     razaoSocial: 'dados', nomeFantasia: 'dados', cnpj: 'dados',
-    inscricaoEstadual: 'dados', inscricaoMunicipal: 'dados', regimeTributario: 'dados',
+    inscricaoEstadual: 'dados', inscricaoMunicipal: 'dados', nire: 'dados',
+    naturezaJuridica: 'dados', cnae: 'dados', codigoMunicipio: 'dados',
+    regimeTributario: 'dados', tipoEstabelecimento: 'dados', dataInicioAtividades: 'dados', capitalSocial: 'dados',
     email: 'contato', telefone: 'contato',
-    endereco: 'endereco', cidade: 'endereco', uf: 'endereco', cep: 'endereco',
+    endereco: 'endereco', numero: 'endereco', complemento: 'endereco', bairro: 'endereco',
+    cidade: 'endereco', uf: 'endereco', cep: 'endereco',
+    contadorNome: 'contabil', contadorCpf: 'contabil', contadorCrc: 'contabil', contadorCrcUf: 'contabil',
+    responsavelNome: 'contabil', responsavelCpf: 'contabil', responsavelQualificacao: 'contabil',
   };
 
   delete(empresa: Empresa) {

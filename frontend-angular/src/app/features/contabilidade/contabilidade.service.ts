@@ -217,6 +217,28 @@ const COL_REGRAS = 'regras_contabilizacao';
 const COL_PERIODOS = 'periodos_contabeis';
 const COL_EXERCICIOS = 'exercicios_contabeis';
 const COL_HISTORICOS = 'historicos_padrao';
+const COL_EMPRESAS = 'empresas';
+
+export interface EmpresaContabil {
+  id: string;
+  nome: string;
+  cnpj: string;        // só dígitos
+  ie: string;
+  im: string;
+  municipio: string;
+  uf: string;
+  nire: string;
+  codMun: string;      // código IBGE (se cadastrado)
+  regimeTributario: string;
+  // Signatários
+  contadorNome: string;
+  contadorCpf: string;
+  contadorCrc: string;
+  contadorCrcUf: string;
+  responsavelNome: string;
+  responsavelCpf: string;
+  responsavelQualificacao: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ContabilidadeService {
@@ -233,6 +255,33 @@ export class ContabilidadeService {
     const qs = [this.appwrite.query.equal('tenantId', this.tenantId)];
     if (this.empresaId) qs.push(this.appwrite.query.equal('empresaId', this.empresaId));
     return qs;
+  }
+
+  /** Empresa atualmente selecionada (para termos dos livros e Bloco 0 do ECD). */
+  getEmpresaAtual(): Observable<EmpresaContabil | null> {
+    const id = this.empresaId;
+    if (!id) return of(null);
+    return this.appwrite.getDocument<any>(COL_EMPRESAS, id).pipe(
+      map((e: any) => ({
+        id: e.$id,
+        nome: e.razaoSocial || e.nomeFantasia || '',
+        cnpj: (e.cnpj || '').replace(/\D/g, ''),
+        ie: e.inscricaoEstadual || '',
+        im: e.inscricaoMunicipal || '',
+        municipio: e.cidade || '',
+        uf: e.uf || '',
+        nire: e.nire || '',
+        codMun: e.codigoMunicipio || e.codMun || '',
+        regimeTributario: e.regimeTributario || '',
+        contadorNome: e.contadorNome || '',
+        contadorCpf: (e.contadorCpf || '').replace(/\D/g, ''),
+        contadorCrc: e.contadorCrc || '',
+        contadorCrcUf: e.contadorCrcUf || '',
+        responsavelNome: e.responsavelNome || '',
+        responsavelCpf: (e.responsavelCpf || '').replace(/\D/g, ''),
+        responsavelQualificacao: e.responsavelQualificacao || '',
+      } as EmpresaContabil)),
+    );
   }
 
   // ── helpers de mapeamento ─────────────────────────────────────

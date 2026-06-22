@@ -25,13 +25,15 @@ interface ContaReceber { valor: number; valorRecebido?: number; dataEmissao: str
 interface Funcionario { status: string; }
 interface ContaBancaria { saldoAtual?: number; }
 interface ApuracaoFiscal { competencia: string; valorRecolher?: number; }
-interface Empresa { status: string; }
-interface NotaFiscal { tipo: string; }
+interface Empresa { status: string; $createdAt?: string; }
+interface NotaFiscal { tipo: string; dataEmissao?: string; }
 interface Obrigacao { status: string; }
 interface Certificado { dataValidade: string; status: string; }
 interface Tarefa { status: string; dataVencimento?: string; }
 interface Holerite { competencia: string; valorLiquido?: number; }
 interface Honorario { valor: number; status: string; }
+interface AuditLog { $id: string; usuario: string; acao: string; modulo: string; descricao: string; timestamp?: string; $createdAt: string; }
+interface TimelineEvent { id: string; user: string; action: string; icon: string; type: string; time: string; }
 
 @Component({
   selector: 'bear-dashboard',
@@ -306,7 +308,7 @@ interface Honorario { valor: number; status: string; }
             <a routerLink="/atividades" class="section-card__link">Ver histórico</a>
           </div>
           <div class="timeline">
-            @for (event of activityTimeline; track event.id; let last = $last) {
+            @for (event of activityTimeline(); track event.id; let last = $last) {
               <div class="timeline__item" [class.timeline__item--last]="last">
                 <div class="timeline__line"></div>
                 <div class="timeline__dot" [class]="'timeline__dot--' + event.type"></div>
@@ -322,6 +324,8 @@ interface Honorario { valor: number; status: string; }
                   </div>
                 </div>
               </div>
+            } @empty {
+              <p style="padding:1rem 0;color:var(--text-tertiary);font-size:0.875rem;">Nenhuma atividade recente.</p>
             }
           </div>
         </div>
@@ -341,11 +345,11 @@ export class DashboardComponent implements OnInit {
   ]);
 
   kpiCards = [
-    { title: 'Empresas Ativas', value: '12', icon: 'apartment', route: '/empresas', change: '+2 este mês', changeUp: true, theme: 'indigo' },
-    { title: 'NF-e Emitidas', value: '847', icon: 'receipt_long', route: '/fiscal/nfe', change: '+18.3%', changeUp: true, theme: 'green' },
-    { title: 'Obrigações Pendentes', value: '5', icon: 'pending_actions', route: '/sped/obrigacoes', change: '-3 vs mês ant.', changeUp: true, theme: 'amber' },
-    { title: 'Folha (Mês)', value: 'R$ 85k', icon: 'badge', route: '/folha/holerites', change: '+2.1%', changeUp: false, theme: 'purple' },
-    { title: 'Honorários Abertos', value: 'R$ 32k', icon: 'paid', route: '/escritorio/honorarios', change: '4 pendentes', changeUp: true, theme: 'teal' },
+    { title: 'Empresas Ativas', value: '—', icon: 'apartment', route: '/empresas', change: '', changeUp: true, theme: 'indigo' },
+    { title: 'NF-e Emitidas', value: '—', icon: 'receipt_long', route: '/fiscal/nfe', change: '', changeUp: true, theme: 'green' },
+    { title: 'Obrigações Pendentes', value: '—', icon: 'pending_actions', route: '/sped/obrigacoes', change: '', changeUp: true, theme: 'amber' },
+    { title: 'Folha (Mês)', value: '—', icon: 'badge', route: '/folha/holerites', change: '', changeUp: false, theme: 'purple' },
+    { title: 'Honorários Abertos', value: '—', icon: 'paid', route: '/escritorio/honorarios', change: '', changeUp: true, theme: 'teal' },
   ];
 
   atalhos = [
@@ -360,13 +364,7 @@ export class DashboardComponent implements OnInit {
     { label: 'Portal Cliente', icon: 'group', route: '/portal-cliente', theme: 'rose' },
   ];
 
-  activityTimeline = [
-    { id: 1, user: 'Ana Silva', action: 'emitiu NF-e #4521 para Empresa ABC Ltda', icon: 'receipt_long', type: 'fiscal', time: 'Há 5 min' },
-    { id: 2, user: 'Carlos Souza', action: 'registrou pagamento de R$ 2.450,00', icon: 'payments', type: 'finance', time: 'Há 12 min' },
-    { id: 3, user: 'Maria Santos', action: 'concluiu obrigação SPED Fiscal - Mar/2026', icon: 'task_alt', type: 'task', time: 'Há 34 min' },
-    { id: 4, user: 'João Lima', action: 'importou extrato bancário do Banco do Brasil', icon: 'upload_file', type: 'import', time: 'Há 1h' },
-    { id: 5, user: 'Sistema', action: 'sincronizou 23 documentos via Robô NF-e', icon: 'sync', type: 'system', time: 'Há 2h' },
-  ];
+  activityTimeline = signal<TimelineEvent[]>([]);
 
   constructor(public authService: AuthService, private appwrite: AppwriteService) {}
 
@@ -439,29 +437,97 @@ export class DashboardComponent implements OnInit {
           { label: 'Tarefas Atrasadas', count: tarefasAtrasadas, icon: 'task_alt', type: 'purple', route: '/escritorio/tarefas' },
         ]);
 
-        // ── KPI strip (mantém layout/visual; só troca os números) ──
-        const empresasAtivas = d.empresas.filter(e => (e.status || 'ATIVA') === 'ATIVA').length;
-        const nfeEmitidas = d.notasFiscais.filter(n => (n.tipo || '').toUpperCase() === 'NFE').length || d.notasFiscais.length;
-        const obrigacoesPendentes = d.obrigacoes.filter(o => (o.status || '') !== 'ENTREGUE').length;
-        const folhaMes = d.holerites
-          .filter(h => h.competencia === comp)
-          .reduce((s, h) => s + (h.valorLiquido || 0), 0);
-        const honorariosAbertos = d.honorarios
-          .filter(h => !this.isPago(h.status))
-          .reduce((s, h) => s + (h.valor || 0), 0);
+        // ── KPI strip: valores e tendências reais (mês corrente vs anterior) ──
+        const prevComp = this.previousCompetencia();
+        const isNfe = (n: NotaFiscal) => (n.tipo || '').toUpperCase() === 'NFE';
 
-        this.kpiCards[0] = { ...this.kpiCards[0], value: String(empresasAtivas) };
-        this.kpiCards[1] = { ...this.kpiCards[1], value: String(nfeEmitidas) };
-        this.kpiCards[2] = { ...this.kpiCards[2], value: String(obrigacoesPendentes) };
-        this.kpiCards[3] = { ...this.kpiCards[3], value: this.formatCurrency(folhaMes) };
-        this.kpiCards[4] = { ...this.kpiCards[4], value: this.formatCurrency(honorariosAbertos) };
+        const empresasAtivas = d.empresas.filter(e => (e.status || 'ATIVA') === 'ATIVA').length;
+        const empresasNovas = d.empresas.filter(e => (e.$createdAt || '').slice(0, 7) === comp).length;
+        const nfeEmitidas = d.notasFiscais.filter(isNfe).length || d.notasFiscais.length;
+        const nfeAtual = d.notasFiscais.filter(n => isNfe(n) && (n.dataEmissao || '').slice(0, 7) === comp).length;
+        const nfePrev = d.notasFiscais.filter(n => isNfe(n) && (n.dataEmissao || '').slice(0, 7) === prevComp).length;
+        const obrigacoesPendentes = d.obrigacoes.filter(o => (o.status || '') !== 'ENTREGUE').length;
+        const folhaMes = d.holerites.filter(h => h.competencia === comp).reduce((s, h) => s + (h.valorLiquido || 0), 0);
+        const folhaPrev = d.holerites.filter(h => h.competencia === prevComp).reduce((s, h) => s + (h.valorLiquido || 0), 0);
+        const honorariosAbertos = d.honorarios.filter(h => !this.isPago(h.status)).reduce((s, h) => s + (h.valor || 0), 0);
+        const honorariosPendentes = d.honorarios.filter(h => !this.isPago(h.status)).length;
+
+        this.kpiCards[0] = { ...this.kpiCards[0], value: String(empresasAtivas), ...this.trendNovos(empresasNovas) };
+        this.kpiCards[1] = { ...this.kpiCards[1], value: String(nfeEmitidas), ...this.trendPct(nfeAtual, nfePrev) };
+        this.kpiCards[2] = { ...this.kpiCards[2], value: String(obrigacoesPendentes), change: '', changeUp: true };
+        this.kpiCards[3] = { ...this.kpiCards[3], value: this.formatCurrency(folhaMes), ...this.trendPct(folhaMes, folhaPrev) };
+        this.kpiCards[4] = { ...this.kpiCards[4], value: this.formatCurrency(honorariosAbertos), change: honorariosPendentes ? `${honorariosPendentes} pendentes` : '', changeUp: false };
       },
     });
+
+    this.loadAtividades();
   }
 
   private currentCompetencia(): string {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  private previousCompetencia(): string {
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  /** Variação percentual mês a mês (vazio quando não há base de comparação). */
+  private trendPct(atual: number, anterior: number): { change: string; changeUp: boolean } {
+    if (!anterior) return { change: '', changeUp: true };
+    const p = Math.round(((atual - anterior) / anterior) * 100);
+    return { change: `${p >= 0 ? '+' : ''}${p}%`, changeUp: p >= 0 };
+  }
+
+  private trendNovos(n: number): { change: string; changeUp: boolean } {
+    return { change: n > 0 ? `+${n} este mês` : '', changeUp: true };
+  }
+
+  /** Atividade recente real, a partir da trilha de auditoria (audit_logs). */
+  private loadAtividades() {
+    const Q = this.appwrite.query;
+    const tenant = this.authService.tenantId() || 'default';
+    this.appwrite.listDocuments<AuditLog>('audit_logs', [
+      Q.equal('tenantId', tenant), Q.limit(8), Q.orderDesc('$createdAt'),
+    ]).subscribe({
+      next: (logs) => this.activityTimeline.set(logs.map(a => ({
+        id: a.$id,
+        user: a.usuario || 'Sistema',
+        action: a.descricao || a.acao || '',
+        icon: this.auditIcon(a.acao),
+        type: this.auditType(a.modulo),
+        time: this.getRelativeTime(new Date(a.timestamp || a.$createdAt)),
+      }))),
+      error: () => this.activityTimeline.set([]),
+    });
+  }
+
+  private auditIcon(acao?: string): string {
+    const m: Record<string, string> = {
+      CRIAR: 'add_circle', EDITAR: 'edit', EXCLUIR: 'delete',
+      LOGIN: 'login', LOGOUT: 'logout', EXPORTAR: 'download',
+    };
+    return m[(acao || '').toUpperCase()] || 'sync';
+  }
+
+  private auditType(modulo?: string): string {
+    const m: Record<string, string> = {
+      FISCAL: 'fiscal', FINANCEIRO: 'finance', CONTABILIDADE: 'finance',
+      FOLHA: 'task', SISTEMA: 'system',
+    };
+    return m[(modulo || '').toUpperCase()] || 'system';
+  }
+
+  private getRelativeTime(ts: Date): string {
+    const diff = Date.now() - ts.getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'agora';
+    if (mins < 60) return `Há ${mins} min`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `Há ${hrs}h`;
+    return `Há ${Math.floor(hrs / 24)}d`;
   }
 
   private isPago(status?: string): boolean {
