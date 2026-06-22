@@ -59,6 +59,10 @@ export const routes: Routes = [
             path: 'contabilidade-automatica',
             loadComponent: () => import('@features/contabilidade/contabilidade-automatica/contabilidade-automatica.component').then(m => m.ContabilidadeAutomaticaComponent),
           },
+          {
+            path: 'teste-bear',
+            loadComponent: () => import('@features/contabilidade/teste-bear.component').then(m => m.TesteBearComponent),
+          },
         ],
       },
       {
