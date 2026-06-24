@@ -7,6 +7,8 @@ export const environment = {
     endpoint: 'https://cloud.appwrite.io/v1',
     projectId: '69b52c570036d92459ce',
     databaseId: '69b52c820006ab36b33a',
+    certBucketId: 'certificados-a1',
+    certVaultKey: 'CJMDFGSZSue8ycXYxgLV4cF7rOhj0fBa150njWCjWDM=',
     functions: {
       // IDs das Appwrite Functions (ajustar conforme o ID gerado no deploy).
       // CPF e CNPJ atendidos pela mesma função (limite de funções do plano Appwrite).
