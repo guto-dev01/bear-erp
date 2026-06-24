@@ -210,13 +210,70 @@ export interface RegraView {
   prioridade: number;
 }
 
+interface FixoDoc {
+  $id: string;
+  $createdAt: string;
+  historico: string;
+  contaDebitoId: string;
+  contaCreditoId: string;
+  contaDebitoCodigo?: string;
+  contaCreditoCodigo?: string;
+  valor: number;
+  diaVencimento?: number;
+  tipo?: string;
+  ativo?: boolean;
+  vigenciaInicio?: string; // YYYY-MM
+  vigenciaFim?: string;    // YYYY-MM
+  empresaId: string;
+  tenantId: string;
+}
+
+export interface FixoView {
+  id: string;
+  $id: string;
+  historico: string;
+  contaDebitoId: string;
+  contaCreditoId: string;
+  contaDebitoCodigo: string;
+  contaCreditoCodigo: string;
+  valor: number;
+  diaVencimento: number;
+  tipo: string;
+  ativo: boolean;
+  vigenciaInicio: string;
+  vigenciaFim: string;
+}
+
 const COL_PLANO = 'plano_contas';
 const COL_LANC = 'lancamentos';
+const COL_FIXOS = 'lancamentos_fixos';
 const COL_CENTROS = 'centros_custo';
 const COL_REGRAS = 'regras_contabilizacao';
 const COL_PERIODOS = 'periodos_contabeis';
 const COL_EXERCICIOS = 'exercicios_contabeis';
 const COL_HISTORICOS = 'historicos_padrao';
+const COL_EMPRESAS = 'empresas';
+
+export interface EmpresaContabil {
+  id: string;
+  nome: string;
+  cnpj: string;        // só dígitos
+  ie: string;
+  im: string;
+  municipio: string;
+  uf: string;
+  nire: string;
+  codMun: string;      // código IBGE (se cadastrado)
+  regimeTributario: string;
+  // Signatários
+  contadorNome: string;
+  contadorCpf: string;
+  contadorCrc: string;
+  contadorCrcUf: string;
+  responsavelNome: string;
+  responsavelCpf: string;
+  responsavelQualificacao: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ContabilidadeService {
@@ -233,6 +290,33 @@ export class ContabilidadeService {
     const qs = [this.appwrite.query.equal('tenantId', this.tenantId)];
     if (this.empresaId) qs.push(this.appwrite.query.equal('empresaId', this.empresaId));
     return qs;
+  }
+
+  /** Empresa atualmente selecionada (para termos dos livros e Bloco 0 do ECD). */
+  getEmpresaAtual(): Observable<EmpresaContabil | null> {
+    const id = this.empresaId;
+    if (!id) return of(null);
+    return this.appwrite.getDocument<any>(COL_EMPRESAS, id).pipe(
+      map((e: any) => ({
+        id: e.$id,
+        nome: e.razaoSocial || e.nomeFantasia || '',
+        cnpj: (e.cnpj || '').replace(/\D/g, ''),
+        ie: e.inscricaoEstadual || '',
+        im: e.inscricaoMunicipal || '',
+        municipio: e.cidade || '',
+        uf: e.uf || '',
+        nire: e.nire || '',
+        codMun: e.codigoMunicipio || e.codMun || '',
+        regimeTributario: e.regimeTributario || '',
+        contadorNome: e.contadorNome || '',
+        contadorCpf: (e.contadorCpf || '').replace(/\D/g, ''),
+        contadorCrc: e.contadorCrc || '',
+        contadorCrcUf: e.contadorCrcUf || '',
+        responsavelNome: e.responsavelNome || '',
+        responsavelCpf: (e.responsavelCpf || '').replace(/\D/g, ''),
+        responsavelQualificacao: e.responsavelQualificacao || '',
+      } as EmpresaContabil)),
+    );
   }
 
   // ── helpers de mapeamento ─────────────────────────────────────
@@ -837,6 +921,114 @@ export class ContabilidadeService {
       empresaId: this.empresaId,
     };
     return this.appwrite.createDocument<RegraDoc>(COL_REGRAS, payload).pipe(map(d => this.mapRegra(d)));
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // Lançamentos Fixos (recorrentes)
+  // ════════════════════════════════════════════════════════════
+  private mapFixo = (d: FixoDoc): FixoView => ({
+    id: d.$id,
+    $id: d.$id,
+    historico: d.historico,
+    contaDebitoId: d.contaDebitoId,
+    contaCreditoId: d.contaCreditoId,
+    contaDebitoCodigo: d.contaDebitoCodigo ?? '',
+    contaCreditoCodigo: d.contaCreditoCodigo ?? '',
+    valor: d.valor,
+    diaVencimento: d.diaVencimento ?? 1,
+    tipo: d.tipo ?? 'NORMAL',
+    ativo: d.ativo ?? true,
+    vigenciaInicio: d.vigenciaInicio ?? '',
+    vigenciaFim: d.vigenciaFim ?? '',
+  });
+
+  listFixos(): Observable<FixoView[]> {
+    return this.appwrite
+      .listDocuments<FixoDoc>(COL_FIXOS, [...this.tenantScope(), ...this.baseQueries()])
+      .pipe(map(docs => docs.map(this.mapFixo)));
+  }
+
+  private buildFixoPayload(data: Record<string, unknown>): Record<string, unknown> {
+    const payload: Record<string, unknown> = {
+      historico: (data['historico'] as string) ?? '',
+      contaDebitoId: (data['contaDebitoId'] as string) ?? '',
+      contaCreditoId: (data['contaCreditoId'] as string) ?? '',
+      contaDebitoCodigo: (data['contaDebitoCodigo'] as string) ?? '',
+      contaCreditoCodigo: (data['contaCreditoCodigo'] as string) ?? '',
+      valor: Number(data['valor'] ?? 0),
+      diaVencimento: data['diaVencimento'] != null ? Number(data['diaVencimento']) : 1,
+      tipo: (data['tipo'] as string) ?? 'NORMAL',
+      ativo: data['ativo'] != null ? !!data['ativo'] : true,
+      vigenciaInicio: (data['vigenciaInicio'] as string) ?? '',
+      vigenciaFim: (data['vigenciaFim'] as string) ?? '',
+    };
+    return payload;
+  }
+
+  createFixo(data: Record<string, unknown>): Observable<FixoView> {
+    const payload = { ...this.buildFixoPayload(data), tenantId: this.tenantId, empresaId: this.empresaId };
+    return this.appwrite.createDocument<FixoDoc>(COL_FIXOS, payload).pipe(map(this.mapFixo));
+  }
+
+  updateFixo(id: string, data: Record<string, unknown>): Observable<FixoView> {
+    return this.appwrite.updateDocument<FixoDoc>(COL_FIXOS, id, this.buildFixoPayload(data)).pipe(map(this.mapFixo));
+  }
+
+  setFixoAtivo(id: string, ativo: boolean): Observable<FixoView> {
+    return this.appwrite.updateDocument<FixoDoc>(COL_FIXOS, id, { ativo }).pipe(map(this.mapFixo));
+  }
+
+  deleteFixo(id: string): Observable<unknown> { return this.appwrite.deleteDocument(COL_FIXOS, id); }
+
+  /** Um fixo está vigente na competência se início <= comp <= fim (limites opcionais). */
+  private fixoVigente(f: FixoView, competencia: string): boolean {
+    if (f.vigenciaInicio && competencia < f.vigenciaInicio) return false;
+    if (f.vigenciaFim && competencia > f.vigenciaFim) return false;
+    return true;
+  }
+
+  /**
+   * Gera os lançamentos dos fixos ativos para a competência (ano/mês).
+   * Idempotente: marca cada lançamento com documentoRef = FIXO:<id>:<competencia>
+   * e pula os que já foram gerados.
+   */
+  gerarFixos(ano: number, mes: number): Observable<{ criados: number; pulados: number; total: number }> {
+    const competencia = `${ano}-${String(mes).padStart(2, '0')}`;
+    const diasNoMes = new Date(ano, mes, 0).getDate();
+    return forkJoin({
+      fixos: this.listFixos(),
+      lancs: this.loadAllLancamentos(),
+      numero: this.nextNumero(),
+    }).pipe(
+      switchMap(({ fixos, lancs, numero }) => {
+        const jaGerados = new Set(lancs.map(l => l.documentoRef).filter(Boolean) as string[]);
+        const vigentes = fixos.filter(f => f.ativo && this.fixoVigente(f, competencia));
+        const aCriar = vigentes.filter(f => !jaGerados.has(`FIXO:${f.id}:${competencia}`));
+        const pulados = vigentes.length - aCriar.length;
+        if (!aCriar.length) return of({ criados: 0, pulados, total: vigentes.length });
+        let n = numero;
+        const creates = aCriar.map(f => {
+          const dia = Math.min(Math.max(f.diaVencimento || 1, 1), diasNoMes);
+          return this.appwrite.createDocument<LancamentoDoc>(COL_LANC, {
+            numero: n++,
+            data: `${competencia}-${String(dia).padStart(2, '0')}`,
+            tipo: f.tipo || 'NORMAL',
+            historico: f.historico,
+            valor: f.valor,
+            contaDebitoId: f.contaDebitoId,
+            contaCreditoId: f.contaCreditoId,
+            contaDebitoCodigo: f.contaDebitoCodigo,
+            contaCreditoCodigo: f.contaCreditoCodigo,
+            competencia,
+            status: 'NORMAL',
+            documentoRef: `FIXO:${f.id}:${competencia}`,
+            tenantId: this.tenantId,
+            empresaId: this.empresaId,
+          });
+        });
+        return forkJoin(creates).pipe(map(() => ({ criados: aCriar.length, pulados, total: vigentes.length })));
+      }),
+    );
   }
 
   /**

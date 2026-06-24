@@ -346,30 +346,13 @@ type StatusVisual = 'ATIVO' | 'INATIVO' | 'SEM_ESTOQUE' | 'BAIXO_ESTOQUE';
             </div>
           </div>
 
-          <!-- Evolução de estoque (line chart) -->
+          <!-- Evolução de estoque -->
           <div class="panel widget">
             <div class="panel__head">
               <h3 class="widget__title"><span class="material-symbols-rounded">show_chart</span> Evolução de estoque</h3>
               <span class="widget__hl">{{ valorEstoque() | currency:'BRL' }}</span>
             </div>
-            <div class="chart">
-              <svg viewBox="0 0 300 96" preserveAspectRatio="none" class="chart__svg">
-                <defs>
-                  <linearGradient id="catArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.28"/>
-                    <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
-                  </linearGradient>
-                </defs>
-                <path [attr.d]="areaPath()" fill="url(#catArea)"/>
-                <path [attr.d]="linePath()" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                @for (pt of chartPoints(); track $index) {
-                  <circle [attr.cx]="pt.x" [attr.cy]="pt.y" r="2.4" fill="var(--accent)"/>
-                }
-              </svg>
-              <div class="chart__labels">
-                @for (m of mesesLabels; track m) { <span>{{ m }}</span> }
-              </div>
-            </div>
+            <p class="widget__empty">Sem histórico de movimentação de estoque.</p>
           </div>
         </div>
       </div>
@@ -685,11 +668,6 @@ type StatusVisual = 'ATIVO' | 'INATIVO' | 'SEM_ESTOQUE' | 'BAIXO_ESTOQUE';
     .legend li b { margin-left:auto; color:var(--txt); font-weight:600; white-space:nowrap; }
     .legend__dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
 
-    /* Line chart */
-    .chart { display:flex; flex-direction:column; gap:.5rem; }
-    .chart__svg { width:100%; height:120px; display:block; }
-    .chart__labels { display:flex; justify-content:space-between; font-size:.62rem; color:var(--txt-3); }
-
     /* Skeleton / empty */
     .cat-skel { height:12px; border-radius:6px; background:linear-gradient(90deg,var(--surface-2),var(--surface-3),var(--surface-2)); animation:cat-shimmer 1.3s infinite; }
     .cat-skel--thumb { width:42px; height:42px; border-radius:11px; }
@@ -825,7 +803,6 @@ export class ProdutosComponent implements OnInit {
     { value: 'HR', label: 'Hora (HR)' }, { value: 'SV', label: 'Serviço (SV)' },
     { value: 'CX', label: 'Caixa (CX)' }, { value: 'PC', label: 'Peça (PC)' },
   ];
-  mesesLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   private chartColors = [
     'var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)',
     'var(--chart-7)', 'var(--chart-6)', 'var(--chart-10)', 'var(--chart-11)',
@@ -1007,20 +984,10 @@ export class ProdutosComponent implements OnInit {
     return this.thumbPalette[idx];
   }
 
-  // ── Widget: mais vendidos (deterministico até integrar com Vendas) ──
-  private pseudoVendas(p: Produto): number {
-    const seed = (p.codigo || p.descricao || p.$id || '').split('').reduce((s, c) => s + c.charCodeAt(0), 0);
-    return 40 + (seed % 1200);
-  }
-  maisVendidos = computed(() => {
-    const scored = this.items()
-      .filter(p => p.tipo !== 'SERVICO')
-      .map(p => { const qtd = this.pseudoVendas(p); return { nome: p.descricao || p.codigo || '—', qtd, valor: qtd * (p.preco || 0) }; })
-      .sort((a, b) => b.valor - a.valor)
-      .slice(0, 10);
-    const max = scored.length ? scored[0].valor : 1;
-    return scored.map(x => ({ ...x, barPct: Math.max(6, Math.round((x.valor / max) * 100)) }));
-  });
+  // ── Widget: mais vendidos ──
+  // Sem fonte real: a NF-e não persiste itens por produto e não há módulo de Vendas.
+  // Fica vazio (estado "Sem dados de vendas.") até existir uma origem real de vendas.
+  maisVendidos = signal<{ nome: string; qtd: number; valor: number; barPct: number }[]>([]);
 
   // ── Widget: distribuição por categoria ──
   categoriaStats = computed(() => {
@@ -1046,36 +1013,6 @@ export class ProdutosComponent implements OnInit {
       segs.push(`${c.color} ${start}deg ${end}deg`);
     }
     return `conic-gradient(${segs.join(',')})`;
-  });
-
-  // ── Widget: evolução de estoque (line chart, série deterministica) ──
-  private serie = computed(() => {
-    const base = this.valorEstoque() || (this.items().length * 1000) || 1000;
-    // 12 pontos com variação suave determinística (sem Math.random).
-    return this.mesesLabels.map((_, i) => {
-      const wave = Math.sin(i / 1.8) * 0.18 + Math.cos(i / 3.2) * 0.1;
-      return Math.max(base * 0.45, base * (0.7 + wave + i * 0.02));
-    });
-  });
-  chartPoints = computed(() => {
-    const s = this.serie();
-    const max = Math.max(...s), min = Math.min(...s);
-    const span = max - min || 1;
-    const W = 300, H = 96, pad = 8;
-    return s.map((v, i) => ({
-      x: +((i / (s.length - 1)) * (W - pad * 2) + pad).toFixed(2),
-      y: +(H - pad - ((v - min) / span) * (H - pad * 2)).toFixed(2),
-    }));
-  });
-  linePath = computed(() => {
-    const pts = this.chartPoints();
-    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join(' ');
-  });
-  areaPath = computed(() => {
-    const pts = this.chartPoints();
-    if (!pts.length) return '';
-    const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join(' ');
-    return `${line} L${pts[pts.length - 1].x} 96 L${pts[0].x} 96 Z`;
   });
 
   // ── Menu de ações ──

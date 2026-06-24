@@ -128,6 +128,9 @@ import { FiscalService } from '../fiscal.service';
                       <span class="material-symbols-rounded" style="font-size:18px;">cancel</span>
                     </button>
                   }
+                  <button class="bear-btn bear-btn--ghost" (click)="baixarXml(nfe)" matTooltip="Baixar XML">
+                    <span class="material-symbols-rounded" style="font-size:18px;">code</span>
+                  </button>
                 </div>
               </td>
             </ng-container>
@@ -326,6 +329,24 @@ export class NfeComponent implements OnInit {
         error: err => this.snackBar.open(err.error?.message || 'Erro', 'Fechar', { duration: 5000 })
       });
     }
+  }
+
+  baixarXml(nfe: any) {
+    // Gera o XML (não assinado) localmente. A assinatura A1 + transmissão à SEFAZ
+    // exigem integração externa (Appwrite Function com o A1 do cofre).
+    this.fiscalService.gerarXmlNotaFiscal(nfe.id).subscribe({
+      next: ({ chave, xml }) => {
+        const blob = new Blob([xml], { type: 'application/xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `NFe-${chave}.xml`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.snackBar.open('XML gerado (não assinado). A assinatura A1 + envio à SEFAZ exigem integração externa.', 'Fechar', { duration: 5000 });
+      },
+      error: err => this.snackBar.open(err.error?.message || 'Erro ao gerar XML', 'Fechar', { duration: 5000 })
+    });
   }
 
   onPage(event: PageEvent) { this.loadNfes(event.pageIndex); }

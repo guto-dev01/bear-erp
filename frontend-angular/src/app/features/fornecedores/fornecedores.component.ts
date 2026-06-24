@@ -42,6 +42,14 @@ interface Fornecedor {
   $createdAt: string;
 }
 
+/** Conta a pagar — fonte real das compras por fornecedor. */
+interface ContaPagar {
+  fornecedorId?: string;
+  fornecedorNome?: string;
+  valor?: number;
+  dataEmissao?: string;
+}
+
 @Component({
   selector: 'bear-fornecedores',
   standalone: true,
@@ -566,6 +574,7 @@ interface Fornecedor {
 })
 export class FornecedoresComponent implements OnInit {
   items = signal<Fornecedor[]>([]);
+  compras = signal<ContaPagar[]>([]);
   loading = signal(true);
   showForm = signal(false);
   editingId = signal<string | null>(null);
@@ -603,6 +612,13 @@ export class FornecedoresComponent implements OnInit {
     this.appwrite.listDocuments<Fornecedor>('fornecedores').subscribe({
       next: d => { this.items.set(d); this.loading.set(false); },
       error: () => this.loading.set(false),
+    });
+
+    // Compras por fornecedor a partir das contas a pagar reais.
+    const Q = this.appwrite.query;
+    this.appwrite.listDocuments<ContaPagar>('contas_pagar', [Q.limit(500), Q.orderDesc('$createdAt')]).subscribe({
+      next: d => this.compras.set(d),
+      error: () => this.compras.set([]),
     });
   }
 
@@ -674,22 +690,27 @@ export class FornecedoresComponent implements OnInit {
     return `conic-gradient(var(--color-success) 0deg ${a1}deg, var(--color-warning) ${a1}deg ${a2}deg, var(--surface-4) ${a2}deg ${a3}deg, var(--surface-2) ${a3}deg 360deg)`;
   });
 
-  // ── Widgets de compras (valores ilustrativos, derivados de forma determinística
-  //    do cadastro até a integração com o módulo de Compras estar disponível) ──
+  // ── Widget "Compras por fornecedor (mês)": total de contas a pagar do mês
+  //    corrente, agrupado por fornecedor (dados reais da collection contas_pagar). ──
   topCompras = computed(() => {
-    const list = this.items().filter(f => this.isActive(f));
-    const scored = list.map(f => ({ nome: this.nomeDe(f), valor: this.pseudoValor(f) }))
-      .sort((a, b) => b.valor - a.valor)
-      .slice(0, 5);
+    const comp = new Date().toISOString().slice(0, 7); // competência YYYY-MM
+    const fornecedores = this.items();
+    const acc = new Map<string, { nome: string; valor: number }>();
+    for (const c of this.compras()) {
+      if ((c.dataEmissao || '').slice(0, 7) !== comp) continue;
+      const key = c.fornecedorId || c.fornecedorNome || '';
+      if (!key) continue;
+      const ref = c.fornecedorId ? fornecedores.find(f => f.$id === c.fornecedorId) : undefined;
+      const nome = ref ? this.nomeDe(ref) : (c.fornecedorNome || '—');
+      const atual = acc.get(key) || { nome, valor: 0 };
+      atual.valor += c.valor || 0;
+      acc.set(key, atual);
+    }
+    const scored = [...acc.values()].sort((a, b) => b.valor - a.valor).slice(0, 5);
     const max = scored.length ? scored[0].valor : 1;
     const totalV = scored.reduce((s, x) => s + x.valor, 0) || 1;
     return scored.map(x => ({ ...x, pct: Math.round((x.valor / totalV) * 100), barPct: Math.round((x.valor / max) * 100) }));
   });
-
-  private pseudoValor(f: Fornecedor): number {
-    const seed = (f.cpfCnpj || f.razaoSocial || f.$id || '').split('').reduce((s, c) => s + c.charCodeAt(0), 0);
-    return 8000 + (seed % 520) * 100; // R$ 8.000 – ~R$ 60.000
-  }
 
   // ── Helpers visuais ──
   nomeDe(f: Fornecedor): string { return f.nomeFantasia || f.razaoSocial || f.nome || '—'; }

@@ -49,7 +49,7 @@ import { FiscalService } from '../fiscal.service';
             <mat-label>Competência</mat-label>
             <input matInput [(ngModel)]="competencia" placeholder="2026-03">
           </mat-form-field>
-          <button class="bear-btn bear-btn--outline" (click)="loadGuias()" style="margin-bottom: 22px;">
+          <button class="bear-btn bear-btn--outline" (click)="loadGuias(); loadObrigacoes()" style="margin-bottom: 22px;">
             <span class="material-symbols-rounded">search</span> Buscar
           </button>
         </div>
@@ -142,6 +142,9 @@ import { FiscalService } from '../fiscal.service';
                     <span class="material-symbols-rounded" style="font-size:18px;">cancel</span>
                   </button>
                 }
+                <button class="bear-btn bear-btn--ghost" (click)="copiarLinha(g)" matTooltip="Copiar linha digitável">
+                  <span class="material-symbols-rounded" style="font-size:18px;">qr_code</span>
+                </button>
               </td>
             </ng-container>
             <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
@@ -153,6 +156,49 @@ import { FiscalService } from '../fiscal.service';
               <p class="empty-state__title">Nenhuma guia encontrada</p>
               <p class="empty-state__description">Busque por competência ou clique em "Nova Guia" para registrar uma guia fiscal.</p>
             </div>
+          }
+        </div>
+
+        <div class="bear-card mt-4">
+          <div class="flex items-center justify-between flex-wrap gap-3 p-4">
+            <div>
+              <p class="text-heading" style="font-size: 1rem;">Obrigações Acessórias</p>
+              <p class="text-label">Calendário da competência {{ competencia }} conforme o regime da empresa.</p>
+            </div>
+            <button class="bear-btn bear-btn--outline" (click)="gerarObrigacoes()">
+              <span class="material-symbols-rounded">event_repeat</span> Gerar do período
+            </button>
+          </div>
+          @if (obrigacoes().length > 0) {
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left" style="color: var(--text-secondary);">
+                  <th class="p-2">Obrigação</th><th class="p-2">Vencimento</th><th class="p-2">Status</th><th class="p-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (o of obrigacoes(); track o.id) {
+                  <tr style="border-top: 1px solid var(--surface-3);">
+                    <td class="p-2">{{ o.descricao }}</td>
+                    <td class="p-2">{{ o.dataVencimento }}</td>
+                    <td class="p-2">
+                      <span class="badge" [ngClass]="o.status === 'ENTREGUE' ? 'badge--success' : 'badge--warning'">
+                        <span class="badge__dot"></span>{{ o.status }}
+                      </span>
+                    </td>
+                    <td class="p-2">
+                      @if (o.status !== 'ENTREGUE') {
+                        <button class="bear-btn bear-btn--ghost" (click)="entregar(o)" matTooltip="Marcar como entregue">
+                          <span class="material-symbols-rounded" style="font-size:18px;">task_alt</span>
+                        </button>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else if (!loading()) {
+            <p class="text-label p-4">Nenhuma obrigação gerada para esta competência. Clique em "Gerar do período".</p>
           }
         </div>
       }
@@ -216,6 +262,7 @@ export class GuiasComponent implements OnInit {
   loading = signal(false);
   showForm = signal(false);
   guias = signal<any[]>([]);
+  obrigacoes = signal<any[]>([]);
   competencia = '';
   displayedColumns = ['tipo', 'competencia', 'vencimento', 'valor', 'status', 'acoes'];
   guiaForm: FormGroup;
@@ -232,7 +279,12 @@ export class GuiasComponent implements OnInit {
     });
   }
 
-  ngOnInit() { this.loadGuias(); }
+  ngOnInit() { this.loadGuias(); this.loadObrigacoes(); }
+
+  private anoMes(): [number, number] {
+    const [a, m] = this.competencia.split('-').map(Number);
+    return [a, m];
+  }
 
   loadGuias() {
     if (!this.competencia) return;
@@ -241,6 +293,47 @@ export class GuiasComponent implements OnInit {
       next: data => { this.guias.set(data); this.loading.set(false); },
       error: () => { this.loading.set(false); this.snackBar.open('Erro ao carregar guias', 'Fechar', { duration: 3000 }); }
     });
+  }
+
+  loadObrigacoes() {
+    if (!this.competencia) return;
+    const [ano, mes] = this.anoMes();
+    this.fiscalService.listarObrigacoes(ano, mes).subscribe({
+      next: data => this.obrigacoes.set(data),
+      error: () => {},
+    });
+  }
+
+  gerarObrigacoes() {
+    const [ano, mes] = this.anoMes();
+    this.loading.set(true);
+    this.fiscalService.gerarObrigacoes(ano, mes).subscribe({
+      next: data => { this.obrigacoes.set(data); this.loading.set(false); this.snackBar.open('Obrigações do período geradas', 'OK', { duration: 3000 }); },
+      error: err => { this.loading.set(false); this.snackBar.open(err.error?.message || 'Erro', 'Fechar', { duration: 5000 }); }
+    });
+  }
+
+  entregar(o: any) {
+    this.fiscalService.entregarObrigacao(o.id).subscribe({
+      next: () => { this.snackBar.open('Obrigação marcada como entregue', 'OK', { duration: 3000 }); this.loadObrigacoes(); },
+      error: err => this.snackBar.open(err.error?.message || 'Erro', 'Fechar', { duration: 5000 })
+    });
+  }
+
+  copiarLinha(g: any) {
+    this.fiscalService.detalharGuia(g.id).subscribe({
+      next: (d: any) => {
+        const linha = d.linhaDigitavelFormatada as string;
+        navigator.clipboard?.writeText((d.linhaDigitavel as string) ?? '').catch(() => {});
+        const extra = d.diasAtraso > 0 ? ` — c/ acréscimos: total ${this.fmt(d.valorTotal)}` : '';
+        this.snackBar.open(`Linha digitável copiada: ${linha}${extra}`, 'OK', { duration: 6000 });
+      },
+      error: err => this.snackBar.open(err.error?.message || 'Erro ao gerar linha digitável', 'Fechar', { duration: 5000 })
+    });
+  }
+
+  private fmt(v: number): string {
+    return v?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) ?? '';
   }
 
   loadVencidas() {

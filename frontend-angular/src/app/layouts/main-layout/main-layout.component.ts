@@ -9,6 +9,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '@core/auth/auth.service';
 import { ThemeService } from '@core/services/theme.service';
 import { SidebarService } from '@core/services/sidebar.service';
+import { EmpresaSelectorComponent } from '@core/components/empresa-selector.component';
 
 interface MenuItem {
   label: string;
@@ -28,7 +29,7 @@ interface MenuSection {
   imports: [
     CommonModule, RouterOutlet, RouterLink, RouterLinkActive,
     MatIconModule, MatButtonModule, MatMenuModule, MatTooltipModule,
-    FormsModule,
+    FormsModule, EmpresaSelectorComponent,
   ],
   template: `
     <!-- ═══ Command Palette (⌘K) ═══ -->
@@ -325,6 +326,9 @@ interface MenuSection {
         </div>
 
         <div class="toolbar__right">
+          <!-- Seletor de empresa ativa -->
+          <bear-empresa-selector></bear-empresa-selector>
+
           <!-- Quick create -->
           <button class="toolbar__action toolbar__action--create" #quickCreateBtn
                   matTooltip="Criar novo"
@@ -446,6 +450,7 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
             { label: 'Balanço Patrimonial', icon: 'account_balance_wallet', route: '/contabilidade/balanco-patrimonial' },
             { label: 'Centros de Custo', icon: 'hub', route: '/contabilidade/centros-custo' },
             { label: 'Contab. Automática', icon: 'auto_fix_high', route: '/contabilidade/contabilidade-automatica' },
+            { label: 'Teste Bear', icon: 'science', route: '/contabilidade/teste-bear' },
           ],
         },
         {
