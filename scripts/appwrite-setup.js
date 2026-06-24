@@ -1,6 +1,14 @@
-const { Client, Databases, Users, ID, Permission, Role, Query } = require('node-appwrite');
+const { Client, Databases, Users, Teams, ID, Permission, Role, Query } = require('node-appwrite');
 const fs = require('fs');
 const path = require('path');
+// Securização multi-tenant (Teams + documentSecurity) — lib compartilhada com a migração.
+const {
+  garantirTeam,
+  resolverUserIdPorEmail,
+  adicionarMembro,
+  backfillColecao,
+  securizarColecao,
+} = require('./migrations/lib/tenant-teams');
 
 // Carrega variáveis do .env da raiz do projeto (sem depender de dotenv).
 function loadEnv() {
@@ -31,6 +39,7 @@ const client = new Client()
 
 const db = new Databases(client);
 const users = new Users(client);
+const teams = new Teams(client);
 const DB_ID = process.env.APPWRITE_DB_ID;
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -340,6 +349,14 @@ const collections = [
       { key: 'dataValidade', type: 'string', size: 10, required: true },
       { key: 'status', type: 'string', size: 30, required: true },
       { key: 'totalOperacoes', type: 'integer', required: false },
+      // Cofre do A1 (Etapa 2/3): arquivo no bucket privado + senha CIFRADA.
+      { key: 'storageFileId', type: 'string', size: 50, required: false }, // .pfx no bucket `certificados-a1`
+      { key: 'titular', type: 'string', size: 255, required: false },
+      { key: 'validoDe', type: 'string', size: 30, required: false },
+      { key: 'alertaVencimento', type: 'boolean', required: false },
+      // Ciphertext AES-256-GCM da senha do .pfx (NUNCA em claro). Ver
+      // functions/_shared/cripto/segredo.js. Chave mestra fica em CERT_MASTER_KEY.
+      { key: 'senhaCofre', type: 'string', size: 1024, required: false },
       { key: 'empresaId', type: 'string', size: 50, required: true },
       { key: 'tenantId', type: 'string', size: 50, required: true },
       { key: 'createdAt', type: 'string', size: 30, required: false },
@@ -912,6 +929,44 @@ const collections = [
     ],
   },
   {
+    // Detalhe do evento S-2210 (CAT). Vínculo com `eventos_esocial` por `eventoId`
+    // (string), mesma convenção do repo. Grupos aninhados/repetitivos (local,
+    // partes, agentes, atestado) ficam como JSON-string — padrão já usado p/ `erros`.
+    id: 'esocial_s2210',
+    name: 'eSocial S-2210 (CAT)',
+    attrs: [
+      { key: 'eventoId', type: 'string', size: 50, required: true }, // -> eventos_esocial.$id
+      // ideVinculo
+      { key: 'cpfTrab', type: 'string', size: 11, required: true },
+      { key: 'matricula', type: 'string', size: 30, required: false },
+      // bloco cat (escalares)
+      { key: 'dtAcid', type: 'string', size: 10, required: true },
+      { key: 'tpAcid', type: 'string', size: 6, required: false },
+      { key: 'hrAcid', type: 'string', size: 4, required: false },
+      { key: 'hrsTrabAntesAcid', type: 'string', size: 4, required: false },
+      { key: 'tpCat', type: 'integer', required: true },
+      { key: 'indCatObito', type: 'string', size: 1, required: false },
+      { key: 'dtObito', type: 'string', size: 10, required: false },
+      { key: 'indComunPolicia', type: 'string', size: 1, required: true },
+      { key: 'codSitGeradora', type: 'string', size: 12, required: true },
+      { key: 'iniciatCAT', type: 'integer', required: true },
+      { key: 'obsCAT', type: 'string', size: 999, required: false },
+      { key: 'ultDiaTrab', type: 'string', size: 10, required: false },
+      { key: 'houveAfast', type: 'string', size: 1, required: true },
+      // Grupos aninhados/repetitivos como JSON — tamanhos enxutos: o Appwrite
+      // reserva o varchar na largura da linha (~65535 bytes), então valores
+      // grandes demais estouram a coleção ("max size reached").
+      { key: 'localAcidenteJson', type: 'string', size: 1500, required: true },
+      { key: 'partesAtingidasJson', type: 'string', size: 2500, required: true }, // [] 1..N
+      { key: 'agentesCausadoresJson', type: 'string', size: 1200, required: true }, // [] 1..N
+      { key: 'atestadoJson', type: 'string', size: 1200, required: false }, // 0..1
+      // multi-tenant
+      { key: 'empresaId', type: 'string', size: 50, required: true },
+      { key: 'tenantId', type: 'string', size: 50, required: true },
+      { key: 'createdAt', type: 'string', size: 30, required: false },
+    ],
+  },
+  {
     id: 'sped_fiscal',
     name: 'SPED Fiscal',
     attrs: [
@@ -1059,10 +1114,11 @@ const collections = [
 // CRIAR COLLECTIONS E ATRIBUTOS
 // ============================================================
 
-// Permissões: apenas usuários autenticados (Appwrite Auth) podem ler/gravar.
-// NÃO mais Role.any() (que liberava acesso a qualquer um na internet).
-// Obs.: isolamento total por tenant é um passo seguinte (via Teams ou
-// permissões por documento) — aqui garantimos a base "somente logados".
+// Permissão TRANSITÓRIA usada só durante a criação/semeadura (a API key do
+// servidor ignora permissões; isto apenas mantém o seed simples). O isolamento
+// real por tenant é aplicado ao final por `securizarTenant()`, que liga
+// documentSecurity e troca este modelo por "create-only + escopo de Team por
+// documento" (ver scripts/migrations/lib/tenant-teams.js).
 const COLLECTION_PERMISSIONS = [
   Permission.read(Role.users()),
   Permission.create(Role.users()),
@@ -1433,6 +1489,27 @@ async function populateData() {
 // EXECUTAR
 // ============================================================
 
+/**
+ * FASE 3 — Isolamento multi-tenant: cria o Team do tenant `default`, adiciona o
+ * admin como owner e escopa todos os documentos/coleções a Role.team(tenantId)
+ * com documentSecurity ligado. Reusa a lib compartilhada com a migração. Roda
+ * por último (precisa dos documentos já criados) e é idempotente.
+ */
+async function securizarTenant() {
+  const TENANT = 'default';
+  const ADMIN_EMAIL = 'admin@bearerp.com.br';
+  console.log('\n🔒 FASE 3: Isolamento multi-tenant (Teams + documentSecurity)...');
+  await garantirTeam(teams, TENANT, 'Escritório default');
+  const adminId = await resolverUserIdPorEmail(users, ADMIN_EMAIL, new Map());
+  if (adminId) await adicionarMembro(teams, TENANT, adminId, ['owner', 'ADMIN']);
+  else console.log(`  ✗ Conta Auth ${ADMIN_EMAIL} não encontrada — adicione ao Team manualmente.`);
+
+  for (const col of collections) {
+    await backfillColecao(db, DB_ID, col.id);   // documentos primeiro…
+    await securizarColecao(db, DB_ID, col.id, col.name); // …depois documentSecurity
+  }
+}
+
 async function main() {
   console.log('🐻 Bear ERP — Setup Appwrite Database\n');
   console.log('='.repeat(50));
@@ -1447,8 +1524,10 @@ async function main() {
   console.log('\n📦 FASE 2: Populando Dados...\n');
   await populateData();
 
+  await securizarTenant();
+
   console.log('\n' + '='.repeat(50));
-  console.log('🎉 Setup completo! Database Bear ERP populado.');
+  console.log('🎉 Setup completo! Database Bear ERP populado e isolado por Team.');
 }
 
 main().catch(e => {

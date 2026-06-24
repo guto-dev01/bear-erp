@@ -13,6 +13,7 @@ export const environment = {
       consultaCpf: 'consulta-cnpj',
       consultaCnpj: 'consulta-cnpj',
       ocrCadastro: 'ocr-cadastro',
+      certificadoUpload: 'certificado-upload',
     },
   },
 };

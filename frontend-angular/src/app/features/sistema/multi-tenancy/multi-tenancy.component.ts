@@ -7,6 +7,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { ID } from 'appwrite';
+import { switchMap } from 'rxjs/operators';
 import { AppwriteService } from '@core/services/appwrite.service';
 import { AuthService } from '@core/auth/auth.service';
 
@@ -229,14 +231,24 @@ export class MultiTenancyComponent implements OnInit {
 
   salvar() {
     if (!this.form.valid) return;
+
+    // Onboarding: cada escritório é um Appwrite Team próprio. O id do Team É o
+    // tenantId (e também o id do documento), e quem cria entra como OWNER.
+    const novoTenantId = ID.unique();
+    const nome = this.form.value.nomeEscritorio as string;
     const data = {
       ...this.form.value,
       status: 'ATIVO',
       totalClientes: 0,
       totalUsuarios: 0,
-      tenantId: this.auth.tenantId() || 'default',
+      tenantId: novoTenantId,
     };
-    this.appwrite.createDocument<Tenant>('tenants', data).subscribe({
+
+    this.appwrite.criarEscritorioTeam(novoTenantId, nome).pipe(
+      // Documento do escritório escopado ao Team recém-criado (não ao tenant da
+      // sessão) — por isso passamos as permissões explícitas do novo tenant.
+      switchMap(() => this.appwrite.createDocument<Tenant>('tenants', data, novoTenantId, this.appwrite.permissoesTenant(novoTenantId))),
+    ).subscribe({
       next: () => { this.snackBar.open('Escritório criado!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] }); this.showForm.set(false); this.carregar(); },
       error: (e) => this.snackBar.open(e.message || 'Erro ao criar escritório', 'Fechar', { duration: 3000, panelClass: ['error-snackbar'] }),
     });

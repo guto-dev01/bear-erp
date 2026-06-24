@@ -1,20 +1,26 @@
 'use strict';
 
 const { CofreCertificado } = require('./cofre-certificado');
+const { decifrar, ehTokenCofre } = require('../cripto/segredo');
 
 /**
  * Adaptador de cofre sobre o Appwrite Storage.
  *
- * Decisão de arquitetura (Etapa 2): o arquivo .pfx do A1 fica num bucket
- * privado do Appwrite Storage (criptografado em repouso, sem role pública —
- * acessível apenas pela API key do servidor/Function). A SENHA do certificado
- * NUNCA fica no banco: vem de variável de ambiente/secret da Function.
+ * Decisão de arquitetura: o arquivo .pfx do A1 fica num bucket privado do
+ * Appwrite Storage (criptografado em repouso, sem role pública — acessível
+ * apenas pela API key do servidor/Function). A SENHA do certificado NUNCA fica
+ * em texto puro no banco.
  *
  * Resolução:
  *  - O `storageFileId` (id do arquivo no bucket) é lido do documento da
  *    coleção `certificados`, a partir do `certificadoDigitalId` da empresa.
- *  - A senha vem de `senhaProvider(empresaId)` — por padrão, lê do env
- *    `CERT_SENHA_<EMPRESAID>` e, como fallback, `CERT_SENHA`.
+ *  - A senha é resolvida nesta ordem:
+ *      1. `senhaProvider(empresaId, cert)` explícito (injeção de teste);
+ *      2. campo `senhaCofre` do documento `certificados`, DECIFRADO com a chave
+ *         mestra do ambiente (`CERT_MASTER_KEY`) via AES-256-GCM — caminho
+ *         padrão de produção, que escala para milhares de empresas;
+ *      3. fallback de env `CERT_SENHA_<EMPRESAID>` / `CERT_SENHA` — mantido
+ *         apenas para o ambiente de teste/legado.
  *
  * Tudo que toca rede/SDK é injetável, para manter o serviço testável sem
  * Appwrite real.
@@ -53,17 +59,19 @@ class AppwriteStorageVault extends CofreCertificado {
     this._empresasCollection = empresasCollection;
     this._certificadosCollection = certificadosCollection;
     this._env = env;
-    this._senhaProvider = senhaProvider || ((empresaId) => this._senhaDoEnv(empresaId));
+    // Guarda só o provider explícito (injeção de teste); o caminho padrão é
+    // decifrar `senhaCofre` com a chave mestra, com fallback de env.
+    this._senhaProvider = typeof senhaProvider === 'function' ? senhaProvider : null;
   }
 
-  /** Senha do certificado a partir do ambiente, nunca do banco. */
+  /** Senha do certificado a partir do ambiente (fallback de teste/legado). */
   _senhaDoEnv(empresaId) {
     const chaveEspecifica = `CERT_SENHA_${String(empresaId).toUpperCase()}`;
     return this._env[chaveEspecifica] ?? this._env.CERT_SENHA ?? '';
   }
 
-  /** Resolve o id do arquivo .pfx no Storage a partir da empresa. */
-  async _resolverStorageFileId(empresaId) {
+  /** Resolve o documento do certificado (com storageFileId) a partir da empresa. */
+  async _resolverCertificado(empresaId) {
     const empresa = await this._databases.getDocument(
       this._dbId,
       this._empresasCollection,
@@ -81,17 +89,27 @@ class AppwriteStorageVault extends CofreCertificado {
     if (!cert.storageFileId) {
       throw new Error(`Certificado ${certId} sem storageFileId (arquivo .pfx não enviado ao cofre)`);
     }
-    return cert.storageFileId;
+    return cert;
+  }
+
+  /** Resolve a senha do .pfx: provider explícito → senhaCofre cifrada → env. */
+  async _resolverSenha(empresaId, cert) {
+    if (this._senhaProvider) return this._senhaProvider(empresaId, cert);
+    if (cert && ehTokenCofre(cert.senhaCofre)) {
+      // Decifra com a chave mestra do ambiente (nunca do banco/cliente).
+      return decifrar(cert.senhaCofre, this._env);
+    }
+    return this._senhaDoEnv(empresaId);
   }
 
   async carregar(empresaId) {
-    const fileId = await this._resolverStorageFileId(empresaId);
-    const baixado = await this._storage.getFileDownload(this._bucketId, fileId);
+    const cert = await this._resolverCertificado(empresaId);
+    const baixado = await this._storage.getFileDownload(this._bucketId, cert.storageFileId);
     const pfx = paraBuffer(baixado);
-    const senha = await this._senhaProvider(empresaId);
+    const senha = await this._resolverSenha(empresaId, cert);
     if (!senha) {
       throw new Error(
-        `Senha do certificado da empresa ${empresaId} ausente (defina CERT_SENHA_<empresaId> ou CERT_SENHA no ambiente)`,
+        `Senha do certificado da empresa ${empresaId} ausente (sem senhaCofre cifrada nem CERT_SENHA_<empresaId>/CERT_SENHA no ambiente)`,
       );
     }
     return { pfx, senha };

@@ -3,6 +3,18 @@
 const { getConfig } = require('../config/environment');
 const { carregarCertificado } = require('../certificado/certificado-service');
 const { montarS1000 } = require('./eventos/s1000');
+const { montarS1010 } = require('./eventos/s1010');
+const { montarS1200 } = require('./eventos/s1200');
+const { montarS1210 } = require('./eventos/s1210');
+const { montarS1299 } = require('./eventos/s1299');
+const { montarS2200 } = require('./eventos/s2200');
+const { montarS2206 } = require('./eventos/s2206');
+const { montarS2230 } = require('./eventos/s2230');
+const { montarS2299 } = require('./eventos/s2299');
+const { montarS2210 } = require('./eventos/sst/s2210');
+const { montarS2220 } = require('./eventos/sst/s2220');
+const { montarS2240 } = require('./eventos/sst/s2240');
+const { montarS3000 } = require('./eventos/s3000');
 const { assinarEvento } = require('./assinatura/xmldsig');
 const { montarLote } = require('./lote/monta-lote');
 const { enviarLote, consultarLote } = require('./operacoes');
@@ -21,7 +33,19 @@ const log = criarLogger('esocial:transmissao');
 
 /** Registro de montadores por tipo de evento (cresce nas próximas etapas). */
 const MONTADORES = Object.freeze({
-  'S-1000': montarS1000,
+  'S-1000': montarS1000, // Inf. Empregador (tabela)
+  'S-1010': montarS1010, // Tabela de Rubricas (tabela)
+  'S-1200': montarS1200, // Remuneração (periódico)
+  'S-1210': montarS1210, // Pagamentos (periódico)
+  'S-1299': montarS1299, // Fechamento periódicos (periódico)
+  'S-2200': montarS2200, // Admissão / cadastramento do vínculo (não-periódico)
+  'S-2206': montarS2206, // Alteração contratual (não-periódico)
+  'S-2230': montarS2230, // Afastamento temporário (não-periódico)
+  'S-2299': montarS2299, // Desligamento (não-periódico)
+  'S-2210': montarS2210, // CAT (evento não-periódico, grupo 1)
+  'S-2220': montarS2220, // Monitoramento da saúde / ASO (SST, grupo 1)
+  'S-2240': montarS2240, // Condições ambientais / agentes nocivos (SST, grupo 1)
+  'S-3000': montarS3000, // Exclusão de eventos (correção)
 });
 
 /**
