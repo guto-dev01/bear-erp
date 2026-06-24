@@ -1,6 +1,5 @@
 'use strict';
 
-const crypto = require('crypto');
 const { CofreCertificado } = require('./cofre-certificado');
 
 /**
@@ -63,8 +62,8 @@ class AppwriteStorageVault extends CofreCertificado {
     return this._env[chaveEspecifica] ?? this._env.CERT_SENHA ?? '';
   }
 
-  /** Resolve o documento do certificado a partir da empresa. */
-  async _resolverCert(empresaId) {
+  /** Resolve o id do arquivo .pfx no Storage a partir da empresa. */
+  async _resolverStorageFileId(empresaId) {
     const empresa = await this._databases.getDocument(
       this._dbId,
       this._empresasCollection,
@@ -82,32 +81,14 @@ class AppwriteStorageVault extends CofreCertificado {
     if (!cert.storageFileId) {
       throw new Error(`Certificado ${certId} sem storageFileId (arquivo .pfx não enviado ao cofre)`);
     }
-    return cert;
-  }
-
-  /**
-   * Resolve a senha do certificado, na ordem:
-   *  1. campo `senhaCert` do documento (cifrado em AES-GCM com CERT_VAULT_KEY);
-   *  2. `senhaProvider` (por padrão, CERT_SENHA_<empresaId> / CERT_SENHA do env).
-   */
-  async _resolverSenha(cert, empresaId) {
-    if (cert.senhaCert) {
-      const chave = this._env.CERT_VAULT_KEY;
-      if (!chave) {
-        throw new Error(
-          `Certificado da empresa ${empresaId} tem senha no cofre, mas CERT_VAULT_KEY não está no ambiente da Function`,
-        );
-      }
-      return decifrarSenha(cert.senhaCert, chave);
-    }
-    return this._senhaProvider(empresaId);
+    return cert.storageFileId;
   }
 
   async carregar(empresaId) {
-    const cert = await this._resolverCert(empresaId);
-    const baixado = await this._storage.getFileDownload(this._bucketId, cert.storageFileId);
+    const fileId = await this._resolverStorageFileId(empresaId);
+    const baixado = await this._storage.getFileDownload(this._bucketId, fileId);
     const pfx = paraBuffer(baixado);
-    const senha = await this._resolverSenha(cert, empresaId);
+    const senha = await this._senhaProvider(empresaId);
     if (!senha) {
       throw new Error(
         `Senha do certificado da empresa ${empresaId} ausente (defina CERT_SENHA_<empresaId> ou CERT_SENHA no ambiente)`,
@@ -115,24 +96,6 @@ class AppwriteStorageVault extends CofreCertificado {
     }
     return { pfx, senha };
   }
-}
-
-/**
- * Decifra a senha do .pfx gravada pelo frontend.
- * Formato: base64(iv[12]) ":" base64(ciphertext+authTag[16]). A chave é o
- * CERT_VAULT_KEY (base64, 32 bytes). Mesmo algoritmo do navegador (Web Crypto).
- */
-function decifrarSenha(blob, chaveBase64) {
-  const sep = String(blob).indexOf(':');
-  if (sep === -1) throw new Error('senhaCert em formato inválido (esperado iv:ciphertext)');
-  const iv = Buffer.from(blob.slice(0, sep), 'base64');
-  const dados = Buffer.from(blob.slice(sep + 1), 'base64');
-  const chave = Buffer.from(chaveBase64, 'base64');
-  const tag = dados.subarray(dados.length - 16);
-  const cipher = dados.subarray(0, dados.length - 16);
-  const decipher = crypto.createDecipheriv('aes-256-gcm', chave, iv);
-  decipher.setAuthTag(tag);
-  return Buffer.concat([decipher.update(cipher), decipher.final()]).toString('utf8');
 }
 
 /** node-appwrite pode retornar ArrayBuffer/Uint8Array/Buffer — normaliza. */
@@ -143,4 +106,4 @@ function paraBuffer(dado) {
   return Buffer.from(dado);
 }
 
-module.exports = { AppwriteStorageVault, paraBuffer, decifrarSenha };
+module.exports = { AppwriteStorageVault, paraBuffer };

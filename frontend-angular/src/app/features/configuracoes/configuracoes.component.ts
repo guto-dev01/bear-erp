@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -8,7 +8,6 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { ThemeService } from '@core/services/theme.service';
-import { CertificadoImportService, CertificadoDoc } from '@core/certificado/certificado-import.service';
 
 interface ConfigSection {
   title: string; icon: string; description: string; color: string; bgColor: string; key: string;
@@ -185,53 +184,16 @@ interface ConfigSection {
             </button>
             <h2 class="text-heading text-lg">Certificado Digital</h2>
           </div>
-
-          @if (loadingCert()) {
-            <div class="flex justify-center p-6">
-              <div class="login__spinner" style="width:28px;height:28px;border:3px solid var(--surface-3);border-top-color:var(--brand-primary);"></div>
+          <div class="p-4 rounded-xl mb-4" style="background:var(--surface-1)">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="material-symbols-rounded" style="color:#34C759">verified</span>
+              <span class="text-sm font-semibold" style="color:var(--text-primary)">Certificado A1 Instalado</span>
             </div>
-          } @else {
-            @if (certAtual(); as c) {
-              <div class="p-4 rounded-xl mb-4" style="background:var(--surface-1)">
-                <div class="flex items-center gap-3 mb-2">
-                  <span class="material-symbols-rounded" [style.color]="certVencido(c) ? '#FF3B30' : '#34C759'">{{ certVencido(c) ? 'error' : 'verified' }}</span>
-                  <span class="text-sm font-semibold" style="color:var(--text-primary)">{{ c.nome }}</span>
-                  <span class="badge" [ngClass]="certVencido(c) ? 'badge--error' : 'badge--success'" style="margin-left:auto"><span class="badge__dot"></span>{{ certVencido(c) ? 'Vencido' : 'Ativo' }}</span>
-                </div>
-                <p class="text-xs" style="color:var(--text-secondary)">Tipo A1 • Válido até {{ c.dataValidade | date:'dd/MM/yyyy':'UTC' }}@if (c.emissor) { • Emissor: {{ c.emissor }}}@if (c.cnpjCpf) { • {{ c.cnpjCpf }}}</p>
-              </div>
-            } @else {
-              <div class="p-4 rounded-xl mb-4 text-center" style="background:var(--surface-1)">
-                <span class="material-symbols-rounded text-3xl" style="color:var(--text-secondary)">badge</span>
-                <p class="text-sm mt-1" style="color:var(--text-secondary)">Nenhum certificado A1 importado</p>
-              </div>
-            }
-          }
-
-          <input #fileCert type="file" accept=".pfx,.p12,application/x-pkcs12" hidden (change)="onArquivoCert($event)">
-
-          @if (!arquivoCert()) {
-            <button class="bear-btn bear-btn--outline" style="padding:0.5rem 1.25rem;" (click)="fileCert.value=''; fileCert.click()" [disabled]="loadingCert()">
-              <span class="material-symbols-rounded text-lg mr-1">upload_file</span> Importar Novo Certificado
-            </button>
-            <p class="text-xs mt-3" style="color:var(--text-secondary)">Arquivo .pfx ou .p12 (A1). A senha é validada no navegador e o arquivo guardado em cofre privado.</p>
-          } @else {
-            <div class="p-4 rounded-xl" style="background:var(--surface-1);border:1px solid var(--border-subtle)">
-              <p class="text-sm font-medium mb-3" style="color:var(--text-primary)">
-                <span class="material-symbols-rounded text-base align-middle mr-1" style="color:var(--brand-primary)">description</span>{{ arquivoCert()!.name }}
-              </p>
-              <mat-form-field appearance="outline" class="w-full">
-                <mat-label>Senha do certificado</mat-label>
-                <input matInput type="password" [(ngModel)]="senhaCert" (keyup.enter)="confirmarImportCert()" autocomplete="off">
-              </mat-form-field>
-              <div class="flex gap-3 justify-end mt-2">
-                <button class="bear-btn bear-btn--outline" (click)="cancelarImportCert()" [disabled]="importandoCert()">Cancelar</button>
-                <button class="bear-btn bear-btn--primary" (click)="confirmarImportCert()" [disabled]="!senhaCert || importandoCert()">
-                  @if (importandoCert()) { Enviando… } @else { Importar }
-                </button>
-              </div>
-            </div>
-          }
+            <p class="text-xs" style="color:var(--text-secondary)">Válido até: 15/08/2026 | Emissor: AC VALID</p>
+          </div>
+          <button class="bear-btn bear-btn--outline" style="padding:0.5rem 1.25rem;">
+            <span class="material-symbols-rounded text-lg mr-1">upload_file</span> Importar Novo Certificado
+          </button>
         </div>
       }
 
@@ -298,17 +260,10 @@ interface ConfigSection {
     </div>
   `,
 })
-export class ConfiguracoesComponent implements OnInit {
+export class ConfiguracoesComponent {
   activeSection = signal<string | null>(null);
   animacoes = true;
   sidebarCompacta = false;
-
-  // Certificado Digital (A1)
-  certAtual = signal<CertificadoDoc | null>(null);
-  loadingCert = signal(false);
-  arquivoCert = signal<File | null>(null);
-  importandoCert = signal(false);
-  senhaCert = '';
 
   configItems: ConfigSection[] = [
     { title: 'Dados da Empresa', icon: 'business', description: 'Razão social, CNPJ, endereço e regime tributário', color: '#007AFF', bgColor: '#ECEBFB', key: 'empresa' },
@@ -334,66 +289,9 @@ export class ConfiguracoesComponent implements OnInit {
     { nome: 'SPED', icon: 'description', descricao: 'Transmissão de escriturações', color: '#30B0C7', bgColor: '#E6F8FB', ativo: true },
   ];
 
-  constructor(
-    public theme: ThemeService,
-    private snackBar: MatSnackBar,
-    private certService: CertificadoImportService,
-  ) {}
-
-  ngOnInit() {
-    this.carregarCert();
-  }
+  constructor(public theme: ThemeService, private snackBar: MatSnackBar) {}
 
   salvar(section: string) {
     this.snackBar.open(`${section} salvas com sucesso!`, 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
-  }
-
-  // ── Certificado Digital ──────────────────────────────────────
-  carregarCert() {
-    this.loadingCert.set(true);
-    this.certService.carregarAtual().subscribe({
-      next: (c) => { this.certAtual.set(c); this.loadingCert.set(false); },
-      error: () => { this.certAtual.set(null); this.loadingCert.set(false); },
-    });
-  }
-
-  certVencido(c: CertificadoDoc): boolean {
-    if (c.status === 'EXPIRADO' || c.status === 'REVOGADO') return true;
-    return !!c.dataValidade && new Date(c.dataValidade + 'T23:59:59') < new Date();
-  }
-
-  onArquivoCert(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0] ?? null;
-    if (!file) return;
-    if (!/\.(pfx|p12)$/i.test(file.name)) {
-      this.snackBar.open('Selecione um arquivo .pfx ou .p12', 'OK', { duration: 3000, panelClass: ['error-snackbar'] });
-      return;
-    }
-    this.senhaCert = '';
-    this.arquivoCert.set(file);
-  }
-
-  cancelarImportCert() {
-    this.arquivoCert.set(null);
-    this.senhaCert = '';
-  }
-
-  async confirmarImportCert() {
-    const file = this.arquivoCert();
-    if (!file || !this.senhaCert || this.importandoCert()) return;
-    this.importandoCert.set(true);
-    try {
-      const cert = await this.certService.importar(file, this.senhaCert);
-      this.certAtual.set(cert);
-      this.arquivoCert.set(null);
-      this.senhaCert = '';
-      this.snackBar.open('Certificado importado com sucesso!', 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Falha ao importar o certificado.';
-      this.snackBar.open(msg, 'OK', { duration: 5000, panelClass: ['error-snackbar'] });
-    } finally {
-      this.importandoCert.set(false);
-    }
   }
 }

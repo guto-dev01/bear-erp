@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Account, Client, Databases, Functions, ID, Models, Permission, Query, Role, Storage } from 'appwrite';
+import { Account, Client, Databases, Functions, ID, Models, Query } from 'appwrite';
 import { from, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from '@env/environment';
@@ -10,7 +10,6 @@ export class AppwriteService {
   private databases: Databases;
   private account_: Account;
   private functions: Functions;
-  private storage: Storage;
   private readonly dbId = environment.appwrite.databaseId;
 
   constructor() {
@@ -20,7 +19,6 @@ export class AppwriteService {
     this.databases = new Databases(this.client);
     this.account_ = new Account(this.client);
     this.functions = new Functions(this.client);
-    this.storage = new Storage(this.client);
   }
 
   /** Account API do Appwrite (autenticação por sessão). */
@@ -74,23 +72,6 @@ export class AppwriteService {
 
   createAccount(email: string, password: string, name: string): Observable<Models.User<Models.Preferences>> {
     return from(this.account_.create(ID.unique(), email, password, name));
-  }
-
-  // ── Storage (Appwrite) ──────────────────────────────────────
-  /**
-   * Envia um arquivo a um bucket. Por padrão restringe o acesso ao próprio
-   * usuário (read/update/delete só do dono); a API key do servidor — usada
-   * pelo cofre nas Functions — lê independentemente das permissões.
-   */
-  createFile(bucketId: string, file: File, userId?: string): Observable<Models.File> {
-    const perms = userId
-      ? [Permission.read(Role.user(userId)), Permission.update(Role.user(userId)), Permission.delete(Role.user(userId))]
-      : undefined;
-    return from(this.storage.createFile(bucketId, ID.unique(), file, perms));
-  }
-
-  deleteFile(bucketId: string, fileId: string): Observable<unknown> {
-    return from(this.storage.deleteFile(bucketId, fileId));
   }
 
   // ── Functions (Appwrite) ────────────────────────────────────

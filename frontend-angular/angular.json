@@ -34,7 +34,6 @@
               }
             ],
             "serviceWorker": "ngsw-config.json",
-            "allowedCommonJsDependencies": ["node-forge"],
             "styles": [
               "src/styles.scss"
             ],
