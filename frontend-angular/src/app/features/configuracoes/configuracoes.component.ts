@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -186,13 +187,13 @@ interface ConfigSection {
           </div>
           <div class="p-4 rounded-xl mb-4" style="background:var(--surface-1)">
             <div class="flex items-center gap-3 mb-2">
-              <span class="material-symbols-rounded" style="color:#34C759">verified</span>
-              <span class="text-sm font-semibold" style="color:var(--text-primary)">Certificado A1 Instalado</span>
+              <span class="material-symbols-rounded" style="color:var(--brand-primary)">badge</span>
+              <span class="text-sm font-semibold" style="color:var(--text-primary)">Gerencie os certificados A1</span>
             </div>
-            <p class="text-xs" style="color:var(--text-secondary)">Válido até: 15/08/2026 | Emissor: AC VALID</p>
+            <p class="text-xs" style="color:var(--text-secondary)">O upload e a gestão do certificado digital A1 ficam na tela Certificados (importa o .pfx, valida no servidor e guarda no cofre).</p>
           </div>
-          <button class="bear-btn bear-btn--outline" style="padding:0.5rem 1.25rem;">
-            <span class="material-symbols-rounded text-lg mr-1">upload_file</span> Importar Novo Certificado
+          <button class="bear-btn bear-btn--primary" style="padding:0.5rem 1.25rem;" (click)="router.navigate(['/certificados'])">
+            <span class="material-symbols-rounded text-lg mr-1">verified</span> Abrir Certificados
           </button>
         </div>
       }
@@ -289,7 +290,7 @@ export class ConfiguracoesComponent {
     { nome: 'SPED', icon: 'description', descricao: 'Transmissão de escriturações', color: '#30B0C7', bgColor: '#E6F8FB', ativo: true },
   ];
 
-  constructor(public theme: ThemeService, private snackBar: MatSnackBar) {}
+  constructor(public theme: ThemeService, private snackBar: MatSnackBar, public router: Router) {}
 
   salvar(section: string) {
     this.snackBar.open(`${section} salvas com sucesso!`, 'OK', { duration: 3000, panelClass: ['success-snackbar'] });
