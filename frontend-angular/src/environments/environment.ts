@@ -12,8 +12,10 @@ export const environment = {
       // CPF e CNPJ atendidos pela mesma função (limite de funções do plano Appwrite).
       consultaCpf: 'consulta-cnpj',
       consultaCnpj: 'consulta-cnpj',
-      ocrCadastro: 'ocr-cadastro',
-      certificadoUpload: 'certificado-upload',
+      ocrCadastro: 'ocr-cadastro', // obsoleto: OCR roda no navegador; slot reaproveitado abaixo
+      // Upload do A1: por limite de funções do plano, reaproveita o slot
+      // 'ocr-cadastro' (OCR migrou p/ o cliente). Ver scripts/deploy-certificado-upload.js.
+      certificadoUpload: 'ocr-cadastro',
     },
   },
 };
