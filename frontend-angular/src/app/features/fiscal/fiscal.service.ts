@@ -3,6 +3,7 @@ import { Observable, of, forkJoin } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
 import { AppwriteService } from '@core/services/appwrite.service';
 import { AuthService } from '@core/auth/auth.service';
+import { environment } from '@env/environment';
 import { calcularDocumento, RegimeTributario, ResultadoItem, TotaisDocumento } from './engine/motor-tributario';
 import { apurarPeriodo } from './engine/apuracao-fiscal';
 import {
@@ -220,6 +221,25 @@ interface DetalheApuracaoIcms extends DetalheApuracao {
   difalRecolher: number;
 }
 
+/**
+ * Retorno da Appwrite Function `nfe-transmissao` (assina A1 do cofre + mTLS).
+ * `operacao: 'autorizar'` devolve situacao/cStat/protocolo; `'status'` o ping.
+ */
+export interface RetornoSefaz {
+  ok: boolean;
+  erro?: string;
+  /** classificação de negócio do cStat (autorizar). */
+  situacao?: 'AUTORIZADA' | 'DENEGADA' | 'PROCESSANDO' | 'REJEITADA' | 'ERRO';
+  cStat?: number;
+  xMotivo?: string;
+  nProt?: string;
+  chNFe?: string;
+  dhRecbto?: string;
+  url?: string;
+  /** status do serviço (operacao: 'status'). */
+  online?: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class FiscalService {
   constructor(private appwrite: AppwriteService, private auth: AuthService) {}
@@ -309,14 +329,83 @@ export class FiscalService {
     return this.appwrite.createDocument<NotaFiscalDoc>(NOTAS, this.buildNfePayload(data));
   }
 
+  /**
+   * Transmite a NF-e à SEFAZ via Appwrite Function `nfe-transmissao`.
+   *
+   * O front gera o XML **não assinado** (`gerarXmlNotaFiscal`) e resolve a UF do
+   * emitente; a Function lê o A1 do cofre (Storage), assina (XML-DSig) e envia por
+   * mTLS ao webservice da UF. Em caso de autorização (cStat 100), persiste
+   * status/protocolo/chave/dataAutorizacao na nota.
+   *
+   * Nunca lança: erros (rede/SEFAZ/cofre) voltam como `{ ok: false, erro }` para
+   * a UI exibir — a SEFAZ é integração externa e pode estar indisponível.
+   */
+  transmitirNfe(notaId: string, ambiente: 'homologacao' | 'producao' = 'homologacao'): Observable<RetornoSefaz> {
+    return forkJoin({
+      gerado: this.gerarXmlNotaFiscal(notaId),
+      empresa: this.empresaDoc(),
+    }).pipe(
+      switchMap(({ gerado, empresa }) => {
+        const uf = String(empresa?.uf ?? '').toUpperCase();
+        if (!uf) {
+          return of<RetornoSefaz>({ ok: false, erro: 'UF do emitente ausente no cadastro da empresa.' });
+        }
+        return this.appwrite.executeFunction<RetornoSefaz>(
+          environment.appwrite.functions.nfeTransmissao,
+          { empresaId: this.empresaId, uf, ambiente, operacao: 'autorizar', xmlNFe: gerado.xml },
+        ).pipe(
+          switchMap(ret => {
+            if (ret?.ok && ret.situacao === 'AUTORIZADA') {
+              return this.appwrite.updateDocument<NotaFiscalDoc>(NOTAS, notaId, {
+                status: 'AUTORIZADA',
+                protocolo: ret.nProt ?? '',
+                chaveAcesso: ret.chNFe ?? gerado.chave,
+                dataAutorizacao: ret.dhRecbto ?? new Date().toISOString(),
+              }).pipe(map(() => ret));
+            }
+            return of(ret ?? { ok: false, erro: 'Resposta vazia da Function de transmissão.' });
+          }),
+          catchError(err => of<RetornoSefaz>({ ok: false, erro: this.erroFunction(err) })),
+        );
+      }),
+    );
+  }
+
+  /**
+   * "Ping" do serviço da SEFAZ (NFeStatusServico4) via a mesma Function: valida
+   * o A1 + mTLS sem emitir nota. É o primeiro teste seguro de uma emissão real.
+   */
+  consultarStatusSefaz(ambiente: 'homologacao' | 'producao' = 'homologacao'): Observable<RetornoSefaz> {
+    return this.empresaDoc().pipe(
+      switchMap(empresa => {
+        const uf = String(empresa?.uf ?? '').toUpperCase();
+        if (!uf) {
+          return of<RetornoSefaz>({ ok: false, erro: 'UF do emitente ausente no cadastro da empresa.' });
+        }
+        return this.appwrite.executeFunction<RetornoSefaz>(
+          environment.appwrite.functions.nfeTransmissao,
+          { empresaId: this.empresaId, uf, ambiente, operacao: 'status' },
+        ).pipe(catchError(err => of<RetornoSefaz>({ ok: false, erro: this.erroFunction(err) })));
+      }),
+    );
+  }
+
+  /** Mensagem amigável de uma falha ao chamar a Appwrite Function. */
+  private erroFunction(err: unknown): string {
+    const e = err as { message?: string; error?: { message?: string } };
+    return e?.error?.message || e?.message || 'Falha ao chamar a Function de transmissão.';
+  }
+
+  /**
+   * Fallback offline: marca a nota como autorizada SEM transmitir (usado quando
+   * não há integração SEFAZ). Para emissão real, use `transmitirNfe`.
+   */
   autorizarNfe(id: string): Observable<NotaFiscalDoc> {
-    // TODO(appwrite): integração externa — transmissão real à SEFAZ não está disponível.
-    // Persistimos a mudança de status; a autorização real exige integração externa.
     return this.appwrite.updateDocument<NotaFiscalDoc>(NOTAS, id, { status: 'AUTORIZADA' });
   }
 
   cancelarNfe(id: string): Observable<NotaFiscalDoc> {
-    // TODO(appwrite): integração externa — evento de cancelamento na SEFAZ não disponível.
+    // TODO(appwrite): evento de cancelamento (NFeRecepcaoEvento4) ainda não implementado na Function.
     return this.appwrite.updateDocument<NotaFiscalDoc>(NOTAS, id, { status: 'CANCELADA' });
   }
 

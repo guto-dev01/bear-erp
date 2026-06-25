@@ -349,9 +349,16 @@ function itemXml(it: ItemNFe): string {
   return `<det nItem="${it.numeroItem}">${prod}${imposto}</det>`;
 }
 
+/**
+ * Literal exigida pela SEFAZ (MOC/Anexo I) na descrição do PRIMEIRO item quando
+ * a NF-e é emitida em homologação (tpAmb=2). Sem ela a nota é rejeitada.
+ */
+export const XPROD_HOMOLOGACAO = 'NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL';
+
 /** Gera o XML da NF-e (não assinado) e devolve a chave de acesso. */
 export function gerarXmlNFe(nota: NotaNFe): { chave: string; xml: string } {
   const { ide, emit, dest, itens } = nota;
+  const tpAmb = ide.tpAmb ?? '2';
   const modelo = '55';
   const cUF = CUF[emit.endereco.uf] ?? '00';
   const cNF = pad(ide.codigoNumerico ?? codigoNumericoPadrao(ide.numero), 8);
@@ -370,7 +377,7 @@ export function gerarXmlNFe(nota: NotaNFe): { chave: string; xml: string } {
     tagR('serie', ide.serie) + tagR('nNF', ide.numero) + tagR('dhEmi', dataEmi) +
     tagR('tpNF', ide.tipoOperacao) + tagR('idDest', ide.idDest ?? '1') +
     tagR('cMunFG', ide.cMunFG ?? emit.endereco.codMunicipio ?? '') + tagR('tpImp', ide.tpImp ?? '1') +
-    tagR('tpEmis', ide.tpEmis ?? '1') + tagR('cDV', chave.slice(-1)) + tagR('tpAmb', ide.tpAmb ?? '2') +
+    tagR('tpEmis', ide.tpEmis ?? '1') + tagR('cDV', chave.slice(-1)) + tagR('tpAmb', tpAmb) +
     tagR('finNFe', ide.finNFe ?? '1') + tagR('indFinal', ide.indFinal ?? '0') + tagR('indPres', ide.indPres ?? '1') +
     tagR('procEmi', '0') + tagR('verProc', 'BearERP-1.0') +
     '</ide>';
@@ -387,7 +394,12 @@ export function gerarXmlNFe(nota: NotaNFe): { chave: string; xml: string } {
     tag('email', dest.email) +
     '</dest>';
 
-  const detXml = itens.map(itemXml).join('');
+  // Homologação (tpAmb=2): a SEFAZ exige a literal de "sem valor fiscal" na
+  // descrição (xProd) do PRIMEIRO item — senão rejeita. Não muta a entrada.
+  const itensEmissao = tpAmb === '2' && itens.length
+    ? itens.map((it, i) => (i === 0 ? { ...it, descricao: XPROD_HOMOLOGACAO } : it))
+    : itens;
+  const detXml = itensEmissao.map(itemXml).join('');
   const totalXml = `<total>${totais(itens)}</total>`;
   const transpXml = `<transp>${tagR('modFrete', '9')}</transp>`;
   const pagXml = `<pag><detPag>${tagR('tPag', '90')}${tagR('vPag', vl(soma(itens, i => i.valorProdutos)))}</detPag></pag>`;
