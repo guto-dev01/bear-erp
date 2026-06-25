@@ -65,7 +65,9 @@ async function transmitirNfe({
   const { xmlEnvelope, soapAction } = envelopeAutorizacao(enviNFe);
 
   // 5) Transmitir (mTLS) e interpretar.
-  const resp = await chamarSoap({ url, xmlEnvelope, material, soapAction, truststoreEstrito, env, httpsModule });
+  // anexarCadeiaCliente:false → a cadeia do A1 NÃO vira trust anchor do servidor
+  // (validação do cert da SEFAZ fica com o truststore/bundle padrão). Ver cliente-soap.
+  const resp = await chamarSoap({ url, xmlEnvelope, material, soapAction, truststoreEstrito, anexarCadeiaCliente: false, env, httpsModule });
   const fault = parseFault(resp.body);
   if (fault) throw new Error(`SOAP Fault: ${fault.faultstring || fault.faultcode}`);
 
@@ -109,7 +111,7 @@ async function statusServico({
     cUF,
     tpAmb: ambiente === 'producao' ? '1' : '2',
   });
-  const resp = await chamarSoap({ url, xmlEnvelope, material, soapAction, truststoreEstrito, env, httpsModule });
+  const resp = await chamarSoap({ url, xmlEnvelope, material, soapAction, truststoreEstrito, anexarCadeiaCliente: false, env, httpsModule });
   const fault = parseFault(resp.body);
   if (fault) throw new Error(`SOAP Fault: ${fault.faultstring || fault.faultcode}`);
   return parseRetornoStatusServico(resp.body);

@@ -11,7 +11,7 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialogModule } from '@angular/material/dialog';
-import { FiscalService } from '../fiscal.service';
+import { FiscalService, RetornoSefaz } from '../fiscal.service';
 
 @Component({
   selector: 'bear-nfe',
@@ -29,14 +29,65 @@ import { FiscalService } from '../fiscal.service';
           <h1 class="page-header__title">NF-e - Nota Fiscal Eletrônica</h1>
           <p class="page-header__subtitle">Gerencie suas notas fiscais eletrônicas de produtos</p>
         </div>
-        <div class="page-header__actions">
+        <div class="page-header__actions" style="display:flex; gap:.5rem; align-items:center;">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" style="width:160px;">
+            <mat-label>Ambiente SEFAZ</mat-label>
+            <mat-select [value]="ambiente()" (selectionChange)="ambiente.set($event.value)">
+              <mat-option value="homologacao">Homologação</mat-option>
+              <mat-option value="producao">Produção</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <button class="bear-btn bear-btn--outline" (click)="consultarStatus()" [disabled]="transmitindo()"
+                  matTooltip="Ping no serviço da SEFAZ — valida o A1 + mTLS sem emitir nota">
+            <span class="material-symbols-rounded">wifi_tethering</span> Status SEFAZ
+          </button>
           <button class="bear-btn bear-btn--primary" (click)="showForm.set(true); resetForm()">
             <span class="material-symbols-rounded">add</span> Nova NF-e
           </button>
         </div>
       </div>
 
-      @if (loading()) {
+      <!-- Resultado da última operação SEFAZ (status / autorização) -->
+      @if (sefazResultado(); as r) {
+        <div class="bear-card" style="margin-bottom:1rem;"
+             [style.border-left]="(resultadoOk(r) ? '4px solid #34C759' : '4px solid #FF3B30')">
+          <div class="flex items-start gap-3 p-4">
+            <span class="material-symbols-rounded" [style.color]="resultadoOk(r) ? '#34C759' : '#FF3B30'">
+              {{ resultadoOk(r) ? 'check_circle' : 'error' }}
+            </span>
+            <div class="flex-1">
+              <p class="text-heading">{{ tituloResultado(r) }}</p>
+              <p class="text-label">{{ detalheResultado(r) }}</p>
+            </div>
+            <button class="bear-btn bear-btn--ghost" (click)="sefazResultado.set(null)" matTooltip="Fechar">
+              <span class="material-symbols-rounded">close</span>
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Pré-visualização do XML gerado no navegador (não assinado) -->
+      @if (preview(); as p) {
+        <div class="bear-card" style="margin-bottom:1rem;">
+          <div class="p-4">
+            <div class="flex items-center justify-between" style="margin-bottom:.5rem;">
+              <h3 class="text-heading">XML da NF-e #{{ p.numero }} — gerado no navegador (não assinado)</h3>
+              <button class="bear-btn bear-btn--ghost" (click)="preview.set(null)" matTooltip="Fechar">
+                <span class="material-symbols-rounded">close</span>
+              </button>
+            </div>
+            <p class="text-label" style="margin-bottom:.5rem;">
+              Chave de acesso (44 dígitos): <code>{{ p.chave }}</code>
+            </p>
+            <pre style="max-height:340px; overflow:auto; background:var(--surface-2,#f5f5f7); padding:.75rem; border-radius:8px; font-size:.72rem; white-space:pre-wrap; word-break:break-all; margin:0;">{{ p.xml }}</pre>
+            <p class="text-label" style="margin-top:.5rem; opacity:.7;">
+              Assinatura A1 e transmissão são server-side (Function <code>nfe-transmissao</code>). Use “Autorizar” na linha para enviar à SEFAZ.
+            </p>
+          </div>
+        </div>
+      }
+
+      @if (loading() || transmitindo()) {
         <div class="flex justify-center p-8">
           <div class="login__spinner" style="width:32px;height:32px;border:3px solid var(--surface-3);border-top-color:var(--brand-primary);"></div>
         </div>
@@ -119,7 +170,7 @@ import { FiscalService } from '../fiscal.service';
               <td mat-cell *matCellDef="let nfe">
                 <div class="flex gap-1">
                   @if (nfe.status === 'RASCUNHO') {
-                    <button class="bear-btn bear-btn--ghost" (click)="autorizar(nfe)" matTooltip="Autorizar">
+                    <button class="bear-btn bear-btn--ghost" (click)="autorizar(nfe)" [disabled]="transmitindo()" matTooltip="Transmitir à SEFAZ">
                       <span class="material-symbols-rounded" style="font-size:18px;">send</span>
                     </button>
                   }
@@ -128,6 +179,9 @@ import { FiscalService } from '../fiscal.service';
                       <span class="material-symbols-rounded" style="font-size:18px;">cancel</span>
                     </button>
                   }
+                  <button class="bear-btn bear-btn--ghost" (click)="verXml(nfe)" matTooltip="Ver XML / chave">
+                    <span class="material-symbols-rounded" style="font-size:18px;">visibility</span>
+                  </button>
                   <button class="bear-btn bear-btn--ghost" (click)="baixarXml(nfe)" matTooltip="Baixar XML">
                     <span class="material-symbols-rounded" style="font-size:18px;">code</span>
                   </button>
@@ -262,6 +316,12 @@ export class NfeComponent implements OnInit {
   displayedColumns = ['numero', 'destinatario', 'valor', 'status', 'acoes'];
   nfeForm: FormGroup;
 
+  // ── Transmissão SEFAZ (Appwrite Function nfe-transmissao) ─────
+  ambiente = signal<'homologacao' | 'producao'>('homologacao');
+  transmitindo = signal(false);
+  sefazResultado = signal<RetornoSefaz | null>(null);
+  preview = signal<{ numero: unknown; chave: string; xml: string } | null>(null);
+
   constructor(private fb: FormBuilder, private fiscalService: FiscalService, private snackBar: MatSnackBar) {
     this.nfeForm = this.fb.group({
       tipo: ['SAIDA', Validators.required],
@@ -312,13 +372,66 @@ export class NfeComponent implements OnInit {
   }
 
   autorizar(nfe: any) {
-    if (confirm(`Autorizar NF-e #${nfe.numero}?`)) {
-      // TODO(appwrite): integração externa — transmissão à SEFAZ não disponível nesta versão.
-      this.fiscalService.autorizarNfe(nfe.id).subscribe({
-        next: () => { this.snackBar.open('Autorização da NF-e requer integração externa (não disponível nesta versão Appwrite)', 'Fechar', { duration: 5000 }); this.loadNfes(); },
-        error: err => this.snackBar.open(err.error?.message || 'Erro', 'Fechar', { duration: 5000 })
-      });
+    if (!confirm(`Transmitir NF-e #${nfe.numero} à SEFAZ (${this.ambiente()})?`)) return;
+    this.transmitindo.set(true);
+    this.sefazResultado.set(null);
+    this.fiscalService.transmitirNfe(nfe.id, this.ambiente()).subscribe({
+      next: r => {
+        this.transmitindo.set(false);
+        this.sefazResultado.set(r);
+        if (r.ok && r.situacao === 'AUTORIZADA') {
+          this.snackBar.open(`NF-e autorizada! Protocolo ${r.nProt}`, 'OK', { duration: 5000 });
+          this.loadNfes();
+        } else {
+          this.snackBar.open(r.erro || r.xMotivo || 'NF-e não autorizada — veja os detalhes acima.', 'Fechar', { duration: 6000 });
+        }
+      },
+      error: () => {
+        this.transmitindo.set(false);
+        this.sefazResultado.set({ ok: false, erro: 'Falha inesperada ao transmitir à SEFAZ.' });
+      },
+    });
+  }
+
+  consultarStatus() {
+    this.transmitindo.set(true);
+    this.sefazResultado.set(null);
+    this.fiscalService.consultarStatusSefaz(this.ambiente()).subscribe({
+      next: r => { this.transmitindo.set(false); this.sefazResultado.set(r); },
+      error: () => { this.transmitindo.set(false); this.sefazResultado.set({ ok: false, erro: 'Falha inesperada ao consultar a SEFAZ.' }); },
+    });
+  }
+
+  verXml(nfe: any) {
+    this.fiscalService.gerarXmlNotaFiscal(nfe.id).subscribe({
+      next: ({ chave, xml }) => this.preview.set({ numero: nfe.numero, chave, xml }),
+      error: err => this.snackBar.open(err.error?.message || 'Erro ao gerar XML', 'Fechar', { duration: 5000 }),
+    });
+  }
+
+  resultadoOk(r: RetornoSefaz): boolean {
+    return !!r.ok && (r.situacao === 'AUTORIZADA' || r.online === true);
+  }
+
+  tituloResultado(r: RetornoSefaz): string {
+    if (!r.ok) return 'Falha na comunicação com a SEFAZ';
+    if (r.online !== undefined) return r.online ? 'Serviço da SEFAZ em operação' : 'Serviço da SEFAZ indisponível';
+    switch (r.situacao) {
+      case 'AUTORIZADA': return 'NF-e autorizada';
+      case 'DENEGADA': return 'NF-e denegada';
+      case 'REJEITADA': return 'NF-e rejeitada';
+      case 'PROCESSANDO': return 'Lote em processamento';
+      default: return 'Retorno da SEFAZ';
     }
+  }
+
+  detalheResultado(r: RetornoSefaz): string {
+    if (!r.ok) return r.erro || 'Erro desconhecido.';
+    const partes: string[] = [];
+    if (r.cStat !== undefined) partes.push(`cStat ${r.cStat}`);
+    if (r.xMotivo) partes.push(r.xMotivo);
+    if (r.nProt) partes.push(`Protocolo ${r.nProt}`);
+    return partes.join(' · ') || 'Sem detalhes.';
   }
 
   cancelar(nfe: any) {

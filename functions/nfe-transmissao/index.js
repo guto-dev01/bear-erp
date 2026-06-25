@@ -1,9 +1,21 @@
 'use strict';
 
+const path = require('path');
+const fs = require('fs');
 const { Client, Databases, Storage } = require('node-appwrite');
 const { AppwriteStorageVault } = require('../_shared/cofre/appwrite-storage-vault');
 const { transmitirNfe, statusServico } = require('../_shared/nfe/transmissao');
 const { criarLogger } = require('../_shared/log/logger');
+
+// CA do servidor da SEFAZ (ICP-Brasil / AC SOLUTI) empacotada com a função em
+// ./certs/sefaz-ca.pem. Resolvida por __dirname (robusto a cwd) e exposta via
+// NODE_EXTRA_CA_CERTS, que o cliente SOAP usa como âncora de confiança no
+// handshake mTLS. Sem isso, o TLS com a SEFAZ falha (unable to get local issuer).
+// Sobrescrevível por uma NODE_EXTRA_CA_CERTS já definida no ambiente.
+if (!process.env.NODE_EXTRA_CA_CERTS) {
+  const caSefaz = path.join(__dirname, 'certs', 'sefaz-ca.pem');
+  if (fs.existsSync(caSefaz)) process.env.NODE_EXTRA_CA_CERTS = caSefaz;
+}
 
 /**
  * Appwrite Function: nfe-transmissao.
@@ -45,8 +57,12 @@ module.exports = async ({ req, res, log, error }) => {
       dbId,
     });
 
+    // Em homologação não exigimos a cadeia Sectigo instalada (truststore estrito
+    // é regra do eSocial 2026); produção permanece estrita.
+    const truststoreEstrito = ambiente === 'producao';
+
     if (operacao === 'status') {
-      const r = await statusServico({ cofre, empresaId, uf, ambiente });
+      const r = await statusServico({ cofre, empresaId, uf, ambiente, truststoreEstrito });
       logger.info('Status do serviço consultado', { empresaId, uf, online: r.online });
       return res.json({ ok: true, ...r });
     }
@@ -54,7 +70,7 @@ module.exports = async ({ req, res, log, error }) => {
     if (!xmlNFe) {
       return res.json({ ok: false, erro: 'xmlNFe é obrigatório para autorizar' }, 400);
     }
-    const r = await transmitirNfe({ cofre, empresaId, uf, xmlNFe, ambiente, idLote });
+    const r = await transmitirNfe({ cofre, empresaId, uf, xmlNFe, ambiente, idLote, truststoreEstrito });
     logger.info('NF-e processada', { empresaId, uf, situacao: r.situacao, nProt: r.nProt });
     return res.json({ ok: true, ...r });
   } catch (e) {
