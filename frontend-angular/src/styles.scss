@@ -190,6 +190,19 @@ body {
     border-radius: var(--radius-full);
     display: flex; align-items: center; justify-content: center;
     font-size: 1.25rem;
+    flex-shrink: 0;
+    // Sensible default so the chip is never dependent on an inline colour.
+    background: var(--surface-2);
+    color: var(--text-secondary);
+
+    // Semantic tints — driven by tokens, so they adapt to light & dark automatically.
+    &--brand   { background: var(--brand-primary-light); color: var(--brand-primary); }
+    &--info    { background: var(--color-info-light);    color: var(--color-info-text); }
+    &--success { background: var(--color-success-light); color: var(--color-success-text); }
+    &--warning { background: var(--color-warning-light); color: var(--color-warning-text); }
+    &--error   { background: var(--color-error-light);   color: var(--color-error-text); }
+    &--purple  { background: var(--brand-accent-light);  color: var(--brand-accent); }
+    &--neutral { background: var(--surface-2);           color: var(--text-secondary); }
   }
   &__value {
     font-size: 1.875rem; font-weight: 700; letter-spacing: -0.028em;
@@ -391,9 +404,15 @@ body {
 // ─── Page Layout ────────────────────────────────────────────────────────────────
 
 .page-container {
-  padding: var(--space-8) var(--space-8);
+  width: 100%;
+  padding: var(--space-8);
   max-width: 1440px;
+  margin-inline: auto;           // centre content — no dead space on wide / ultrawide
   animation: pageEnter 350ms var(--ease-ios) both;
+
+  // Comfortable padding shrinks on smaller viewports so content never feels cramped
+  @media (max-width: 768px) { padding: var(--space-5) var(--space-4); }
+  @media (max-width: 480px) { padding: var(--space-4) var(--space-3); }
 }
 .page-header {
   display: flex; align-items: flex-start; justify-content: space-between;
@@ -402,8 +421,39 @@ body {
   &__subtitle { font-size: 0.9375rem; color: var(--text-secondary); margin-top: var(--space-1); }
   &__breadcrumb { font-size: 0.8125rem; color: var(--text-tertiary); margin-bottom: var(--space-1); display: flex; align-items: center; gap: var(--space-1-5);
     a { color: var(--text-tertiary); text-decoration: none; transition: color 100ms var(--ease-ios); &:hover { color: var(--text-secondary); } } }
-  &__actions { display: flex; align-items: center; gap: var(--space-2); }
+  &__actions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+
+  // On phones: stack the action cluster below the title and let it use full width
+  @media (max-width: 640px) {
+    margin-bottom: var(--space-6);
+    &__title { font-size: 1.5rem; }
+    &__actions { width: 100%; }
+  }
 }
+
+// ─── Responsive table scrolling ───────────────────────────────────────────────
+// Wrap any wide table so it scrolls *inside* its card instead of overflowing the
+// page (which would cause a horizontal scrollbar on the whole body) or being
+// clipped (which hides columns + action buttons on narrow screens).
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+
+  > table, > .mat-mdc-table { min-width: 100%; }
+}
+
+// Safety net for existing pages that drop a table straight into a card without an
+// explicit wrapper: let the card scroll horizontally rather than clip the columns
+// (which hides data + row action buttons on narrow screens). Covers both Material
+// tables and plain <table> elements that are direct children of the card.
+.bear-card:has(> .mat-mdc-table),
+.bear-card:has(> table) {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.mat-mdc-table { min-width: 100%; }
 
 // ─── Focus Ring & Selection ──────────────────────────────────────────────────
 
@@ -574,6 +624,15 @@ body {
   &--xl { width: 40px; height: 40px; border-width: 3px; }
 }
 
+// Legacy `.login__spinner` is scoped to the login component, but ~30 feature pages
+// reuse the class name with only an inline border set — so elsewhere it rendered as
+// a static square. Supply the missing rounding + rotation globally so every loading
+// spinner in the app actually spins. (Login's own scoped rule still wins there.)
+.login__spinner {
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
 // ─── Keyframes & Animation Utilities ──────────────────────────────────────────
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -606,6 +665,38 @@ body {
   .text-gray-900 { color: var(--text-title) !important; }
   .text-gray-600, .text-gray-500 { color: var(--text-secondary) !important; }
   .border-gray-200, .border-gray-100 { border-color: var(--separator) !important; }
+}
+
+// ─── Dark-mode safety net for static inline pastel chips ──────────────────────
+// Many feature pages paint icon chips with a hard-coded light pastel via a static
+// `style="background: #XXXXXX"`. Those read as glaring blocks on the dark canvas
+// and can't be reached by a class. Here we remap the recurring pastels to soft,
+// theme-correct translucent tints. The vivid icon colour set alongside them stays
+// legible on the darker fill. (Prefer the `.stat-card__icon--*` modifiers for new
+// code; this net covers the existing pages.)
+[data-theme="dark"] {
+  [style*="#E5F1FF"], [style*="#e5f1ff"],
+  [style*="#CCE3FF"] { background: var(--color-info-light) !important; }
+
+  [style*="#E9FAEF"], [style*="#e9faef"],
+  [style*="#DCF3DA"], [style*="#DCF3E0"], [style*="#D1F3DA"],
+  [style*="#ecfdf5"], [style*="#ECFDF5"] { background: var(--color-success-light) !important; }
+
+  [style*="#FFECEB"], [style*="#ffeceb"],
+  [style*="#FFD0CD"] { background: var(--color-error-light) !important; }
+
+  [style*="#FFF4E5"], [style*="#fff4e5"],
+  [style*="#FFEACC"] { background: var(--color-warning-light) !important; }
+
+  [style*="#ECEBFB"], [style*="#ecebfb"],
+  [style*="#DAD9F6"],
+  [style*="#eef2ff"], [style*="#EEF2FF"] { background: var(--brand-primary-light) !important; }
+
+  [style*="#F2EBFB"], [style*="#f2ebfb"],
+  [style*="#E6E3F9"] { background: var(--brand-accent-light) !important; }
+
+  [style*="#E6F8FB"], [style*="#e6f8fb"],
+  [style*="#CFF0F4"] { background: rgba(100, 210, 255, 0.16) !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {

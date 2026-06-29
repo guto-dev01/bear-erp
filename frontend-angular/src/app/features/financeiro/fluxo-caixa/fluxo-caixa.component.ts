@@ -49,7 +49,7 @@ import { FinanceiroService } from '../financeiro.service';
       <!-- Loading -->
       @if (loading()) {
         <div class="flex justify-center py-12">
-          <div class="login__spinner" style="width: 32px; height: 32px; border: 3px solid var(--surface-3); border-top-color: var(--brand-primary);"></div>
+          <div class="bear-spinner bear-spinner--xl"></div>
         </div>
       }
 
@@ -57,28 +57,28 @@ import { FinanceiroService } from '../financeiro.service';
         <!-- KPI Summary -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div class="stat-card animate-fade-in-up">
-            <div class="stat-card__icon" style="background: #E5F1FF; color: #007AFF;">
+            <div class="stat-card__icon stat-card__icon--info">
               <span class="material-symbols-rounded">account_balance_wallet</span>
             </div>
             <span class="stat-card__value">{{ fluxo().saldoInicial | currency:'BRL' }}</span>
             <span class="stat-card__label">Saldo Inicial</span>
           </div>
           <div class="stat-card animate-fade-in-up" style="animation-delay: 60ms">
-            <div class="stat-card__icon" style="background: #E9FAEF; color: #34C759;">
+            <div class="stat-card__icon stat-card__icon--success">
               <span class="material-symbols-rounded">trending_up</span>
             </div>
             <span class="stat-card__value">{{ fluxo().totalEntradas | currency:'BRL' }}</span>
             <span class="stat-card__label">Entradas</span>
           </div>
           <div class="stat-card animate-fade-in-up" style="animation-delay: 120ms">
-            <div class="stat-card__icon" style="background: #FFECEB; color: #FF3B30;">
+            <div class="stat-card__icon stat-card__icon--error">
               <span class="material-symbols-rounded">trending_down</span>
             </div>
             <span class="stat-card__value">{{ fluxo().totalSaidas | currency:'BRL' }}</span>
             <span class="stat-card__label">Saídas</span>
           </div>
           <div class="stat-card animate-fade-in-up" style="animation-delay: 180ms">
-            <div class="stat-card__icon" [style.background]="fluxo().saldoFinal >= 0 ? '#E9FAEF' : '#FFECEB'" [style.color]="fluxo().saldoFinal >= 0 ? '#34C759' : '#FF3B30'">
+            <div class="stat-card__icon" [ngClass]="fluxo().saldoFinal >= 0 ? 'stat-card__icon--success' : 'stat-card__icon--error'">
               <span class="material-symbols-rounded">account_balance</span>
             </div>
             <span class="stat-card__value" [ngClass]="fluxo().saldoFinal >= 0 ? 'text-emerald-600' : 'text-red-600'">{{ fluxo().saldoFinal | currency:'BRL' }}</span>
@@ -88,6 +88,7 @@ import { FinanceiroService } from '../financeiro.service';
 
         <!-- Data Table -->
         <div class="bear-card overflow-hidden animate-fade-in-up" style="animation-delay: 240ms">
+          <div class="table-scroll">
           <table mat-table [dataSource]="fluxo().itens || []" class="w-full">
             <ng-container matColumnDef="data">
               <th mat-header-cell *matHeaderCellDef>Data</th>
@@ -129,6 +130,7 @@ import { FinanceiroService } from '../financeiro.service';
             <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
           </table>
+          </div>
 
           @if (!loading() && (fluxo().itens || []).length === 0) {
             <div class="empty-state">
