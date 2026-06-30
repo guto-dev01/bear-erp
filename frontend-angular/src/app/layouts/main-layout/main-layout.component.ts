@@ -450,6 +450,7 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
             { label: 'Balanço Patrimonial', icon: 'account_balance_wallet', route: '/contabilidade/balanco-patrimonial' },
             { label: 'Centros de Custo', icon: 'hub', route: '/contabilidade/centros-custo' },
             { label: 'Contab. Automática', icon: 'auto_fix_high', route: '/contabilidade/contabilidade-automatica' },
+            { label: 'Teste Bear', icon: 'science', route: '/contabilidade/teste-bear' },
           ],
         },
         {

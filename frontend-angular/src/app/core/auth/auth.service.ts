@@ -198,6 +198,7 @@ export class AuthService {
               email: doc.email || base.email,
               tenantId,
               empresaAtualId: doc.empresaAtualId ?? (doc.empresaIds?.[0] ?? base.empresaAtualId),
+              empresaIds: doc.empresaIds ?? [],
               // Coleção sem papéis/permissões → preserva o que veio do prefs.
               roles: myRoles.length ? myRoles.map(r => r.nome) : base.roles,
               permissoes: permissoes.length ? permissoes : base.permissoes,

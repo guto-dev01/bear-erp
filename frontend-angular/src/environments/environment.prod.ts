@@ -12,8 +12,13 @@ export const environment = {
       // CPF e CNPJ atendidos pela mesma função (limite de funções do plano Appwrite).
       consultaCpf: 'consulta-cnpj',
       consultaCnpj: 'consulta-cnpj',
-      ocrCadastro: 'ocr-cadastro',
-      certificadoUpload: 'certificado-upload',
+      ocrCadastro: 'ocr-cadastro', // obsoleto: OCR roda no navegador; slot reaproveitado abaixo
+      // Upload do A1 reaproveita o slot 'ocr-cadastro' (limite de funções do plano).
+      certificadoUpload: 'ocr-cadastro',
+      // Transmissão da NF-e à SEFAZ (assina A1 do cofre + mTLS). Reaproveita o slot
+      // do cofre (ocr-cadastro) via dispatcher functions/fiscal-cofre — limite de
+      // funções do plano Appwrite. Ver scripts/deploy-nfe-transmissao.js.
+      nfeTransmissao: 'ocr-cadastro',
     },
   },
 };

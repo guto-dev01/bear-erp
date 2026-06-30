@@ -203,6 +203,214 @@ interface DiarioLanc {
           </div>
         }
 
+        @if (sub() === 'simplificado') {
+          <div class="bear-card p-6 animate-fade-in-up">
+            <div class="flex items-center gap-2 mb-1">
+              <h3 class="text-base font-semibold">Lançamento Simplificado</h3>
+              <span class="badge badge--info"><span class="badge__dot"></span>partida única</span>
+            </div>
+            <p class="text-sm mb-4" style="color:var(--text-secondary)">Débito e crédito numa única linha — o mesmo valor é lançado nos dois lados automaticamente.</p>
+            <form [formGroup]="simplesForm" (ngSubmit)="salvarSimplificado()">
+              <div class="grid grid-cols-12 gap-3 mb-2">
+                <mat-form-field appearance="outline" class="col-span-3">
+                  <mat-label>Data</mat-label><input matInput type="date" formControlName="data">
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="col-span-7">
+                  <mat-label>Histórico</mat-label>
+                  <input matInput formControlName="historico" [matTooltip]="'Selecione um histórico padrão em Cadastro › Históricos'">
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="col-span-2">
+                  <mat-label>Tipo</mat-label>
+                  <mat-select formControlName="tipo">
+                    <mat-option value="NORMAL">Normal</mat-option>
+                    <mat-option value="ABERTURA">Abertura</mat-option>
+                    <mat-option value="ENCERRAMENTO">Encerramento</mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+
+              <div class="rounded-lg p-3" style="background:var(--surface-2)">
+                <div class="grid grid-cols-12 gap-2 text-xs font-semibold px-1 mb-1" style="color:var(--text-secondary)">
+                  <div class="col-span-5">Conta de Débito</div><div class="col-span-5">Conta de Crédito</div><div class="col-span-2">Valor</div>
+                </div>
+                <div class="grid grid-cols-12 gap-2 items-center">
+                  <mat-form-field appearance="outline" class="col-span-5">
+                    <mat-label>Débito</mat-label>
+                    <mat-select formControlName="contaDebitoId">
+                      @for (c of contas(); track c.id) {
+                        <mat-option [value]="c.id">{{ c.codigo }} — {{ c.descricao || c.nome }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="col-span-5">
+                    <mat-label>Crédito</mat-label>
+                    <mat-select formControlName="contaCreditoId">
+                      @for (c of contas(); track c.id) {
+                        <mat-option [value]="c.id">{{ c.codigo }} — {{ c.descricao || c.nome }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="col-span-2">
+                    <mat-label>Valor</mat-label><input matInput type="number" formControlName="valor">
+                  </mat-form-field>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between mt-4">
+                <div class="text-sm">
+                  @if (simplesMesmaConta()) {
+                    <span class="badge badge--error"><span class="badge__dot"></span>Débito e crédito não podem ser a mesma conta</span>
+                  } @else if (simplesForm.valid) {
+                    <span class="badge badge--success"><span class="badge__dot"></span>Pronto para lançar</span>
+                  } @else {
+                    <span style="color:var(--text-secondary)">Informe conta de débito, conta de crédito e valor.</span>
+                  }
+                </div>
+                <button type="submit" class="bear-btn bear-btn--primary" style="padding:0.5rem 1.5rem" [disabled]="simplesForm.invalid || simplesMesmaConta()">
+                  <span class="material-symbols-rounded text-lg mr-1">bolt</span> Lançar
+                </button>
+              </div>
+            </form>
+          </div>
+        }
+
+        @if (sub() === 'fixos') {
+          <div class="bear-card p-6 animate-fade-in-up mb-4">
+            <div class="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <h3 class="text-base font-semibold">Lançamentos Fixos (recorrentes)</h3>
+                <p class="text-sm" style="color:var(--text-secondary)">Modelos que se repetem a cada competência. Gere os lançamentos do mês com um clique — sem duplicar.</p>
+              </div>
+              <button class="bear-btn bear-btn--primary" style="padding:0.5rem 1.25rem" [disabled]="gerandoFixos()" (click)="gerarFixos()">
+                @if (gerandoFixos()) {
+                  <div class="login__spinner" style="width:18px;height:18px;border:3px solid var(--surface-3);border-top-color:#fff;margin-right:.5rem"></div>
+                } @else {
+                  <span class="material-symbols-rounded text-lg mr-1">bolt</span>
+                }
+                Gerar de {{ mesNome() }}/{{ ano() }}
+              </button>
+            </div>
+          </div>
+
+          <div class="bear-card p-6 animate-fade-in-up mb-4">
+            <h4 class="text-sm font-semibold mb-3">{{ fixoEditId() ? 'Editar fixo' : 'Novo fixo' }}</h4>
+            <form [formGroup]="fixosForm" (ngSubmit)="salvarFixo()">
+              <div class="grid grid-cols-12 gap-3">
+                <mat-form-field appearance="outline" class="col-span-12 md:col-span-8">
+                  <mat-label>Histórico</mat-label><input matInput formControlName="historico">
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="col-span-6 md:col-span-2">
+                  <mat-label>Valor</mat-label><input matInput type="number" formControlName="valor">
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="col-span-6 md:col-span-2">
+                  <mat-label>Dia do mês</mat-label><input matInput type="number" min="1" max="31" formControlName="diaVencimento">
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="col-span-12 md:col-span-5">
+                  <mat-label>Conta de Débito</mat-label>
+                  <mat-select formControlName="contaDebitoId">
+                    @for (c of contas(); track c.id) { <mat-option [value]="c.id">{{ c.codigo }} — {{ c.descricao || c.nome }}</mat-option> }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="col-span-12 md:col-span-5">
+                  <mat-label>Conta de Crédito</mat-label>
+                  <mat-select formControlName="contaCreditoId">
+                    @for (c of contas(); track c.id) { <mat-option [value]="c.id">{{ c.codigo }} — {{ c.descricao || c.nome }}</mat-option> }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="col-span-12 md:col-span-2">
+                  <mat-label>Tipo</mat-label>
+                  <mat-select formControlName="tipo">
+                    <mat-option value="NORMAL">Normal</mat-option>
+                    <mat-option value="ABERTURA">Abertura</mat-option>
+                    <mat-option value="ENCERRAMENTO">Encerramento</mat-option>
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="col-span-6 md:col-span-3">
+                  <mat-label>Vigência início</mat-label><input matInput placeholder="2026-01" formControlName="vigenciaInicio">
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="col-span-6 md:col-span-3">
+                  <mat-label>Vigência fim</mat-label><input matInput placeholder="2026-12" formControlName="vigenciaFim">
+                </mat-form-field>
+                <label class="col-span-12 md:col-span-3 flex items-center gap-2 text-sm pb-5">
+                  <input type="checkbox" formControlName="ativo"> Ativo
+                </label>
+              </div>
+
+              <div class="flex items-center justify-between mt-1">
+                <div class="text-sm">
+                  @if (fixoMesmaConta()) {
+                    <span class="badge badge--error"><span class="badge__dot"></span>Débito e crédito não podem ser a mesma conta</span>
+                  }
+                </div>
+                <div class="flex items-center gap-2">
+                  @if (fixoEditId()) {
+                    <button type="button" class="bear-btn bear-btn--outline" style="padding:0.5rem 1rem" (click)="cancelarEdicaoFixo()">Cancelar</button>
+                  }
+                  <button type="submit" class="bear-btn bear-btn--primary" style="padding:0.5rem 1.5rem" [disabled]="fixosForm.invalid || fixoMesmaConta()">
+                    <span class="material-symbols-rounded text-lg mr-1">save</span> {{ fixoEditId() ? 'Salvar' : 'Adicionar' }}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <div class="bear-card overflow-hidden animate-fade-in-up">
+            @if (fixos().length === 0) {
+              <div class="empty-state"><div class="empty-state__icon"><span class="material-symbols-rounded">push_pin</span></div>
+                <h3 class="empty-state__title">Nenhum lançamento fixo cadastrado</h3>
+                <p class="empty-state__description">Cadastre um modelo acima e clique em “Gerar” a cada competência.</p>
+              </div>
+            } @else {
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead style="background:var(--surface-2)">
+                    <tr>
+                      <th class="text-left px-3 py-2 font-semibold" style="color:var(--text-secondary)">Histórico</th>
+                      <th class="text-left px-3 py-2 font-semibold" style="color:var(--text-secondary)">Débito</th>
+                      <th class="text-left px-3 py-2 font-semibold" style="color:var(--text-secondary)">Crédito</th>
+                      <th class="text-right px-3 py-2 font-semibold" style="color:var(--text-secondary)">Valor</th>
+                      <th class="text-center px-3 py-2 font-semibold" style="color:var(--text-secondary)">Dia</th>
+                      <th class="text-left px-3 py-2 font-semibold" style="color:var(--text-secondary)">Vigência</th>
+                      <th class="text-center px-3 py-2 font-semibold" style="color:var(--text-secondary)">Status</th>
+                      <th class="text-right px-3 py-2 font-semibold" style="color:var(--text-secondary)">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (f of fixos(); track f.id) {
+                      <tr class="border-t" style="border-color:var(--surface-3)">
+                        <td class="px-3 py-2">{{ f.historico }}</td>
+                        <td class="px-3 py-2 font-mono text-xs">{{ f.contaDebitoCodigo || contaLabel(f.contaDebitoId) }}</td>
+                        <td class="px-3 py-2 font-mono text-xs">{{ f.contaCreditoCodigo || contaLabel(f.contaCreditoId) }}</td>
+                        <td class="px-3 py-2 text-right font-semibold">{{ f.valor | currency:'BRL' }}</td>
+                        <td class="px-3 py-2 text-center">{{ f.diaVencimento }}</td>
+                        <td class="px-3 py-2 text-xs">{{ f.vigenciaInicio || '—' }}{{ f.vigenciaFim ? ' → ' + f.vigenciaFim : '' }}</td>
+                        <td class="px-3 py-2 text-center">
+                          <span class="badge" [ngClass]="f.ativo ? 'badge--success' : 'badge--muted'"><span class="badge__dot"></span>{{ f.ativo ? 'Ativo' : 'Inativo' }}</span>
+                        </td>
+                        <td class="px-3 py-2">
+                          <div class="flex items-center justify-end gap-1">
+                            <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem" [matTooltip]="f.ativo ? 'Desativar' : 'Ativar'" (click)="toggleFixoAtivo(f)">
+                              <span class="material-symbols-rounded text-sm">{{ f.ativo ? 'toggle_on' : 'toggle_off' }}</span>
+                            </button>
+                            <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem" matTooltip="Editar" (click)="editarFixo(f)">
+                              <span class="material-symbols-rounded text-sm">edit</span>
+                            </button>
+                            <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem;color:#FF3B30" matTooltip="Excluir" (click)="excluirFixo(f)">
+                              <span class="material-symbols-rounded text-sm">delete</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        }
+
         @if (sub() === 'abrir') {
           <div class="bear-card overflow-hidden animate-fade-in-up">
             <table mat-table [dataSource]="lancamentos()" class="w-full">
@@ -856,7 +1064,7 @@ export class TesteBearComponent implements OnInit {
 
   // Funções com tela própria já implementada; o restante usa o painel de função.
   private static IMPL: Record<string, string[]> = {
-    lancamentos: ['manual', 'lote', 'abrir', 'importar', 'exportar'],
+    lancamentos: ['manual', 'lote', 'abrir', 'simplificado', 'fixos', 'importar', 'exportar'],
     consulta: ['localizar', 'saldos'],
     livros: ['diario', 'razao', 'balancete', 'balanco', 'dre'],
   };
@@ -901,6 +1109,31 @@ export class TesteBearComponent implements OnInit {
   lancForm: FormGroup;
   colsLanc = ['numero', 'data', 'historico', 'valor', 'status', 'acoes'];
   get partidas(): FormArray { return this.lancForm.get('partidas') as FormArray; }
+
+  // ── Lançamento simplificado (débito × crédito em uma linha) ─────
+  simplesForm: FormGroup;
+  /** Débito e crédito não podem ser a mesma conta. */
+  simplesMesmaConta(): boolean {
+    const d = this.simplesForm.get('contaDebitoId')?.value;
+    const c = this.simplesForm.get('contaCreditoId')?.value;
+    return !!d && d === c;
+  }
+
+  // ── Lançamentos fixos (recorrentes) ────────────────────────────
+  fixosForm!: FormGroup;
+  fixos = signal<any[]>([]);
+  fixoEditId = signal<string | null>(null);
+  gerandoFixos = signal(false);
+  fixoMesmaConta(): boolean {
+    const d = this.fixosForm.get('contaDebitoId')?.value;
+    const c = this.fixosForm.get('contaCreditoId')?.value;
+    return !!d && d === c;
+  }
+  /** Rótulo "código — descrição" de uma conta pelo id (para a tabela de fixos). */
+  contaLabel(id: string): string {
+    const c = this.contas().find((x: any) => x.id === id);
+    return c ? `${c.codigo} — ${c.descricao || c.nome}` : '—';
+  }
 
   // ── Consulta ───────────────────────────────────────────────────
   consultaContaId = signal<string>('');
@@ -1005,12 +1238,34 @@ export class TesteBearComponent implements OnInit {
     });
     this.adicionarPartida('DEBITO');
     this.adicionarPartida('CREDITO');
+
+    this.simplesForm = this.fb.group({
+      data: [new Date().toISOString().split('T')[0], Validators.required],
+      historico: ['', Validators.required],
+      tipo: ['NORMAL'],
+      contaDebitoId: ['', Validators.required],
+      contaCreditoId: ['', Validators.required],
+      valor: [null, [Validators.required, Validators.min(0.01)]],
+    });
+
+    this.fixosForm = this.fb.group({
+      historico: ['', Validators.required],
+      contaDebitoId: ['', Validators.required],
+      contaCreditoId: ['', Validators.required],
+      valor: [null, [Validators.required, Validators.min(0.01)]],
+      diaVencimento: [1, [Validators.required, Validators.min(1), Validators.max(31)]],
+      tipo: ['NORMAL'],
+      vigenciaInicio: [''],
+      vigenciaFim: [''],
+      ativo: [true],
+    });
   }
 
   ngOnInit() {
     this.service.listContasAnaliticas().subscribe({ next: c => this.contas.set(c), error: () => {} });
     this.service.getEmpresaAtual().subscribe({ next: e => this.aplicarEmpresa(e), error: () => {} });
     this.carregarLancamentos();
+    this.carregarFixos();
   }
 
   /** Aplica os dados do cadastro de empresa aos termos dos livros. */
@@ -1043,6 +1298,7 @@ export class TesteBearComponent implements OnInit {
     this.sub.set(id);
     if (this.menu() === 'cadastro' && this.implementada()) this.carregarCadastro();
     if (this.menu() === 'lancamentos' && id === 'abrir') this.carregarLancamentos();
+    if (this.menu() === 'lancamentos' && id === 'fixos') this.carregarFixos();
   }
 
   // ── 1. LANÇAMENTOS ─────────────────────────────────────────────
@@ -1073,6 +1329,77 @@ export class TesteBearComponent implements OnInit {
         this.carregarLancamentos();
       },
       error: e => this.toast(e.error?.message || 'Erro ao lançar', true),
+    });
+  }
+  /** Lançamento simplificado: 1 débito × 1 crédito, mesmo valor, em uma única linha. */
+  salvarSimplificado() {
+    if (this.simplesForm.invalid || this.simplesMesmaConta()) return;
+    this.service.createLancamento({ ...this.simplesForm.value }).subscribe({
+      next: () => {
+        this.toast('Lançamento registrado!');
+        this.simplesForm.patchValue({ historico: '', contaDebitoId: '', contaCreditoId: '', valor: null });
+        this.simplesForm.markAsPristine();
+        this.simplesForm.markAsUntouched();
+        this.carregarLancamentos();
+      },
+      error: e => this.toast(e.error?.message || 'Erro ao lançar', true),
+    });
+  }
+
+  // ── Lançamentos fixos (recorrentes) ────────────────────────────
+  carregarFixos() {
+    this.service.listFixos().subscribe({ next: f => this.fixos.set(f), error: () => this.fixos.set([]) });
+  }
+  private resetFixoForm() {
+    this.fixoEditId.set(null);
+    this.fixosForm.reset({ historico: '', contaDebitoId: '', contaCreditoId: '', valor: null, diaVencimento: 1, tipo: 'NORMAL', vigenciaInicio: '', vigenciaFim: '', ativo: true });
+  }
+  cancelarEdicaoFixo() { this.resetFixoForm(); }
+  editarFixo(f: any) {
+    this.fixoEditId.set(f.id);
+    this.fixosForm.patchValue({
+      historico: f.historico, contaDebitoId: f.contaDebitoId, contaCreditoId: f.contaCreditoId,
+      valor: f.valor, diaVencimento: f.diaVencimento, tipo: f.tipo,
+      vigenciaInicio: f.vigenciaInicio, vigenciaFim: f.vigenciaFim, ativo: f.ativo,
+    });
+  }
+  salvarFixo() {
+    if (this.fixosForm.invalid || this.fixoMesmaConta()) return;
+    const v = this.fixosForm.value;
+    const cd = this.contas().find((c: any) => c.id === v.contaDebitoId);
+    const cc = this.contas().find((c: any) => c.id === v.contaCreditoId);
+    const payload = { ...v, contaDebitoCodigo: cd?.codigo ?? '', contaCreditoCodigo: cc?.codigo ?? '' };
+    const id = this.fixoEditId();
+    const req = id ? this.service.updateFixo(id, payload) : this.service.createFixo(payload);
+    req.subscribe({
+      next: () => { this.toast(id ? 'Fixo atualizado!' : 'Fixo cadastrado!'); this.resetFixoForm(); this.carregarFixos(); },
+      error: e => this.toast(e.error?.message || 'Erro ao salvar fixo', true),
+    });
+  }
+  toggleFixoAtivo(f: any) {
+    this.service.setFixoAtivo(f.id, !f.ativo).subscribe({
+      next: () => { this.toast(f.ativo ? 'Fixo desativado' : 'Fixo ativado'); this.carregarFixos(); },
+      error: e => this.toast(e.error?.message || 'Erro', true),
+    });
+  }
+  excluirFixo(f: any) {
+    if (!confirm(`Excluir o fixo "${f.historico}"? Os lançamentos já gerados não são afetados.`)) return;
+    this.service.deleteFixo(f.id).subscribe({
+      next: () => { this.toast('Fixo excluído'); if (this.fixoEditId() === f.id) this.resetFixoForm(); this.carregarFixos(); },
+      error: e => this.toast(e.error?.message || 'Erro ao excluir', true),
+    });
+  }
+  gerarFixos() {
+    this.gerandoFixos.set(true);
+    this.service.gerarFixos(this.ano(), this.mes()).subscribe({
+      next: r => {
+        this.gerandoFixos.set(false);
+        if (r.total === 0) this.toast('Nenhum fixo ativo vigente nesta competência');
+        else if (r.criados === 0) this.toast(`Nada a gerar — os ${r.pulados} fixo(s) já foram lançados em ${this.mesNome()}/${this.ano()}`);
+        else this.toast(`${r.criados} lançamento(s) gerado(s)${r.pulados ? ` · ${r.pulados} já existiam` : ''}`);
+        this.carregarLancamentos();
+      },
+      error: e => { this.gerandoFixos.set(false); this.toast(e.error?.message || 'Erro ao gerar fixos', true); },
     });
   }
   carregarLancamentos() {

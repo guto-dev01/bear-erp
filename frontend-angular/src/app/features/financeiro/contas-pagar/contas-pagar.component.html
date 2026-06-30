@@ -22,7 +22,7 @@
   <!-- Loading -->
   @if (loading()) {
     <div class="flex justify-center py-12">
-      <div class="login__spinner" style="width: 32px; height: 32px; border: 3px solid var(--surface-3); border-top-color: var(--brand-primary);"></div>
+      <div class="bear-spinner bear-spinner--xl"></div>
     </div>
   }
 
@@ -31,28 +31,28 @@
     <!-- KPI Summary -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       <div class="stat-card animate-fade-in-up">
-        <div class="stat-card__icon" style="background: #E5F1FF; color: #007AFF;">
+        <div class="stat-card__icon stat-card__icon--info">
           <span class="material-symbols-rounded">receipt_long</span>
         </div>
         <span class="stat-card__value">{{ totalContas() }}</span>
         <span class="stat-card__label">Total</span>
       </div>
       <div class="stat-card animate-fade-in-up" style="animation-delay: 60ms">
-        <div class="stat-card__icon" style="background: #FFF4E5; color: #FF9500;">
+        <div class="stat-card__icon stat-card__icon--warning">
           <span class="material-symbols-rounded">pending</span>
         </div>
         <span class="stat-card__value">{{ contasAbertas() }}</span>
         <span class="stat-card__label">Abertas</span>
       </div>
       <div class="stat-card animate-fade-in-up" style="animation-delay: 120ms">
-        <div class="stat-card__icon" style="background: #FFECEB; color: #FF3B30;">
+        <div class="stat-card__icon stat-card__icon--error">
           <span class="material-symbols-rounded">warning</span>
         </div>
         <span class="stat-card__value">{{ contasVencidas() }}</span>
         <span class="stat-card__label">Vencidas</span>
       </div>
       <div class="stat-card animate-fade-in-up" style="animation-delay: 180ms">
-        <div class="stat-card__icon" style="background: #E9FAEF; color: #34C759;">
+        <div class="stat-card__icon stat-card__icon--success">
           <span class="material-symbols-rounded">check_circle</span>
         </div>
         <span class="stat-card__value">{{ contasPagas() }}</span>
@@ -62,6 +62,7 @@
 
     <!-- Data Table -->
     <div class="bear-card overflow-hidden animate-fade-in-up" style="animation-delay: 240ms">
+      <div class="table-scroll">
       <table mat-table [dataSource]="contas()" class="w-full">
         <ng-container matColumnDef="numero">
           <th mat-header-cell *matHeaderCellDef>Número</th>
@@ -118,6 +119,7 @@
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
         <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
       </table>
+      </div>
 
       @if (!loading() && contas().length === 0) {
         <div class="empty-state">
