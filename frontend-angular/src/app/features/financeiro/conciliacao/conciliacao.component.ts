@@ -55,13 +55,14 @@ import { FinanceiroService } from '../financeiro.service';
       <!-- Loading -->
       @if (loading()) {
         <div class="flex justify-center py-12">
-          <div class="login__spinner" style="width: 32px; height: 32px; border: 3px solid var(--surface-3); border-top-color: var(--brand-primary);"></div>
+          <div class="bear-spinner bear-spinner--xl"></div>
         </div>
       }
 
       <!-- Data Table -->
       @if (movimentos().length > 0) {
         <div class="bear-card overflow-hidden animate-fade-in-up">
+          <div class="table-scroll">
           <table mat-table [dataSource]="movimentos()" class="w-full">
             <ng-container matColumnDef="select">
               <th mat-header-cell *matHeaderCellDef>
@@ -112,6 +113,7 @@ import { FinanceiroService } from '../financeiro.service';
             <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: displayedColumns;" (click)="selection.toggle(row)" class="cursor-pointer"></tr>
           </table>
+          </div>
         </div>
       }
 

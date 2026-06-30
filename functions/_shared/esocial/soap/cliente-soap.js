@@ -23,6 +23,7 @@ const { agentOptions } = require('../../soap/truststore-sectigo');
  * @param {string} [p.soapAction='']
  * @param {number} [p.timeoutMs=60000]
  * @param {boolean} [p.truststoreEstrito=true]
+ * @param {boolean} [p.anexarCadeiaCliente=true]  false p/ SEFAZ (não usar a cadeia do cert como trust anchor do servidor)
  * @param {object} [p.env=process.env]
  * @param {object} [p.httpsModule=https]  injeção p/ teste
  * @returns {Promise<{ status: number, body: string, headers: object }>}
@@ -34,6 +35,7 @@ function chamarSoap({
   soapAction = '',
   timeoutMs = 60000,
   truststoreEstrito = true,
+  anexarCadeiaCliente = true,
   env = process.env,
   httpsModule = https,
 }) {
@@ -48,8 +50,13 @@ function chamarSoap({
   const u = new URL(url);
   const corpo = Buffer.from(xmlEnvelope, 'utf8');
 
-  // CA = cadeia Sectigo (servidor) + intermediárias do próprio cert (se houver).
-  const caFinal = [...ca, ...(material.chainPem || [])];
+  // Trust anchors do servidor. No eSocial, a cadeia do próprio cert (ICP-Brasil)
+  // soma à Sectigo (anexarCadeiaCliente=true). Na SEFAZ isso quebraria: anexar a
+  // cadeia do CLIENTE como `ca` substitui o bundle do sistema/NODE_EXTRA_CA_CERTS
+  // e o cert do SERVIDOR da SEFAZ deixa de validar — por isso a NF-e passa false
+  // e confia no truststore configurado (Sectigo/NODE_EXTRA_CA_CERTS) ou no bundle
+  // padrão do Node quando `ca` fica vazio.
+  const caFinal = anexarCadeiaCliente ? [...ca, ...(material.chainPem || [])] : [...ca];
   const agent = new httpsModule.Agent({
     cert: material.leafPem,
     key: material.privateKeyPem,

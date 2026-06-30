@@ -445,6 +445,7 @@
 
 .main-content {
   flex: 1;
+  min-width: 0;          // allow the column to shrink so wide children can't push the page out
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -674,7 +675,9 @@
 
 .page-content {
   flex: 1;
+  min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;     // a page must never push a horizontal scrollbar onto the body
   background: var(--bg-canvas);
 
   // Clear the fixed bottom tab bar on phones

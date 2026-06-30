@@ -53,7 +53,7 @@ import { FinanceiroService } from '../financeiro.service';
       <!-- Loading -->
       @if (loading()) {
         <div class="flex justify-center py-12">
-          <div class="login__spinner" style="width:32px;height:32px;border:3px solid var(--surface-3);border-top-color:var(--brand-primary);"></div>
+          <div class="bear-spinner bear-spinner--xl"></div>
         </div>
       }
 
