@@ -20,6 +20,8 @@ const WSDL = Object.freeze({
   NFeAutorizacao4: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4',
   NFeRetAutorizacao4: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeRetAutorizacao4',
   NFeStatusServico4: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4',
+  NFeRecepcaoEvento4: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4',
+  NFeInutilizacao4: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4',
 });
 
 /** Remove a declaração <?xml ?> de um fragmento que vai ser embutido. */
@@ -74,6 +76,28 @@ function envelopeStatusServico({ cUF, tpAmb = '2' }) {
   return { xmlEnvelope: envelope(corpo), soapAction: WSDL.NFeStatusServico4 };
 }
 
+/** Monta o `envEvento` (lote de 1 evento) em torno do evento JÁ ASSINADO. */
+function montarEnvEvento(eventoAssinado, { idLote = '1' } = {}) {
+  return (
+    `<envEvento versao="1.00" xmlns="${NFE_NS}">` +
+    `<idLote>${idLote}</idLote>` +
+    semProlog(eventoAssinado) +
+    '</envEvento>'
+  );
+}
+
+/** Envelope da operação NFeRecepcaoEvento4 (cancelamento / CC-e). */
+function envelopeEvento(envEventoXml) {
+  const corpo = `<nfeDadosMsg xmlns="${WSDL.NFeRecepcaoEvento4}">${semProlog(envEventoXml)}</nfeDadosMsg>`;
+  return { xmlEnvelope: envelope(corpo), soapAction: WSDL.NFeRecepcaoEvento4 };
+}
+
+/** Envelope da operação NFeInutilizacao4 (recebe o `inutNFe` JÁ ASSINADO). */
+function envelopeInutilizacao(inutNFeAssinada) {
+  const corpo = `<nfeDadosMsg xmlns="${WSDL.NFeInutilizacao4}">${semProlog(inutNFeAssinada)}</nfeDadosMsg>`;
+  return { xmlEnvelope: envelope(corpo), soapAction: WSDL.NFeInutilizacao4 };
+}
+
 module.exports = {
   NFE_NS,
   SOAP_NS,
@@ -83,4 +107,7 @@ module.exports = {
   montarEnviNFe,
   envelopeAutorizacao,
   envelopeStatusServico,
+  montarEnvEvento,
+  envelopeEvento,
+  envelopeInutilizacao,
 };

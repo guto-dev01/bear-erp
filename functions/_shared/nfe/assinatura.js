@@ -35,18 +35,22 @@ function certParaBase64(pem) {
 }
 
 /**
- * Assina a NF-e. A `<Signature>` referencia o `infNFe` (URI #NFe<chave>) e é
- * anexada logo após ele, dentro do `<NFe>`.
- * @param {string} xmlNFe  XML `<NFe>…<infNFe Id="NFe<chave>">…</infNFe></NFe>`
+ * Assina um elemento do domínio NF-e pela sua @Id (RSA-SHA1, C14N, enveloped).
+ * A `<Signature>` referencia o elemento `localName` (URI = seu @Id) e é anexada
+ * logo APÓS ele (irmã), dentro do elemento-raiz. Reusável por:
+ *  - `infNFe`  (NF-e mod. 55) · `infEvento` (cancelamento/CC-e) · `infInut` (inutilização).
+ * @param {string} xml
+ * @param {string} localName  ex.: 'infNFe' | 'infEvento' | 'infInut'
  * @param {{ privateKeyPem: string, leafPem: string }} material
- * @returns {string} XML da NF-e assinada
+ * @returns {string} XML assinado
  */
-function assinarNfe(xmlNFe, material) {
+function assinarElemento(xml, localName, material) {
   if (!material?.privateKeyPem || !material?.leafPem) {
     throw new Error('Material do certificado ausente (privateKeyPem/leafPem)');
   }
-  const limpo = String(xmlNFe).replace(/<\?xml[^>]*\?>/g, '').trim();
+  const limpo = String(xml).replace(/<\?xml[^>]*\?>/g, '').trim();
   const certB64 = certParaBase64(material.leafPem);
+  const alvo = `//*[local-name(.)='${localName}']`;
 
   const sig = new SignedXml({
     privateKey: material.privateKeyPem,
@@ -57,18 +61,22 @@ function assinarNfe(xmlNFe, material) {
   });
 
   sig.addReference({
-    // infNFe é o elemento assinado; xml-crypto deriva a URI do seu @Id.
-    xpath: "//*[local-name(.)='infNFe']",
+    xpath: alvo,   // xml-crypto deriva a URI do @Id do elemento.
     transforms: [ALG.enveloped, ALG.c14n],
     digestAlgorithm: ALG.digest,
   });
-
-  sig.computeSignature(limpo, {
-    // <Signature> logo após o infNFe (irmã), dentro do <NFe>.
-    location: { reference: "//*[local-name(.)='infNFe']", action: 'after' },
-  });
-
+  sig.computeSignature(limpo, { location: { reference: alvo, action: 'after' } });
   return sig.getSignedXml();
+}
+
+/**
+ * Assina a NF-e (referencia o `infNFe`, URI #NFe<chave>).
+ * @param {string} xmlNFe  XML `<NFe>…<infNFe Id="NFe<chave>">…</infNFe></NFe>`
+ * @param {{ privateKeyPem: string, leafPem: string }} material
+ * @returns {string} XML da NF-e assinada
+ */
+function assinarNfe(xmlNFe, material) {
+  return assinarElemento(xmlNFe, 'infNFe', material);
 }
 
 /**
@@ -92,4 +100,4 @@ function verificarAssinatura(xmlAssinado, leafPem) {
   }
 }
 
-module.exports = { assinarNfe, verificarAssinatura, ALG };
+module.exports = { assinarNfe, assinarElemento, verificarAssinatura, ALG };
