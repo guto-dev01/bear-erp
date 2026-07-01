@@ -94,6 +94,22 @@ export interface ConfigTributariaItem {
 
   /** Alíquota de crédito de ICMS no Simples (CSOSN 101), informada no XML. */
   aliqCreditoSimples?: number;
+
+  // IBS/CBS + Imposto Seletivo (Reforma Tributária — NT 2025.002)
+  /** CST do IBS/CBS (3 díg). */
+  cstIbsCbs?: string;
+  /** Código de Classificação Tributária do IBS/CBS (6 díg). */
+  cClassTrib?: string;
+  /** Alíquota do IBS estadual (%). Default: fase-teste 2026. */
+  aliqIbsUf?: number;
+  /** Alíquota do IBS municipal (%). Default: fase-teste 2026. */
+  aliqIbsMun?: number;
+  /** Alíquota da CBS (%). Default: fase-teste 2026. */
+  aliqCbs?: number;
+  /** CST do Imposto Seletivo. */
+  cstIs?: string;
+  /** Alíquota do Imposto Seletivo (%). */
+  aliqIs?: number;
 }
 
 /** Item a calcular. */
@@ -152,6 +168,15 @@ export interface ResultadoItem {
   baseIss: number;
   valorIss: number;
 
+  // IBS/CBS + Imposto Seletivo (Reforma Tributária — NT 2025.002)
+  baseIbsCbs: number;
+  valorIbsUf: number;
+  valorIbsMun: number;
+  valorIbs: number;
+  valorCbs: number;
+  baseIs: number;
+  valorIs: number;
+
   // Simples
   valorCreditoSimples: number;
 
@@ -174,6 +199,11 @@ export interface TotaisDocumento {
   valorPis: number;
   valorCofins: number;
   valorIss: number;
+  // IBS/CBS + Imposto Seletivo (Reforma) — informativos, NÃO compõem valorTotalNota
+  baseIbsCbs: number;
+  valorIbs: number;
+  valorCbs: number;
+  valorIs: number;
   valorIcmsDesonerado: number;
   valorDesconto: number;
   valorFrete: number;
@@ -183,6 +213,18 @@ export interface TotaisDocumento {
   /** Valor total da nota. */
   valorTotalNota: number;
 }
+
+/**
+ * Alíquotas da fase-teste da Reforma Tributária em 2026 (IBS 0,1% + CBS 0,9% = 1%).
+ * Valores informativos no DF-e; NÃO compõem o vNF/VL_DOC (modo híbrido / SPED Layout 020).
+ * Parametrizáveis por item (config) — versionar por vigência ao ligar `regras_tributarias` (P1.5).
+ *
+ * ⚠️ PROVISÓRIO: o split do IBS entre UF (0,1) e Município (0,0) é um PALPITE. Confirmar
+ * contra a tabela oficial (Portal Nacional NF-e → Esquemas XML ~v1.36 + Tabela cClassTrib)
+ * junto da Parte B (serialização do XML), que se valida na homologação SEFAZ. O total (1%)
+ * é o que importa enquanto o XML não é emitido.
+ */
+export const ALIQUOTAS_REFORMA_2026 = { ibsUf: 0.1, ibsMun: 0.0, cbs: 0.9, is: 0.0 } as const;
 
 // ────────────────────────────────────────────────────────────
 // Constantes de UF / regiões (para alíquota interestadual)
@@ -245,6 +287,26 @@ function baseBruta(item: ItemFiscal): { valorProdutos: number; base: number } {
 }
 
 /** Calcula o IPI do item. */
+/**
+ * IBS/CBS + Imposto Seletivo (Reforma — NT 2025.002). Cálculo puro: valor = base × alíquota.
+ * Default = alíquotas da fase-teste 2026 (config sobrepõe por item). IS só quando alíquota > 0.
+ * ⚠️ tratamento do Simples Nacional sob a reforma é decisão de config (alíquota/cClassTrib),
+ *    não está chumbado aqui — ver P1.5 (`regras_tributarias` por vigência).
+ */
+function calcularIbsCbs(cfg: ConfigTributariaItem, base: number): {
+  baseIbsCbs: number; valorIbsUf: number; valorIbsMun: number; valorIbs: number;
+  valorCbs: number; baseIs: number; valorIs: number;
+} {
+  const valorIbsUf = round2(base * pct(cfg.aliqIbsUf ?? ALIQUOTAS_REFORMA_2026.ibsUf));
+  const valorIbsMun = round2(base * pct(cfg.aliqIbsMun ?? ALIQUOTAS_REFORMA_2026.ibsMun));
+  const valorCbs = round2(base * pct(cfg.aliqCbs ?? ALIQUOTAS_REFORMA_2026.cbs));
+  const valorIs = round2(base * pct(cfg.aliqIs ?? ALIQUOTAS_REFORMA_2026.is));
+  return {
+    baseIbsCbs: base, valorIbsUf, valorIbsMun, valorIbs: round2(valorIbsUf + valorIbsMun),
+    valorCbs, baseIs: valorIs > 0 ? base : 0, valorIs,
+  };
+}
+
 function calcularIpi(item: ItemFiscal, base: number): { baseIpi: number; aliqIpi: number; valorIpi: number } {
   const aliqIpi = item.config.aliqIpi ?? 0;
   if (aliqIpi <= 0) return { baseIpi: 0, aliqIpi: 0, valorIpi: 0 };
@@ -310,6 +372,7 @@ function calcularDifal(
  */
 export function calcularItem(ctx: ContextoFiscal, item: ItemFiscal): ResultadoItem {
   const { valorProdutos, base } = baseBruta(item);
+  const ibsCbs = calcularIbsCbs(item.config, base);
 
   const vazio: ResultadoItem = {
     valorProdutos,
@@ -320,6 +383,7 @@ export function calcularItem(ctx: ContextoFiscal, item: ItemFiscal): ResultadoIt
     baseIpi: 0, aliqIpi: 0, valorIpi: 0,
     basePisCofins: base, valorPis: 0, valorCofins: 0,
     baseIss: 0, valorIss: 0,
+    baseIbsCbs: 0, valorIbsUf: 0, valorIbsMun: 0, valorIbs: 0, valorCbs: 0, baseIs: 0, valorIs: 0,
     valorCreditoSimples: 0,
     valorTotalItem: valorProdutos,
   };
@@ -328,7 +392,7 @@ export function calcularItem(ctx: ContextoFiscal, item: ItemFiscal): ResultadoIt
   if (item.servico) {
     const valorIss = round2(base * pct(item.config.aliqIss));
     const { valorPis, valorCofins } = calcularPisCofins(ctx, item.config, base);
-    return { ...vazio, baseIss: base, valorIss, valorPis, valorCofins };
+    return { ...vazio, ...ibsCbs, baseIss: base, valorIss, valorPis, valorCofins };
   }
 
   const { baseIpi, aliqIpi, valorIpi } = calcularIpi(item, base);
@@ -347,6 +411,7 @@ export function calcularItem(ctx: ContextoFiscal, item: ItemFiscal): ResultadoIt
     }
     return {
       ...vazio,
+      ...ibsCbs,
       baseIpi, aliqIpi, valorIpi,
       valorPis, valorCofins,
       baseIcmsSt: st.baseIcmsSt, valorIcmsSt: st.valorIcmsSt, valorFcpSt: st.valorFcpSt,
@@ -407,6 +472,7 @@ export function calcularItem(ctx: ContextoFiscal, item: ItemFiscal): ResultadoIt
     baseIpi, aliqIpi, valorIpi,
     basePisCofins: base, valorPis, valorCofins,
     baseIss: 0, valorIss: 0,
+    ...ibsCbs,
     valorCreditoSimples: 0,
     valorTotalItem,
   };
@@ -457,6 +523,10 @@ export function calcularDocumento(
     valorPis: soma(r => r.valorPis),
     valorCofins: soma(r => r.valorCofins),
     valorIss,
+    baseIbsCbs: soma(r => r.baseIbsCbs),
+    valorIbs: soma(r => r.valorIbs),
+    valorCbs: soma(r => r.valorCbs),
+    valorIs: soma(r => r.valorIs),
     valorIcmsDesonerado,
     valorDesconto,
     valorFrete,

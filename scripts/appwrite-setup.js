@@ -102,6 +102,11 @@ const collections = [
       { key: 'capitalSocial', type: 'string', size: 20, required: false },
       { key: 'cnaePrincipal', type: 'string', size: 10, required: false },
       { key: 'cnaeSecundarios', type: 'string', size: 10, required: false, array: true },
+      // Encargos patronais (P1.3) — parametrizáveis por empresa
+      { key: 'rat', type: 'float', required: false },            // 1, 2 ou 3 (% do CNAE)
+      { key: 'fap', type: 'float', required: false },            // 0,5–2,0 (carta da Receita)
+      { key: 'codFpas', type: 'string', size: 10, required: false },
+      { key: 'aliqTerceiros', type: 'float', required: false },  // % do enquadramento FPAS/terceiros
       { key: 'endereco', type: 'string', size: 500, required: false },
       { key: 'numero', type: 'string', size: 20, required: false },
       { key: 'complemento', type: 'string', size: 100, required: false },
@@ -134,6 +139,7 @@ const collections = [
       { key: 'tipo', type: 'string', size: 20, required: true },
       { key: 'natureza', type: 'string', size: 20, required: true },
       { key: 'classificacao', type: 'string', size: 50, required: true },
+      { key: 'codCtaRef', type: 'string', size: 20, required: false }, // conta referencial RFB (I051)
       { key: 'contaPaiId', type: 'string', size: 50, required: false },
       { key: 'nivel', type: 'integer', required: true },
       { key: 'aceitaLancamento', type: 'boolean', required: false },
@@ -156,6 +162,7 @@ const collections = [
       { key: 'contaCreditoId', type: 'string', size: 50, required: true },
       { key: 'contaDebitoCodigo', type: 'string', size: 20, required: false },
       { key: 'contaCreditoCodigo', type: 'string', size: 20, required: false },
+      { key: 'partidas', type: 'string', size: 8000, required: false }, // JSON das partidas (preserva N>2)
       { key: 'documentoRef', type: 'string', size: 100, required: false },
       { key: 'competencia', type: 'string', size: 7, required: true },
       { key: 'status', type: 'string', size: 20, required: true },
@@ -1103,6 +1110,8 @@ const collections = [
       { key: 'aliqCofins', type: 'float', required: false },
       { key: 'aliqIss', type: 'float', required: false },
       { key: 'ativo', type: 'boolean', required: false },
+      { key: 'vigenciaInicio', type: 'string', size: 10, required: false }, // YYYY-MM-DD (P1.5)
+      { key: 'vigenciaFim', type: 'string', size: 10, required: false },
       { key: 'empresaId', type: 'string', size: 50, required: true },
       { key: 'tenantId', type: 'string', size: 50, required: true },
       { key: 'createdAt', type: 'string', size: 30, required: false },

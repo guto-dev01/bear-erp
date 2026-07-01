@@ -249,6 +249,9 @@ import { FiscalService, RetornoSefaz } from '../fiscal.service';
                     <mat-option value="DEVOLUCAO">Devolução</mat-option>
                   </mat-select>
                 </mat-form-field>
+                <label class="flex items-center gap-2" style="font-size: 0.875rem;">
+                  <input type="checkbox" formControlName="consumidorFinal"> Consumidor final (dispara DIFAL em venda interestadual)
+                </label>
               </div>
 
               <h3 class="text-label" style="font-size: 1rem; margin-bottom: 0.75rem; margin-top: 1rem;">Itens</h3>
@@ -283,6 +286,10 @@ import { FiscalService, RetornoSefaz } from '../fiscal.service';
                       <mat-form-field appearance="outline">
                         <mat-label>Alíq. ICMS (%)</mat-label>
                         <input matInput formControlName="aliquotaIcms" type="number">
+                      </mat-form-field>
+                      <mat-form-field appearance="outline">
+                        <mat-label>Alíq. Interna Dest. (%)</mat-label>
+                        <input matInput formControlName="aliqInternaDestino" type="number">
                       </mat-form-field>
                       <div class="flex items-center">
                         <button class="bear-btn bear-btn--ghost" type="button" (click)="removeItem($index)" style="color: var(--status-error, #FF3B30);">
@@ -327,6 +334,7 @@ export class NfeComponent implements OnInit {
       tipo: ['SAIDA', Validators.required],
       naturezaOperacao: ['Venda de Mercadorias', Validators.required],
       finalidade: ['NORMAL', Validators.required],
+      consumidorFinal: [false],
       destinatario: this.fb.group({
         cnpjCpf: ['', Validators.required],
         razaoSocial: ['', Validators.required],
@@ -358,14 +366,16 @@ export class NfeComponent implements OnInit {
       descricao: ['', Validators.required], ncm: [''], cfop: ['5102', Validators.required],
       quantidade: [1, [Validators.required, Validators.min(1)]],
       valorUnitario: [0, [Validators.required, Validators.min(0.01)]],
-      cstIcms: ['00'], aliquotaIcms: [18],
+      cstIcms: ['00'], aliquotaIcms: [18], aliqInternaDestino: [null],
     }));
   }
 
   removeItem(i: number) { this.itensArray.removeAt(i); }
 
   salvar() {
-    this.fiscalService.createNfe(this.nfeForm.value).subscribe({
+    // Roda o motor tributário (ICMS/ST/IPI/PIS/COFINS + IBS/CBS) em vez de persistir
+    // tributos por heurística. Ver fiscal.service.emitirNfeDoForm (P0.2).
+    this.fiscalService.emitirNfeDoForm(this.nfeForm.value).subscribe({
       next: () => { this.snackBar.open('NF-e criada!', 'OK', { duration: 3000 }); this.showForm.set(false); this.loadNfes(); },
       error: err => this.snackBar.open(err.error?.message || 'Erro', 'Fechar', { duration: 5000 })
     });

@@ -279,6 +279,22 @@
                   <mat-label>Capital Social</mat-label>
                   <input matInput formControlName="capitalSocial" inputmode="decimal" placeholder="0,00">
                 </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>RAT (%) — 1, 2 ou 3</mat-label>
+                  <input matInput type="number" step="1" formControlName="rat" placeholder="2">
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>FAP — 0,5 a 2,0</mat-label>
+                  <input matInput type="number" step="0.0001" formControlName="fap" placeholder="1,0">
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Código FPAS</mat-label>
+                  <input matInput formControlName="codFpas" placeholder="515">
+                </mat-form-field>
+                <mat-form-field appearance="outline">
+                  <mat-label>Alíq. Terceiros (%)</mat-label>
+                  <input matInput type="number" step="0.01" formControlName="aliqTerceiros" placeholder="5,8">
+                </mat-form-field>
               </div>
             </div>
 

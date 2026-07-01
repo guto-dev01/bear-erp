@@ -36,8 +36,11 @@ import {
   ItemNotaFiscalDoc,
   LinhaEmissao,
   montarContexto,
+  montarEmissaoNfe,
   montarItemFiscal,
+  NfeFormValue,
   ProdutoDoc,
+  RegraTributariaDoc,
 } from './fiscal.types';
 
 // ────────────────────────────────────────────────────────────
@@ -325,8 +328,48 @@ export class FiscalService {
     return this.appwrite.getDocument<NotaFiscalDoc>(NOTAS, id).pipe(map(d => this.mapNfe(d)));
   }
 
+  /**
+   * @deprecated Persistia o ICMS por heurística (`subtotal×aliq/100`) e ignorava
+   * IBS/CBS/PIS/COFINS/IPI. A tela usa `emitirNfeDoForm` (motor real). Mantido só por
+   * compatibilidade até a remoção do `buildNfePayload`.
+   */
   createNfe(data: Record<string, unknown>): Observable<NotaFiscalDoc> {
     return this.appwrite.createDocument<NotaFiscalDoc>(NOTAS, this.buildNfePayload(data));
+  }
+
+  /**
+   * Emite a NF-e a partir do formulário da tela: resolve o cabeçalho (regime + UF do
+   * emitente vêm da empresa; UF/contribuinte do destinatário), roda o motor tributário
+   * (ICMS/ST/IPI/PIS/COFINS + IBS/CBS) e persiste cabeçalho + itens com os valores
+   * calculados. Substitui `createNfe` no caminho da tela (P0.2).
+   */
+  emitirNfeDoForm(form: Record<string, unknown>): Observable<{ nota: NotaFiscalDoc; itens: ItemNotaFiscalDoc[] }> {
+    return forkJoin({ empresa: this.empresaDoc(), regras: this.listRegrasVigentes() }).pipe(
+      switchMap(({ empresa, regras }) => {
+        const { cab, linhas, extras } = montarEmissaoNfe(
+          form as NfeFormValue,
+          { uf: empresa?.uf, regimeTributario: empresa?.regimeTributario },
+          regras,
+        );
+        return this.emitirNotaComItens(cab, linhas, 'NFE', extras);
+      }),
+    );
+  }
+
+  /**
+   * Regras tributárias ATIVAS e VIGENTES hoje (parametrização por NCM/CFOP/UF/vigência — P1.5).
+   * Antes código morto: agora alimenta `montarEmissaoNfe` (a regra sobrepõe o CST/alíquota digitados).
+   */
+  private listRegrasVigentes(): Observable<RegraTributariaDoc[]> {
+    const hoje = new Date().toISOString().slice(0, 10);
+    return this.appwrite.listDocuments<RegraTributariaDoc>(
+      'regras_tributarias',
+      this.baseQueries([this.Q.equal('ativo', true), this.Q.limit(500)]),
+    ).pipe(
+      map(regras => regras.filter(r =>
+        (!r.vigenciaInicio || hoje >= r.vigenciaInicio) && (!r.vigenciaFim || hoje <= r.vigenciaFim))),
+      catchError(() => of([] as RegraTributariaDoc[])),
+    );
   }
 
   /**

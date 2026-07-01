@@ -15,6 +15,22 @@ interface Produto {
   ncm: string;
   cest: string;
   cfop: string;
+  // Perfil tributário (alimenta o motor via resolverConfigTributaria) — P0.2
+  origem?: string;
+  cstIcms?: string;
+  csosn?: string;
+  aliqIcms?: number;
+  redBcIcms?: number;
+  mva?: number;
+  aliqIcmsSt?: number;
+  aliqFcp?: number;
+  cstIpi?: string;
+  aliqIpi?: number;
+  cstPis?: string;
+  aliqPis?: number;
+  cstCofins?: string;
+  aliqCofins?: number;
+  aliqIss?: number;
   preco: number;                // valor de venda
   custoMedio: number;           // valor de custo
   estoqueAtual: number;
@@ -403,6 +419,20 @@ type StatusVisual = 'ATIVO' | 'INATIVO' | 'SEM_ESTOQUE' | 'BAIXO_ESTOQUE';
                     <option value="2">2 - Estrangeira (mercado interno)</option>
                   </select>
                 </div>
+                <div class="nc-field"><label>CST ICMS</label><input class="nc-input" formControlName="cstIcms" placeholder="00"></div>
+                <div class="nc-field"><label>CSOSN (Simples)</label><input class="nc-input" formControlName="csosn" placeholder="102"></div>
+                <div class="nc-field"><label>Alíq. ICMS (%)</label><input class="nc-input" type="number" step="0.01" formControlName="aliqIcms" placeholder="18"></div>
+                <div class="nc-field"><label>Red. BC ICMS (%)</label><input class="nc-input" type="number" step="0.01" formControlName="redBcIcms" placeholder="0"></div>
+                <div class="nc-field"><label>MVA ST (%)</label><input class="nc-input" type="number" step="0.01" formControlName="mva" placeholder="0"></div>
+                <div class="nc-field"><label>Alíq. ICMS-ST (%)</label><input class="nc-input" type="number" step="0.01" formControlName="aliqIcmsSt" placeholder="0"></div>
+                <div class="nc-field"><label>Alíq. FCP (%)</label><input class="nc-input" type="number" step="0.01" formControlName="aliqFcp" placeholder="0"></div>
+                <div class="nc-field"><label>CST IPI</label><input class="nc-input" formControlName="cstIpi" placeholder="50"></div>
+                <div class="nc-field"><label>Alíq. IPI (%)</label><input class="nc-input" type="number" step="0.01" formControlName="aliqIpi" placeholder="0"></div>
+                <div class="nc-field"><label>CST PIS</label><input class="nc-input" formControlName="cstPis" placeholder="01"></div>
+                <div class="nc-field"><label>Alíq. PIS (%)</label><input class="nc-input" type="number" step="0.01" formControlName="aliqPis" placeholder="1.65"></div>
+                <div class="nc-field"><label>CST COFINS</label><input class="nc-input" formControlName="cstCofins" placeholder="01"></div>
+                <div class="nc-field"><label>Alíq. COFINS (%)</label><input class="nc-input" type="number" step="0.01" formControlName="aliqCofins" placeholder="7.6"></div>
+                <div class="nc-field"><label>Alíq. ISS (%)</label><input class="nc-input" type="number" step="0.01" formControlName="aliqIss" placeholder="0"></div>
               </div>
             }
             <!-- Aba 3: Preços -->
@@ -832,6 +862,9 @@ export class ProdutosComponent implements OnInit {
       marca: [''],
       status: ['ATIVO'],
       ncm: [''], cest: [''], cfop: [''], origem: ['0'],
+      cstIcms: [''], csosn: [''], aliqIcms: [null], redBcIcms: [null], mva: [null],
+      aliqIcmsSt: [null], aliqFcp: [null], cstIpi: [''], aliqIpi: [null],
+      cstPis: [''], aliqPis: [null], cstCofins: [''], aliqCofins: [null], aliqIss: [null],
       custoMedio: [null], preco: [null, [Validators.required, Validators.min(0.01)]],
       estoqueAtual: [0], estoqueMinimo: [0], unidade: ['UN'],
     });
@@ -1028,7 +1061,12 @@ export class ProdutosComponent implements OnInit {
       this.form.reset({
         descricao: p.descricao ?? '', tipo: p.tipo ?? 'PRODUTO', codigo: p.codigo ?? '',
         categoria: p.categoria ?? '', marca: p.marca ?? '', status: (p.status || 'ATIVO').toUpperCase() === 'INATIVO' ? 'INATIVO' : 'ATIVO',
-        ncm: p.ncm ?? '', cest: p.cest ?? '', cfop: p.cfop ?? '', origem: '0',
+        ncm: p.ncm ?? '', cest: p.cest ?? '', cfop: p.cfop ?? '', origem: p.origem ?? '0',
+        cstIcms: p.cstIcms ?? '', csosn: p.csosn ?? '', aliqIcms: p.aliqIcms ?? null,
+        redBcIcms: p.redBcIcms ?? null, mva: p.mva ?? null, aliqIcmsSt: p.aliqIcmsSt ?? null,
+        aliqFcp: p.aliqFcp ?? null, cstIpi: p.cstIpi ?? '', aliqIpi: p.aliqIpi ?? null,
+        cstPis: p.cstPis ?? '', aliqPis: p.aliqPis ?? null, cstCofins: p.cstCofins ?? '',
+        aliqCofins: p.aliqCofins ?? null, aliqIss: p.aliqIss ?? null,
         custoMedio: p.custoMedio ?? null, preco: p.preco ?? null,
         estoqueAtual: p.estoqueAtual ?? 0, estoqueMinimo: p.estoqueMinimo ?? 0, unidade: p.unidade ?? 'UN',
       });
@@ -1046,6 +1084,7 @@ export class ProdutosComponent implements OnInit {
     const v = this.form.value;
     const id = this.editingId();
     const isServico = v.tipo === 'SERVICO';
+    const numOrNull = (x: unknown) => (x === null || x === undefined || x === '' ? null : Number(x));
     const data: Record<string, unknown> = {
       codigo: (v.codigo || '').trim() || (isServico ? `SRV-${Date.now()}` : `PRD-${Date.now()}`),
       descricao: v.descricao,
@@ -1053,7 +1092,12 @@ export class ProdutosComponent implements OnInit {
       categoria: v.categoria || '',
       marca: v.marca || '',
       unidade: v.unidade || 'UN',
-      ncm: v.ncm || '', cest: v.cest || '', cfop: v.cfop || '',
+      ncm: v.ncm || '', cest: v.cest || '', cfop: v.cfop || '', origem: v.origem || '0',
+      cstIcms: v.cstIcms || '', csosn: v.csosn || '', aliqIcms: numOrNull(v.aliqIcms),
+      redBcIcms: numOrNull(v.redBcIcms), mva: numOrNull(v.mva), aliqIcmsSt: numOrNull(v.aliqIcmsSt),
+      aliqFcp: numOrNull(v.aliqFcp), cstIpi: v.cstIpi || '', aliqIpi: numOrNull(v.aliqIpi),
+      cstPis: v.cstPis || '', aliqPis: numOrNull(v.aliqPis), cstCofins: v.cstCofins || '',
+      aliqCofins: numOrNull(v.aliqCofins), aliqIss: numOrNull(v.aliqIss),
       custoMedio: Number(v.custoMedio) || 0,
       preco: Number(v.preco) || 0,
       estoqueAtual: isServico ? 0 : Number(v.estoqueAtual) || 0,
