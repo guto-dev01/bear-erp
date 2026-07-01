@@ -301,7 +301,7 @@ export class LancamentosComponent implements OnInit {
         this.showForm.set(false);
         this.carregar();
       },
-      error: (e) => this.snackBar.open(e.error?.message || 'Erro ao lançar', 'Fechar', { duration: 5000, panelClass: ['error-snackbar'] }),
+      error: (e) => this.snackBar.open(e.error?.message || e.message || 'Erro ao lançar', 'Fechar', { duration: 5000, panelClass: ['error-snackbar'] }),
     });
   }
 

@@ -44,6 +44,8 @@ export interface EcdConta {
   tipo: string;            // SINTETICA|ANALITICA (ou GRUPO/ANALITICA)
   nivel: number;
   dtAlteracao?: string | Date;
+  /** Código da conta no plano referencial da RFB (gera o registro I051 — COD_CTA_REF). */
+  codCtaRef?: string;
 }
 
 export interface EcdSaldoConta {
@@ -169,6 +171,8 @@ export function gerarEcd(dados: EcdDados): EcdResultado {
   for (const c of contasOrd) {
     corpoI.push(L('I050', dt(c.dtAlteracao ?? empresa.dtIni), codNat(c.classificacao), indCta(c.tipo),
       String(c.nivel ?? ''), c.codigo, c.codSuperior ?? '', c.descricao));
+    // I051 — mapeamento p/ o plano de contas referencial da RFB (COD_ENT_REF vazio = RFB).
+    if (c.codCtaRef) corpoI.push(L('I051', '', '', c.codCtaRef));
   }
   if (!contasOrd.length) avisos.push('Plano de contas vazio: nenhum registro I050 gerado.');
 

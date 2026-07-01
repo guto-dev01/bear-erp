@@ -1,8 +1,14 @@
 import { Injectable } from '@angular/core';
-import { Observable, forkJoin, of } from 'rxjs';
+import { Observable, forkJoin, of, throwError } from 'rxjs';
 import { map, switchMap } from 'rxjs/operators';
 import { AppwriteService } from '@core/services/appwrite.service';
 import { AuthService } from '@core/auth/auth.service';
+import {
+  montarPersistenciaPartidas,
+  parsePartidas,
+  PartidaLancamento,
+  validarPartidas,
+} from './contabilidade-partidas';
 
 // ── Tipos de documentos Appwrite ───────────────────────────────
 interface PlanoContaDoc {
@@ -33,6 +39,7 @@ interface LancamentoDoc {
   contaCreditoId: string;
   contaDebitoCodigo?: string;
   contaCreditoCodigo?: string;
+  partidas?: string;   // JSON das partidas (preserva N>2; par primário acima é p/ exibição)
   documentoRef?: string;
   competencia: string; // YYYY-MM
   status: string;      // NORMAL | ESTORNADO | ESTORNO
@@ -353,10 +360,13 @@ export class ContabilidadeService {
       estornado,
       contaDebito: debRef,
       contaCredito: credRef,
-      partidas: [
-        { contaId: d.contaDebitoId, tipo: 'DEBITO', valor: d.valor },
-        { contaId: d.contaCreditoId, tipo: 'CREDITO', valor: d.valor },
-      ],
+      // Partidas reais persistidas (N>2); fallback ao par sintetizado p/ docs antigos.
+      partidas: parsePartidas(d.partidas).length
+        ? parsePartidas(d.partidas)
+        : [
+            { contaId: d.contaDebitoId, tipo: 'DEBITO', valor: d.valor },
+            { contaId: d.contaCreditoId, tipo: 'CREDITO', valor: d.valor },
+          ],
     };
   }
 
@@ -495,6 +505,9 @@ export class ContabilidadeService {
    * formulário e converte para os campos planos da coleção `lancamentos`.
    */
   createLancamento(data: Record<string, unknown>): Observable<LancamentoView> {
+    // Trava de partida dobrada na ESCRITA: rejeita persistir se Σdéb ≠ Σcréd.
+    const v = validarPartidas(this.extrairPartidas(data));
+    if (!v.ok) return throwError(() => new Error(v.erro ?? 'Lançamento inválido.'));
     return this.nextNumero().pipe(
       switchMap(numero => {
         const payload = this.buildLancamentoPayload(data, numero);
@@ -503,6 +516,17 @@ export class ContabilidadeService {
         );
       }),
     );
+  }
+
+  /** Extrai as partidas do formulário; fallback ao par plano (contaDebitoId/contaCreditoId/valor). */
+  private extrairPartidas(data: Record<string, unknown>): PartidaLancamento[] {
+    const ps = data['partidas'] as PartidaLancamento[] | undefined;
+    if (ps && ps.length) return ps;
+    const valor = Number(data['valor'] ?? 0);
+    return [
+      { contaId: String(data['contaDebitoId'] ?? ''), tipo: 'DEBITO', valor },
+      { contaId: String(data['contaCreditoId'] ?? ''), tipo: 'CREDITO', valor },
+    ];
   }
 
   private getLancamentoFresh(payload: Record<string, unknown>): Observable<LancamentoView> {
@@ -551,17 +575,8 @@ export class ContabilidadeService {
   }
 
   private buildLancamentoPayload(data: Record<string, unknown>, numero: number): Record<string, unknown> {
-    const partidas = (data['partidas'] as PartidaView[] | undefined) ?? [];
-    let contaDebitoId = (data['contaDebitoId'] as string) ?? '';
-    let contaCreditoId = (data['contaCreditoId'] as string) ?? '';
-    let valor = Number(data['valor'] ?? 0);
-    if (partidas.length) {
-      const deb = partidas.find(p => p.tipo === 'DEBITO');
-      const cred = partidas.find(p => p.tipo === 'CREDITO');
-      contaDebitoId = deb?.contaId ?? contaDebitoId;
-      contaCreditoId = cred?.contaId ?? contaCreditoId;
-      valor = Number(deb?.valor ?? cred?.valor ?? valor);
-    }
+    // Preserva TODAS as partidas (JSON) — não trunca mais para o 1º par débito/crédito.
+    const persist = montarPersistenciaPartidas(this.extrairPartidas(data));
     const dataStr = (data['data'] as string) ?? new Date().toISOString().split('T')[0];
     const competencia = (data['competencia'] as string) ?? dataStr.slice(0, 7);
     return {
@@ -569,9 +584,10 @@ export class ContabilidadeService {
       data: dataStr,
       tipo: (data['tipo'] as string) ?? 'NORMAL',
       historico: (data['historico'] as string) ?? '',
-      valor,
-      contaDebitoId,
-      contaCreditoId,
+      valor: persist.valor,
+      contaDebitoId: persist.contaDebitoId,
+      contaCreditoId: persist.contaCreditoId,
+      partidas: persist.partidas,
       competencia,
       status: 'NORMAL',
       tenantId: this.tenantId,
