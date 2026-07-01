@@ -40,6 +40,7 @@ import {
   montarItemFiscal,
   NfeFormValue,
   ProdutoDoc,
+  RegraTributariaDoc,
 } from './fiscal.types';
 
 // ────────────────────────────────────────────────────────────
@@ -343,14 +344,31 @@ export class FiscalService {
    * calculados. Substitui `createNfe` no caminho da tela (P0.2).
    */
   emitirNfeDoForm(form: Record<string, unknown>): Observable<{ nota: NotaFiscalDoc; itens: ItemNotaFiscalDoc[] }> {
-    return this.empresaDoc().pipe(
-      switchMap(empresa => {
-        const { cab, linhas, extras } = montarEmissaoNfe(form as NfeFormValue, {
-          uf: empresa?.uf,
-          regimeTributario: empresa?.regimeTributario,
-        });
+    return forkJoin({ empresa: this.empresaDoc(), regras: this.listRegrasVigentes() }).pipe(
+      switchMap(({ empresa, regras }) => {
+        const { cab, linhas, extras } = montarEmissaoNfe(
+          form as NfeFormValue,
+          { uf: empresa?.uf, regimeTributario: empresa?.regimeTributario },
+          regras,
+        );
         return this.emitirNotaComItens(cab, linhas, 'NFE', extras);
       }),
+    );
+  }
+
+  /**
+   * Regras tributárias ATIVAS e VIGENTES hoje (parametrização por NCM/CFOP/UF/vigência — P1.5).
+   * Antes código morto: agora alimenta `montarEmissaoNfe` (a regra sobrepõe o CST/alíquota digitados).
+   */
+  private listRegrasVigentes(): Observable<RegraTributariaDoc[]> {
+    const hoje = new Date().toISOString().slice(0, 10);
+    return this.appwrite.listDocuments<RegraTributariaDoc>(
+      'regras_tributarias',
+      this.baseQueries([this.Q.equal('ativo', true), this.Q.limit(500)]),
+    ).pipe(
+      map(regras => regras.filter(r =>
+        (!r.vigenciaInicio || hoje >= r.vigenciaInicio) && (!r.vigenciaFim || hoje <= r.vigenciaFim))),
+      catchError(() => of([] as RegraTributariaDoc[])),
     );
   }
 

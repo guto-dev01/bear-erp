@@ -124,8 +124,85 @@ export interface RegraTributariaDoc {
   aliqCofins?: number;
   aliqIss?: number;
   ativo?: boolean;
+  /** Vigência (YYYY-MM-DD): versiona a regra no tempo (Padrão 5 — regra como dado). */
+  vigenciaInicio?: string;
+  vigenciaFim?: string;
   empresaId: string;
   tenantId: string;
+}
+
+// ────────────────────────────────────────────────────────────
+// Seleção de regra tributária por NCM/CFOP/UF/vigência (P1.5)
+// ────────────────────────────────────────────────────────────
+
+export interface CriterioRegra {
+  ncm?: string;
+  cfop?: string;
+  ufOrigem?: string;
+  ufDestino?: string;
+  tipoOperacao?: TipoOperacao;
+  regime?: RegimeTributario;
+  /** Data do fato gerador (YYYY-MM-DD) — filtra pela vigência. */
+  data?: string;
+}
+
+/** Campo casa se for curinga (vazio na regra) ou igual ao critério (case-insensitive). */
+function campoCasa(regraVal: unknown, criterioVal: unknown): boolean {
+  if (regraVal === undefined || regraVal === null || regraVal === '') return true;
+  return String(regraVal).toUpperCase() === String(criterioVal ?? '').toUpperCase();
+}
+
+/** NCM casa por PREFIXO (regra '1234' cobre item '12345678'); vazio = curinga. */
+function ncmCasa(regraNcm: string | undefined, itemNcm: string | undefined): boolean {
+  if (!regraNcm) return true;
+  return String(itemNcm ?? '').startsWith(String(regraNcm));
+}
+
+function dentroVigencia(regra: RegraTributariaDoc, data?: string): boolean {
+  if (!data) return true;
+  if (regra.vigenciaInicio && data < regra.vigenciaInicio) return false;
+  if (regra.vigenciaFim && data > regra.vigenciaFim) return false;
+  return true;
+}
+
+/** A regra é aplicável ao critério? (ativa, na vigência, e todos os campos casam). */
+export function regraAplica(regra: RegraTributariaDoc, criterio: CriterioRegra): boolean {
+  if (regra.ativo === false) return false;
+  if (!dentroVigencia(regra, criterio.data)) return false;
+  return ncmCasa(regra.ncm, criterio.ncm)
+    && campoCasa(regra.cfop, criterio.cfop)
+    && campoCasa(regra.ufOrigem, criterio.ufOrigem)
+    && campoCasa(regra.ufDestino, criterio.ufDestino)
+    && campoCasa(regra.tipoOperacao, criterio.tipoOperacao)
+    && campoCasa(regra.regime, criterio.regime);
+}
+
+/** Especificidade = nº de campos fixados (o mais específico ganha do mais genérico). */
+export function especificidade(regra: RegraTributariaDoc): number {
+  return [regra.ncm, regra.cfop, regra.ufOrigem, regra.ufDestino, regra.tipoOperacao, regra.regime]
+    .filter(v => v !== undefined && v !== null && v !== '').length;
+}
+
+/** Seleciona a regra aplicável MAIS específica (desempate: vigência mais recente). */
+export function selecionarRegra(regras: RegraTributariaDoc[], criterio: CriterioRegra): RegraTributariaDoc | null {
+  const aplicaveis = regras.filter(r => regraAplica(r, criterio));
+  if (!aplicaveis.length) return null;
+  return aplicaveis.sort((a, b) => {
+    const de = especificidade(b) - especificidade(a);
+    if (de !== 0) return de;
+    return (b.vigenciaInicio ?? '').localeCompare(a.vigenciaInicio ?? '');
+  })[0];
+}
+
+/** Sobrepõe os campos DEFINIDOS de uma regra sobre uma config base (regra ganha). */
+export function mesclarRegraNaConfig(base: ConfigTributariaItem, regra: RegraTributariaDoc): ConfigTributariaItem {
+  const daRegra = resolverConfigTributaria(null, regra);
+  const out: ConfigTributariaItem = { ...base };
+  (Object.keys(daRegra) as Array<keyof ConfigTributariaItem>).forEach(k => {
+    const v = daRegra[k];
+    if (v !== undefined && v !== null && v !== '') (out as unknown as Record<string, unknown>)[k] = v;
+  });
+  return out;
 }
 
 /** Cabeçalho da nota usado para montar o {@link ContextoFiscal}. */
@@ -283,7 +360,11 @@ export function normalizarRegime(regime?: string): RegimeTributario {
  * digitados; ao vincular o item a um produto (P1) passará a vir de
  * `resolverConfigTributaria(produto)`.
  */
-export function montarEmissaoNfe(form: NfeFormValue, empresa: EmpresaEmitente): {
+export function montarEmissaoNfe(
+  form: NfeFormValue,
+  empresa: EmpresaEmitente,
+  regras: RegraTributariaDoc[] = [],
+): {
   cab: CabecalhoNota;
   linhas: LinhaEmissao[];
   extras: Record<string, unknown>;
@@ -303,9 +384,15 @@ export function montarEmissaoNfe(form: NfeFormValue, empresa: EmpresaEmitente): 
     const aliqIcms = num(it.aliquotaIcms);
     const aliqInternaDestino = num(it.aliqInternaDestino);  // base do DIFAL
     // Simples → o motor tributa via CSOSN; demais regimes → via CST.
-    const config: ConfigTributariaItem = regime === 'SIMPLES'
+    const linhaConfig: ConfigTributariaItem = regime === 'SIMPLES'
       ? { origem, csosn: it.csosn ?? it.cstIcms ?? '102', aliqIcms, aliqInternaDestino }
       : { origem, cstIcms: it.cstIcms ?? '00', aliqIcms, aliqInternaDestino };
+    // P1.5: regra tributária aplicável (NCM/CFOP/UF/regime, na vigência) sobrepõe a config digitada.
+    const regra = regras.length ? selecionarRegra(regras, {
+      ncm: it.ncm, cfop: it.cfop, ufOrigem: cab.ufEmitente, ufDestino: cab.ufDestino,
+      tipoOperacao: cab.tipoOperacao, regime,
+    }) : null;
+    const config = regra ? mesclarRegraNaConfig(linhaConfig, regra) : linhaConfig;
     return {
       descricao: it.descricao,
       ncm: it.ncm,

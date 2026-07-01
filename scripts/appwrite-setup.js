@@ -1110,6 +1110,8 @@ const collections = [
       { key: 'aliqCofins', type: 'float', required: false },
       { key: 'aliqIss', type: 'float', required: false },
       { key: 'ativo', type: 'boolean', required: false },
+      { key: 'vigenciaInicio', type: 'string', size: 10, required: false }, // YYYY-MM-DD (P1.5)
+      { key: 'vigenciaFim', type: 'string', size: 10, required: false },
       { key: 'empresaId', type: 'string', size: 50, required: true },
       { key: 'tenantId', type: 'string', size: 50, required: true },
       { key: 'createdAt', type: 'string', size: 30, required: false },
