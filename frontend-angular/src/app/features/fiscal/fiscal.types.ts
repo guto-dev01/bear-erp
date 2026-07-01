@@ -228,3 +228,98 @@ export function montarItemFiscal(linha: LinhaEmissao): ItemFiscal {
     config: linha.config,
   };
 }
+
+// ────────────────────────────────────────────────────────────
+// Emissão pela tela de NF-e (formulário → entradas do motor) — P0.2
+// ────────────────────────────────────────────────────────────
+
+/** Subconjunto do cadastro da empresa necessário ao cabeçalho da emissão. */
+export interface EmpresaEmitente {
+  uf?: string;
+  regimeTributario?: string;
+}
+
+/** Valor do formulário da tela de NF-e (cabeçalho + destinatário + itens). */
+export interface NfeFormValue {
+  tipo?: string;                 // 'SAIDA' | 'ENTRADA'
+  naturezaOperacao?: string;
+  finalidade?: string;
+  /** Operação destinada a consumidor final (dispara o DIFAL em venda interestadual). */
+  consumidorFinal?: boolean;
+  destinatario?: {
+    cnpjCpf?: string;
+    razaoSocial?: string;
+    inscricaoEstadual?: string;
+    uf?: string;
+  };
+  itens?: Array<{
+    descricao?: string;
+    ncm?: string;
+    cfop?: string;
+    quantidade?: number | string;
+    valorUnitario?: number | string;
+    cstIcms?: string;
+    csosn?: string;
+    aliquotaIcms?: number | string;
+    /** Alíquota interna da UF de destino (%) — base do DIFAL. */
+    aliqInternaDestino?: number | string;
+    origem?: string;
+  }>;
+}
+
+/** Normaliza o texto livre do regime da empresa para o enum do motor. */
+export function normalizarRegime(regime?: string): RegimeTributario {
+  const v = (regime ?? '').toUpperCase();
+  if (v.includes('SIMPLES')) return 'SIMPLES';
+  if (v.includes('REAL')) return 'REAL';
+  return 'PRESUMIDO';
+}
+
+/**
+ * Converte o formulário da tela de NF-e nas entradas do motor (cabeçalho + linhas)
+ * e nos campos extras de persistência do destinatário. Substitui o caminho
+ * `createNfe`/`buildNfePayload` (que estimava o ICMS por heurística `subtotal×aliq/100`
+ * e ignorava IBS/CBS/PIS/COFINS/IPI). O perfil tributário da linha vem dos campos
+ * digitados; ao vincular o item a um produto (P1) passará a vir de
+ * `resolverConfigTributaria(produto)`.
+ */
+export function montarEmissaoNfe(form: NfeFormValue, empresa: EmpresaEmitente): {
+  cab: CabecalhoNota;
+  linhas: LinhaEmissao[];
+  extras: Record<string, unknown>;
+} {
+  const regime = normalizarRegime(empresa.regimeTributario);
+  const dest = form.destinatario ?? {};
+  const cab: CabecalhoNota = {
+    regime,
+    tipoOperacao: form.tipo === 'ENTRADA' ? 'ENTRADA' : 'SAIDA',
+    ufEmitente: (empresa.uf ?? '').toUpperCase(),
+    ufDestino: (dest.uf ?? '').toUpperCase(),
+    consumidorFinal: !!form.consumidorFinal,
+    contribuinteIcms: !!String(dest.inscricaoEstadual ?? '').trim(),
+  };
+  const linhas: LinhaEmissao[] = (form.itens ?? []).map(it => {
+    const origem = it.origem ?? '0';
+    const aliqIcms = num(it.aliquotaIcms);
+    const aliqInternaDestino = num(it.aliqInternaDestino);  // base do DIFAL
+    // Simples → o motor tributa via CSOSN; demais regimes → via CST.
+    const config: ConfigTributariaItem = regime === 'SIMPLES'
+      ? { origem, csosn: it.csosn ?? it.cstIcms ?? '102', aliqIcms, aliqInternaDestino }
+      : { origem, cstIcms: it.cstIcms ?? '00', aliqIcms, aliqInternaDestino };
+    return {
+      descricao: it.descricao,
+      ncm: it.ncm,
+      cfop: it.cfop,
+      quantidade: num(it.quantidade) ?? 0,
+      valorUnitario: num(it.valorUnitario) ?? 0,
+      config,
+    };
+  });
+  // Apenas colunas já existentes em `notas_fiscais` (mesmas usadas por buildNfePayload).
+  const extras: Record<string, unknown> = {
+    naturezaOperacao: form.naturezaOperacao ?? '',
+    destinatarioNome: dest.razaoSocial ?? '',
+    destinatarioCpfCnpj: dest.cnpjCpf ?? '',
+  };
+  return { cab, linhas, extras };
+}

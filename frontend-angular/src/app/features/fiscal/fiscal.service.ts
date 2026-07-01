@@ -36,7 +36,9 @@ import {
   ItemNotaFiscalDoc,
   LinhaEmissao,
   montarContexto,
+  montarEmissaoNfe,
   montarItemFiscal,
+  NfeFormValue,
   ProdutoDoc,
 } from './fiscal.types';
 
@@ -325,8 +327,31 @@ export class FiscalService {
     return this.appwrite.getDocument<NotaFiscalDoc>(NOTAS, id).pipe(map(d => this.mapNfe(d)));
   }
 
+  /**
+   * @deprecated Persistia o ICMS por heurística (`subtotal×aliq/100`) e ignorava
+   * IBS/CBS/PIS/COFINS/IPI. A tela usa `emitirNfeDoForm` (motor real). Mantido só por
+   * compatibilidade até a remoção do `buildNfePayload`.
+   */
   createNfe(data: Record<string, unknown>): Observable<NotaFiscalDoc> {
     return this.appwrite.createDocument<NotaFiscalDoc>(NOTAS, this.buildNfePayload(data));
+  }
+
+  /**
+   * Emite a NF-e a partir do formulário da tela: resolve o cabeçalho (regime + UF do
+   * emitente vêm da empresa; UF/contribuinte do destinatário), roda o motor tributário
+   * (ICMS/ST/IPI/PIS/COFINS + IBS/CBS) e persiste cabeçalho + itens com os valores
+   * calculados. Substitui `createNfe` no caminho da tela (P0.2).
+   */
+  emitirNfeDoForm(form: Record<string, unknown>): Observable<{ nota: NotaFiscalDoc; itens: ItemNotaFiscalDoc[] }> {
+    return this.empresaDoc().pipe(
+      switchMap(empresa => {
+        const { cab, linhas, extras } = montarEmissaoNfe(form as NfeFormValue, {
+          uf: empresa?.uf,
+          regimeTributario: empresa?.regimeTributario,
+        });
+        return this.emitirNotaComItens(cab, linhas, 'NFE', extras);
+      }),
+    );
   }
 
   /**
