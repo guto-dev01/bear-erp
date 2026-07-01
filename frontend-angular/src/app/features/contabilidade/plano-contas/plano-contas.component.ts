@@ -12,7 +12,7 @@ import { ContabilidadeService } from '../contabilidade.service';
 
 interface ContaNode {
   id: string; codigo: string; descricao: string; natureza: string;
-  tipo: string; classificacao: string; nivel: number; aceitaLancamento: boolean;
+  tipo: string; classificacao: string; codCtaRef?: string; nivel: number; aceitaLancamento: boolean;
   filhos?: ContaNode[];
 }
 
@@ -144,6 +144,10 @@ interface ContaNode {
                     <mat-option value="CUSTO">Custo</mat-option>
                   </mat-select>
                 </mat-form-field>
+                <mat-form-field class="w-full" appearance="outline">
+                  <mat-label>Conta Referencial RFB (I051)</mat-label>
+                  <input matInput formControlName="codCtaRef" placeholder="1.01.01.01">
+                </mat-form-field>
                 <mat-checkbox formControlName="aceitaLancamento" class="mb-4">Aceita lançamento</mat-checkbox>
                 <div class="flex gap-2 mt-4">
                   <button type="submit" class="bear-btn bear-btn--primary flex-1" style="padding:0.5rem" [disabled]="contaForm.invalid">
@@ -216,7 +220,7 @@ export class PlanoContasComponent implements OnInit {
     this.contaForm = this.fb.group({
       codigo: ['', Validators.required], descricao: ['', Validators.required],
       natureza: ['DEVEDORA', Validators.required], tipo: ['ANALITICA', Validators.required],
-      classificacao: ['ATIVO', Validators.required], aceitaLancamento: [true],
+      classificacao: ['ATIVO', Validators.required], codCtaRef: [''], aceitaLancamento: [true],
     });
   }
 

@@ -48,6 +48,11 @@ interface Empresa {
   tipoEstabelecimento: string;   // MATRIZ | FILIAL
   dataInicioAtividades: string;
   capitalSocial: string;
+  // Encargos patronais (folha) — P1.3
+  rat?: number;
+  fap?: number;
+  codFpas?: string;
+  aliqTerceiros?: number;
   // Contato
   email: string;
   telefone: string;
@@ -137,6 +142,11 @@ export class EmpresasComponent implements OnInit {
       tipoEstabelecimento: ['MATRIZ'],
       dataInicioAtividades: [''],
       capitalSocial: [''],
+      // Encargos patronais (folha) — P1.3
+      rat: [null],
+      fap: [null],
+      codFpas: [''],
+      aliqTerceiros: [null],
       // Contato
       email: ['', [Validators.email]],
       telefone: [''],

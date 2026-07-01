@@ -19,6 +19,7 @@ interface PlanoContaDoc {
   tipo: string;          // SINTETICA | ANALITICA
   natureza: string;      // DEVEDORA | CREDORA
   classificacao: string; // ATIVO | PASSIVO | PATRIMONIO_LIQUIDO | RECEITA | DESPESA | CUSTO
+  codCtaRef?: string;    // conta referencial RFB (I051)
   contaPaiId?: string;
   nivel: number;
   aceitaLancamento?: boolean;
@@ -117,6 +118,7 @@ export interface ContaView {
   natureza: string;
   tipo: string;
   classificacao: string;
+  codCtaRef?: string;
   contaPaiId?: string;
   nivel: number;
   aceitaLancamento: boolean;
@@ -336,6 +338,7 @@ export class ContabilidadeService {
     natureza: d.natureza,
     tipo: d.tipo,
     classificacao: d.classificacao,
+    codCtaRef: d.codCtaRef,
     contaPaiId: d.contaPaiId,
     nivel: d.nivel ?? 0,
     aceitaLancamento: d.aceitaLancamento ?? (d.tipo === 'ANALITICA'),
@@ -424,6 +427,7 @@ export class ContabilidadeService {
       tipo,
       natureza: data['natureza'],
       classificacao: data['classificacao'],
+      codCtaRef: (data['codCtaRef'] as string) ?? '',
       nivel: data['nivel'] != null ? Number(data['nivel']) : this.nivelFromCodigo((data['codigo'] as string) ?? ''),
       aceitaLancamento: aceita,
       ativo: data['ativo'] != null ? !!data['ativo'] : true,

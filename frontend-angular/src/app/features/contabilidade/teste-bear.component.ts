@@ -2018,6 +2018,7 @@ export class TesteBearComponent implements OnInit {
       contas: contas.map((c: any) => ({
         codigo: c.codigo, codSuperior: c.contaPaiId ? codById.get(c.contaPaiId) : undefined,
         descricao: c.descricao || c.nome, classificacao: c.classificacao, tipo: c.tipo, nivel: c.nivel,
+        codCtaRef: c.codCtaRef,   // I051 — mapeamento p/ o plano referencial RFB (P1.6)
       })),
       saldosPeriodicos,
       lancamentos,
