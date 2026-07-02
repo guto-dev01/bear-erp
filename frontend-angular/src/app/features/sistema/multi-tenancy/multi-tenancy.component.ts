@@ -54,20 +54,20 @@ interface Tenant {
       <!-- Stats -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">business</span></div>
+          <div class="stat-icon stat-icon--brand"><span class="material-symbols-rounded">business</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Escritórios</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ escritorios().length }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">check_circle</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativos</p><p class="text-2xl font-bold" style="color:#34C759">{{ countByStatus('ATIVO') }}</p></div>
+          <div class="stat-icon stat-icon--success"><span class="material-symbols-rounded">check_circle</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativos</p><p class="text-2xl font-bold ink-success">{{ countByStatus('ATIVO') }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFF4E5"><span class="material-symbols-rounded" style="color:#FF9500">group</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Clientes</p><p class="text-2xl font-bold" style="color:#FF9500">{{ totalClientes() }}</p></div>
+          <div class="stat-icon stat-icon--warning"><span class="material-symbols-rounded">group</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Clientes</p><p class="text-2xl font-bold ink-warning">{{ totalClientes() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#F2EBFB"><span class="material-symbols-rounded" style="color:#AF52DE">person</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Usuários</p><p class="text-2xl font-bold" style="color:#AF52DE">{{ totalUsuarios() }}</p></div>
+          <div class="stat-icon stat-icon--purple"><span class="material-symbols-rounded">person</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Usuários</p><p class="text-2xl font-bold ink-purple">{{ totalUsuarios() }}</p></div>
         </div>
       </div>
 

@@ -76,19 +76,29 @@ import { SIDEBAR_NAV, flattenNav } from '../sidebar/sidebar-nav';
       <div class="notif-dropdown" [style.right.px]="notifDropdownRight()">
         <div class="notif-dropdown__header">
           <span class="text-sm font-semibold text-text-primary">Notificações</span>
-          <button class="notif-dropdown__mark-all" (click)="markAllRead()">Marcar todas lidas</button>
+          @if (notifications().length > 0) {
+            <button class="notif-dropdown__mark-all" (click)="markAllRead()">Marcar todas lidas</button>
+          }
         </div>
         <div class="notif-dropdown__body">
-          @for (notif of notifications(); track notif.id) {
-            <div class="notif-dropdown__item" [class.notif-dropdown__item--unread]="!notif.read">
-              <div class="notif-dropdown__item-icon" [class]="'notif-dropdown__item-icon--' + notif.type">
-                <span class="material-symbols-rounded text-base">{{ notif.icon }}</span>
-              </div>
-              <div class="notif-dropdown__item-content">
-                <span class="text-sm text-text-primary">{{ notif.title }}</span>
-                <span class="text-xs text-text-tertiary">{{ notif.time }}</span>
-              </div>
+          @if (notifications().length === 0) {
+            <div class="flex flex-col items-center justify-center text-center py-8 px-4 gap-1.5">
+              <span class="material-symbols-rounded text-3xl text-text-tertiary">notifications_off</span>
+              <p class="text-sm font-medium text-text-secondary">Nenhuma notificação</p>
+              <p class="text-xs text-text-tertiary">Você está em dia. Novos avisos aparecerão aqui.</p>
             </div>
+          } @else {
+            @for (notif of notifications(); track notif.id) {
+              <div class="notif-dropdown__item" [class.notif-dropdown__item--unread]="!notif.read">
+                <div class="notif-dropdown__item-icon" [class]="'notif-dropdown__item-icon--' + notif.type">
+                  <span class="material-symbols-rounded text-base">{{ notif.icon }}</span>
+                </div>
+                <div class="notif-dropdown__item-content">
+                  <span class="text-sm text-text-primary">{{ notif.title }}</span>
+                  <span class="text-xs text-text-tertiary">{{ notif.time }}</span>
+                </div>
+              </div>
+            }
           }
         </div>
       </div>
@@ -222,12 +232,9 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   notifDropdownRight = signal(16);
   quickCreateRight = signal(16);
 
-  notifications = signal([
-    { id: 1, title: 'NF-e #4521 autorizada', icon: 'check_circle', type: 'success', time: 'Agora', read: false },
-    { id: 2, title: 'Certificado A1 expira em 15 dias', icon: 'warning', type: 'warning', time: '2h atrás', read: false },
-    { id: 3, title: 'Novo cliente cadastrado', icon: 'person_add', type: 'info', time: '5h atrás', read: false },
-    { id: 4, title: 'Backup concluído', icon: 'cloud_done', type: 'success', time: 'Ontem', read: true },
-  ]);
+  // Sem fonte real de notificações wired no frontend → lista vazia (nada de dados
+  // fictícios). Quando houver um feed real, basta popular este signal.
+  notifications = signal<{ id: number; title: string; icon: string; type: string; time: string; read: boolean }[]>([]);
 
   unreadCount = computed(() => this.notifications().filter(n => !n.read).length);
 
@@ -361,6 +368,7 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
       '/contabilidade/centros-custo': 'Centros de Custo',
       '/contabilidade/contabilidade-automatica': 'Contabilidade Automática',
       '/contabilidade/teste-bear': 'Teste Bear',
+      '/fiscal/importar-nfe': 'Importar NF-e',
       '/fiscal/nfe': 'NF-e',
       '/fiscal/nfse': 'NFS-e',
       '/fiscal/cte': 'CT-e',

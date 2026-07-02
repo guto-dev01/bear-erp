@@ -36,19 +36,19 @@ import { FiscalService } from '../fiscal.service';
       <!-- Stats -->
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">local_shipping</span></div>
+          <div class="stat-icon stat-icon--brand"><span class="material-symbols-rounded">local_shipping</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ totalElements() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">check_circle</span></div>
+          <div class="stat-icon stat-icon--success"><span class="material-symbols-rounded">check_circle</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Autorizados</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ autorizados() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFF4E5"><span class="material-symbols-rounded" style="color:#FF9500">pending</span></div>
+          <div class="stat-icon stat-icon--warning"><span class="material-symbols-rounded">pending</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Pendentes</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ pendentes() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">cancel</span></div>
+          <div class="stat-icon stat-icon--error"><span class="material-symbols-rounded">cancel</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Cancelados</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ cancelados() }}</p></div>
         </div>
       </div>
@@ -105,13 +105,13 @@ import { FiscalService } from '../fiscal.service';
                   @if (c.status === 'DIGITACAO') {
                     <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem;font-size:0.75rem;"
                             matTooltip="Autorizar" (click)="autorizar(c)">
-                      <span class="material-symbols-rounded text-sm" style="color:#34C759">send</span>
+                      <span class="material-symbols-rounded text-sm ink-success">send</span>
                     </button>
                   }
                   @if (c.status === 'AUTORIZADO') {
                     <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem;font-size:0.75rem;"
                             matTooltip="Cancelar" (click)="cancelar(c)">
-                      <span class="material-symbols-rounded text-sm" style="color:#FF3B30">cancel</span>
+                      <span class="material-symbols-rounded text-sm ink-error">cancel</span>
                     </button>
                   }
                   <button class="bear-btn bear-btn--ghost" style="padding:0.25rem 0.5rem;font-size:0.75rem;"

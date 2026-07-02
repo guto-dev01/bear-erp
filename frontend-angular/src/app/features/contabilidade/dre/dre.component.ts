@@ -55,16 +55,16 @@ interface LinhaDre {
       @if (gerado()) {
         <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6 animate-fade-in-up">
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">payments</span></div>
-            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Receita Bruta</p><p class="text-xl font-bold" style="color:#34C759">{{ receitaBruta() | currency:'BRL' }}</p></div>
+            <div class="stat-icon stat-icon--success"><span class="material-symbols-rounded">payments</span></div>
+            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Receita Bruta</p><p class="text-xl font-bold ink-success">{{ receitaBruta() | currency:'BRL' }}</p></div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFF4E5"><span class="material-symbols-rounded" style="color:#FF9500">shopping_cart</span></div>
-            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Custos</p><p class="text-xl font-bold" style="color:#FF9500">{{ custos() | currency:'BRL' }}</p></div>
+            <div class="stat-icon stat-icon--warning"><span class="material-symbols-rounded">shopping_cart</span></div>
+            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Custos</p><p class="text-xl font-bold ink-warning">{{ custos() | currency:'BRL' }}</p></div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">receipt_long</span></div>
-            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Despesas</p><p class="text-xl font-bold" style="color:#FF3B30">{{ despesas() | currency:'BRL' }}</p></div>
+            <div class="stat-icon stat-icon--error"><span class="material-symbols-rounded">receipt_long</span></div>
+            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Despesas</p><p class="text-xl font-bold ink-error">{{ despesas() | currency:'BRL' }}</p></div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
             <div class="w-11 h-11 rounded-xl flex items-center justify-center" [style.background]="lucro() >= 0 ? '#E9FAEF' : '#FFECEB'">

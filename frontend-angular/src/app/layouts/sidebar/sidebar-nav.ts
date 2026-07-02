@@ -104,6 +104,7 @@ export const SIDEBAR_NAV: NavSection[] = [
       {
         id: 'fiscal', label: 'Fiscal', icon: 'receipt_long',
         children: [
+          { id: 'importar-nfe', label: 'Importar NF-e', icon: 'cloud_download', route: '/fiscal/importar-nfe' },
           { id: 'nfe', label: 'NF-e', icon: 'description', route: '/fiscal/nfe' },
           { id: 'nfse', label: 'NFS-e', icon: 'article', route: '/fiscal/nfse' },
           { id: 'cte', label: 'CT-e', icon: 'local_shipping', route: '/fiscal/cte' },

@@ -471,8 +471,8 @@ interface DiarioLanc {
             @if (importRows().length) {
               <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                 <div class="bear-card p-3" style="box-shadow:none;border:1px solid var(--surface-3)"><p class="text-xs" style="color:var(--text-secondary)">Linhas</p><p class="text-xl font-bold">{{ importRows().length }}</p></div>
-                <div class="bear-card p-3" style="box-shadow:none;border:1px solid var(--surface-3)"><p class="text-xs" style="color:var(--text-secondary)">Válidas</p><p class="text-xl font-bold" style="color:#34C759">{{ importValidas().length }}</p></div>
-                <div class="bear-card p-3" style="box-shadow:none;border:1px solid var(--surface-3)"><p class="text-xs" style="color:var(--text-secondary)">Com erro</p><p class="text-xl font-bold" style="color:#FF3B30">{{ importComErro().length }}</p></div>
+                <div class="bear-card p-3" style="box-shadow:none;border:1px solid var(--surface-3)"><p class="text-xs" style="color:var(--text-secondary)">Válidas</p><p class="text-xl font-bold ink-success">{{ importValidas().length }}</p></div>
+                <div class="bear-card p-3" style="box-shadow:none;border:1px solid var(--surface-3)"><p class="text-xs" style="color:var(--text-secondary)">Com erro</p><p class="text-xl font-bold ink-error">{{ importComErro().length }}</p></div>
                 <div class="bear-card p-3" style="box-shadow:none;border:1px solid var(--surface-3)"><p class="text-xs" style="color:var(--text-secondary)">Soma válidas</p><p class="text-xl font-bold">{{ importSoma() | currency:'BRL' }}</p></div>
               </div>
 
@@ -587,7 +587,7 @@ interface DiarioLanc {
                 <div class="bear-card p-3" style="box-shadow:none;border:1px solid var(--surface-3)"><p class="text-xs" style="color:var(--text-secondary)">Ignorados</p><p class="text-xl font-bold" [style.color]="exportIgnorados() ? '#FF9500' : 'var(--text-primary)'">{{ exportIgnorados() }}</p></div>
               </div>
               @if (exportIgnorados()) {
-                <p class="text-xs mb-3" style="color:#B8860B">{{ exportIgnorados() }} lançamento(s) com múltiplas partidas não cabem no formato Resumido — use “Detalhado” para exportá-los.</p>
+                <p class="text-xs mb-3 ink-warning">{{ exportIgnorados() }} lançamento(s) com múltiplas partidas não cabem no formato Resumido — use “Detalhado” para exportá-los.</p>
               }
               <div class="overflow-x-auto rounded-lg border" style="border-color:var(--surface-3);max-height:360px">
                 <table class="w-full text-sm">
@@ -852,7 +852,7 @@ interface DiarioLanc {
             @if (sub() === d.id) {
               <div class="bear-card p-6 md:col-span-2">
                 <div class="flex items-start gap-4">
-                  <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">{{ d.icon }}</span></div>
+                  <div class="stat-icon stat-icon--lg stat-icon--brand"><span class="material-symbols-rounded">{{ d.icon }}</span></div>
                   <div class="flex-1">
                     <h3 class="text-base font-semibold">{{ d.label }}</h3>
                     <p class="text-sm mb-4" style="color:var(--text-secondary)">{{ d.desc }}</p>
@@ -871,8 +871,8 @@ interface DiarioLanc {
                     </div>
                     @if (declAvisos().length) {
                       <div class="mt-4 rounded-lg p-3 text-xs" style="background:#FFF8E6;border:1px solid #F2C94C">
-                        <p class="font-semibold mb-1" style="color:#B8860B"><span class="material-symbols-rounded text-sm align-middle mr-1">warning</span>Validar no PVA antes de transmitir</p>
-                        <ul class="list-disc pl-5" style="color:#7a6300">
+                        <p class="font-semibold mb-1 ink-warning"><span class="material-symbols-rounded text-sm align-middle mr-1">warning</span>Validar no PVA antes de transmitir</p>
+                        <ul class="list-disc pl-5 ink-warning">
                           @for (a of declAvisos(); track $index) { <li>{{ a }}</li> }
                         </ul>
                       </div>
@@ -944,8 +944,8 @@ interface DiarioLanc {
       @if (!implementada()) {
         <div class="bear-card p-8 animate-fade-in-up">
           <div class="flex items-start gap-4">
-            <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background:#ECEBFB">
-              <span class="material-symbols-rounded" style="color:#007AFF">{{ activeSub()?.icon }}</span>
+            <div class="stat-icon stat-icon--lg stat-icon--brand">
+              <span class="material-symbols-rounded">{{ activeSub()?.icon }}</span>
             </div>
             <div class="flex-1">
               <div class="flex items-center gap-2">

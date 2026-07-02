@@ -92,7 +92,7 @@ interface FuncionarioDoc {
                 }
                 <div class="flex items-center justify-between py-3 mt-2" style="border-top:2px solid var(--border-subtle);">
                   <span class="text-base font-bold" style="color:var(--text-primary)">Total Líquido</span>
-                  <span class="text-xl font-bold" style="color:#34C759">{{ resultadoRescisao()!.totalLiquido | currency:'BRL' }}</span>
+                  <span class="text-xl font-bold ink-success">{{ resultadoRescisao()!.totalLiquido | currency:'BRL' }}</span>
                 </div>
               </div>
             </div>
@@ -124,16 +124,16 @@ interface FuncionarioDoc {
         @if (decimoResultados().length > 0) {
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 animate-fade-in-up">
             <div class="bear-card p-4 flex items-center gap-4">
-              <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">payments</span></div>
-              <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Bruto</p><p class="text-xl font-bold" style="color:#007AFF">{{ decimoBruto() | currency:'BRL' }}</p></div>
+              <div class="stat-icon stat-icon--brand"><span class="material-symbols-rounded">payments</span></div>
+              <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Bruto</p><p class="text-xl font-bold ink-brand">{{ decimoBruto() | currency:'BRL' }}</p></div>
             </div>
             <div class="bear-card p-4 flex items-center gap-4">
-              <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">remove_circle</span></div>
-              <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Descontos</p><p class="text-xl font-bold" style="color:#FF3B30">{{ decimoDescontos() | currency:'BRL' }}</p></div>
+              <div class="stat-icon stat-icon--error"><span class="material-symbols-rounded">remove_circle</span></div>
+              <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Descontos</p><p class="text-xl font-bold ink-error">{{ decimoDescontos() | currency:'BRL' }}</p></div>
             </div>
             <div class="bear-card p-4 flex items-center gap-4">
-              <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">check_circle</span></div>
-              <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Líquido</p><p class="text-xl font-bold" style="color:#34C759">{{ decimoLiquido() | currency:'BRL' }}</p></div>
+              <div class="stat-icon stat-icon--success"><span class="material-symbols-rounded">check_circle</span></div>
+              <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Líquido</p><p class="text-xl font-bold ink-success">{{ decimoLiquido() | currency:'BRL' }}</p></div>
             </div>
           </div>
 
@@ -143,9 +143,9 @@ interface FuncionarioDoc {
               <ng-container matColumnDef="salarioBase"><th mat-header-cell *matHeaderCellDef>Salário Base</th><td mat-cell *matCellDef="let d">{{ d.salarioBase | currency:'BRL' }}</td></ng-container>
               <ng-container matColumnDef="meses"><th mat-header-cell *matHeaderCellDef>Meses</th><td mat-cell *matCellDef="let d" class="font-mono">{{ d.mesesTrabalhados }}/12</td></ng-container>
               <ng-container matColumnDef="valor13"><th mat-header-cell *matHeaderCellDef>Valor 13º</th><td mat-cell *matCellDef="let d" class="font-semibold">{{ d.valorDecimo | currency:'BRL' }}</td></ng-container>
-              <ng-container matColumnDef="inss"><th mat-header-cell *matHeaderCellDef>INSS</th><td mat-cell *matCellDef="let d" style="color:#FF3B30">{{ d.inss | currency:'BRL' }}</td></ng-container>
-              <ng-container matColumnDef="irrf"><th mat-header-cell *matHeaderCellDef>IRRF</th><td mat-cell *matCellDef="let d" style="color:#FF3B30">{{ d.irrf | currency:'BRL' }}</td></ng-container>
-              <ng-container matColumnDef="liquido"><th mat-header-cell *matHeaderCellDef>Líquido</th><td mat-cell *matCellDef="let d" style="color:#34C759;font-weight:600;">{{ d.liquido | currency:'BRL' }}</td></ng-container>
+              <ng-container matColumnDef="inss"><th mat-header-cell *matHeaderCellDef>INSS</th><td mat-cell *matCellDef="let d" class="ink-error">{{ d.inss | currency:'BRL' }}</td></ng-container>
+              <ng-container matColumnDef="irrf"><th mat-header-cell *matHeaderCellDef>IRRF</th><td mat-cell *matCellDef="let d" class="ink-error">{{ d.irrf | currency:'BRL' }}</td></ng-container>
+              <ng-container matColumnDef="liquido"><th mat-header-cell *matHeaderCellDef>Líquido</th><td mat-cell *matCellDef="let d" class="ink-success" style="font-weight:600;">{{ d.liquido | currency:'BRL' }}</td></ng-container>
               <tr mat-header-row *matHeaderRowDef="decimoColumns"></tr>
               <tr mat-row *matRowDef="let row; columns: decimoColumns;"></tr>
             </table>

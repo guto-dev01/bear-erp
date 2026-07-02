@@ -43,19 +43,19 @@ interface ContaNode {
       <!-- Stats -->
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">account_tree</span></div>
+          <div class="stat-icon stat-icon--brand"><span class="material-symbols-rounded">account_tree</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Contas</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ totalContas() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">account_balance</span></div>
+          <div class="stat-icon stat-icon--success"><span class="material-symbols-rounded">account_balance</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Sintéticas</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ sinteticas() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E6F8FB"><span class="material-symbols-rounded" style="color:#30B0C7">edit_note</span></div>
+          <div class="stat-icon stat-icon--teal"><span class="material-symbols-rounded">edit_note</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Analíticas</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ analiticas() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#F2EBFB"><span class="material-symbols-rounded" style="color:#5856D6">layers</span></div>
+          <div class="stat-icon stat-icon--purple"><span class="material-symbols-rounded">layers</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Níveis</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ maxNivel() }}</p></div>
         </div>
       </div>

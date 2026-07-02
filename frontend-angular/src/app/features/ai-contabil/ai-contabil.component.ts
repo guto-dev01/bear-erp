@@ -83,8 +83,8 @@ interface RegraHeuristica {
       <!-- Capability Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #eef2ff;">
-            <span class="material-symbols-rounded" style="color: #4f46e5;">smart_toy</span>
+          <div class="stat-icon stat-icon--purple">
+            <span class="material-symbols-rounded">smart_toy</span>
           </div>
           <div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Consultas Respondidas</p>
@@ -92,8 +92,8 @@ interface RegraHeuristica {
           </div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #ecfdf5;">
-            <span class="material-symbols-rounded" style="color: #059669;">auto_fix_high</span>
+          <div class="stat-icon stat-icon--success">
+            <span class="material-symbols-rounded">auto_fix_high</span>
           </div>
           <div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Classificações Automáticas</p>
@@ -101,8 +101,8 @@ interface RegraHeuristica {
           </div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #fffbeb;">
-            <span class="material-symbols-rounded" style="color: #d97706;">pending_actions</span>
+          <div class="stat-icon stat-icon--warning">
+            <span class="material-symbols-rounded">pending_actions</span>
           </div>
           <div>
             <p class="text-xs font-medium" style="color: var(--text-secondary);">Pendentes de Revisão</p>
@@ -119,8 +119,8 @@ interface RegraHeuristica {
             <!-- Form Card -->
             <div class="bear-card p-6">
               <div class="flex items-center gap-3 mb-5">
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: #eef2ff;">
-                  <span class="material-symbols-rounded" style="color: #4f46e5;">smart_toy</span>
+                <div class="stat-icon stat-icon--purple">
+                  <span class="material-symbols-rounded">smart_toy</span>
                 </div>
                 <div>
                   <h3 class="text-heading text-base">Fazer uma Consulta</h3>
@@ -168,8 +168,8 @@ interface RegraHeuristica {
             @if (respostaIA()) {
               <div class="bear-card p-6" style="border-left: 4px solid var(--brand-primary);">
                 <div class="flex items-center gap-3 mb-4">
-                  <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: #eef2ff;">
-                    <span class="material-symbols-rounded" style="color: #4f46e5;">smart_toy</span>
+                  <div class="stat-icon stat-icon--purple">
+                    <span class="material-symbols-rounded">smart_toy</span>
                   </div>
                   <h3 class="text-heading text-base">Resposta da IA</h3>
                 </div>
@@ -199,8 +199,8 @@ interface RegraHeuristica {
             <!-- Classify Form -->
             <div class="bear-card p-6">
               <div class="flex items-center gap-3 mb-5">
-                <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: #ecfdf5;">
-                  <span class="material-symbols-rounded" style="color: #059669;">auto_fix_high</span>
+                <div class="stat-icon stat-icon--success">
+                  <span class="material-symbols-rounded">auto_fix_high</span>
                 </div>
                 <div>
                   <h3 class="text-heading text-base">Classificar Lançamento</h3>
@@ -225,8 +225,8 @@ interface RegraHeuristica {
             @if (classificacao()) {
               <div class="bear-card p-6" style="border-left: 4px solid #059669;">
                 <div class="flex items-center gap-3 mb-5">
-                  <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: #ecfdf5;">
-                    <span class="material-symbols-rounded" style="color: #059669;">check_circle</span>
+                  <div class="stat-icon stat-icon--success">
+                    <span class="material-symbols-rounded">check_circle</span>
                   </div>
                   <h3 class="text-heading text-base">Sugestão de Classificação</h3>
                 </div>
@@ -303,10 +303,10 @@ interface RegraHeuristica {
                       <td mat-cell *matCellDef="let c">
                         <div class="flex gap-1">
                           <button class="bear-btn bear-btn--ghost p-2" title="Aceitar" (click)="aceitarClassificacao(c.id)">
-                            <span class="material-symbols-rounded text-base" style="color: #059669;">check_circle</span>
+                            <span class="material-symbols-rounded text-base ink-success">check_circle</span>
                           </button>
                           <button class="bear-btn bear-btn--ghost p-2" title="Rejeitar" (click)="rejeitarClassificacao(c.id)">
-                            <span class="material-symbols-rounded text-base" style="color: #dc2626;">cancel</span>
+                            <span class="material-symbols-rounded text-base ink-error">cancel</span>
                           </button>
                         </div>
                       </td>

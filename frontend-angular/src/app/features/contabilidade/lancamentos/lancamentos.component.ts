@@ -36,15 +36,15 @@ import { ContabilidadeService } from '../contabilidade.service';
       <!-- KPI Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">edit_note</span></div>
+          <div class="stat-icon stat-icon--brand"><span class="material-symbols-rounded">edit_note</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ totalElements() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">arrow_upward</span></div>
+          <div class="stat-icon stat-icon--success"><span class="material-symbols-rounded">arrow_upward</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Débitos</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ totalDebitos() | currency:'BRL' }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">arrow_downward</span></div>
+          <div class="stat-icon stat-icon--error"><span class="material-symbols-rounded">arrow_downward</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Créditos</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ totalCreditos() | currency:'BRL' }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">

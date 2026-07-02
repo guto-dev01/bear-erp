@@ -33,20 +33,20 @@ import { FinanceiroService } from '../financeiro.service';
       <!-- Stats -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">account_balance</span></div>
+          <div class="stat-icon stat-icon--brand"><span class="material-symbols-rounded">account_balance</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Contas</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ contas().length }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">payments</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Saldo Total</p><p class="text-xl font-bold" style="color:#34C759">{{ saldoTotal() | currency:'BRL' }}</p></div>
+          <div class="stat-icon stat-icon--success"><span class="material-symbols-rounded">payments</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Saldo Total</p><p class="text-xl font-bold ink-success">{{ saldoTotal() | currency:'BRL' }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFF4E5"><span class="material-symbols-rounded" style="color:#FF9500">check_circle</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativas</p><p class="text-2xl font-bold" style="color:#FF9500">{{ countAtivas() }}</p></div>
+          <div class="stat-icon stat-icon--warning"><span class="material-symbols-rounded">check_circle</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativas</p><p class="text-2xl font-bold ink-warning">{{ countAtivas() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E6F8FB"><span class="material-symbols-rounded" style="color:#30B0C7">trending_up</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Maior Saldo</p><p class="text-xl font-bold" style="color:#30B0C7">{{ maiorSaldo() | currency:'BRL' }}</p></div>
+          <div class="stat-icon stat-icon--teal"><span class="material-symbols-rounded">trending_up</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Maior Saldo</p><p class="text-xl font-bold ink-teal">{{ maiorSaldo() | currency:'BRL' }}</p></div>
         </div>
       </div>
 

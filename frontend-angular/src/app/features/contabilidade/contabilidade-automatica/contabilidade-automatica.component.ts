@@ -46,20 +46,20 @@ interface LancamentoAutoView {
       <!-- Stats -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">rule</span></div>
+          <div class="stat-icon stat-icon--brand"><span class="material-symbols-rounded">rule</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Regras</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ regras().length }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">check_circle</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativas</p><p class="text-2xl font-bold" style="color:#34C759">{{ countAtivas() }}</p></div>
+          <div class="stat-icon stat-icon--success"><span class="material-symbols-rounded">check_circle</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativas</p><p class="text-2xl font-bold ink-success">{{ countAtivas() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFF4E5"><span class="material-symbols-rounded" style="color:#FF9500">auto_fix_high</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Lanç. Automáticos</p><p class="text-2xl font-bold" style="color:#FF9500">{{ lancamentosAuto().length }}</p></div>
+          <div class="stat-icon stat-icon--warning"><span class="material-symbols-rounded">auto_fix_high</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Lanç. Automáticos</p><p class="text-2xl font-bold ink-warning">{{ lancamentosAuto().length }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E6F8FB"><span class="material-symbols-rounded" style="color:#30B0C7">speed</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Taxa Automação</p><p class="text-2xl font-bold" style="color:#30B0C7">{{ taxaAutomacao() }}%</p></div>
+          <div class="stat-icon stat-icon--teal"><span class="material-symbols-rounded">speed</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Taxa Automação</p><p class="text-2xl font-bold ink-teal">{{ taxaAutomacao() }}%</p></div>
         </div>
       </div>
 

@@ -69,6 +69,10 @@ export const routes: Routes = [
         path: 'fiscal',
         children: [
           {
+            path: 'importar-nfe',
+            loadComponent: () => import('@features/fiscal/importar-nfe/importar-nfe.component').then(m => m.ImportarNfeComponent),
+          },
+          {
             path: 'nfe',
             loadComponent: () => import('@features/fiscal/nfe/nfe.component').then(m => m.NfeComponent),
           },

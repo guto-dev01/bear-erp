@@ -60,15 +60,15 @@ interface LinhaBalancete {
       @if (gerado()) {
         <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6 animate-fade-in-up">
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">account_balance</span></div>
+            <div class="stat-icon stat-icon--brand"><span class="material-symbols-rounded">account_balance</span></div>
             <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Contas</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ linhas().length }}</p></div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">trending_up</span></div>
+            <div class="stat-icon stat-icon--success"><span class="material-symbols-rounded">trending_up</span></div>
             <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Débitos</p><p class="text-xl font-bold" style="color:var(--text-primary)">{{ sumDebitos() | currency:'BRL' }}</p></div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">trending_down</span></div>
+            <div class="stat-icon stat-icon--error"><span class="material-symbols-rounded">trending_down</span></div>
             <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Créditos</p><p class="text-xl font-bold" style="color:var(--text-primary)">{{ sumCreditos() | currency:'BRL' }}</p></div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
@@ -125,8 +125,8 @@ interface LinhaBalancete {
                     <td class="p-3 font-mono text-xs" style="color:var(--text-tertiary)">{{ l.codigo }}</td>
                     <td class="p-3 text-sm" [style.padding-left.px]="12 + l.nivel * 16" style="color:var(--text-primary)">{{ l.descricao }}</td>
                     <td class="p-3 text-sm text-right font-mono" style="color:var(--text-secondary)">{{ l.saldoAnterior | currency:'BRL' }}</td>
-                    <td class="p-3 text-sm text-right font-mono" style="color:#34C759">{{ l.debitos | currency:'BRL' }}</td>
-                    <td class="p-3 text-sm text-right font-mono" style="color:#FF3B30">{{ l.creditos | currency:'BRL' }}</td>
+                    <td class="p-3 text-sm text-right font-mono ink-success">{{ l.debitos | currency:'BRL' }}</td>
+                    <td class="p-3 text-sm text-right font-mono ink-error">{{ l.creditos | currency:'BRL' }}</td>
                     <td class="p-3 text-sm text-right font-mono font-semibold" [style.color]="l.saldoAtual >= 0 ? 'var(--text-primary)' : '#FF3B30'">
                       {{ l.saldoAtual | currency:'BRL' }}
                     </td>
@@ -137,8 +137,8 @@ interface LinhaBalancete {
                 <tr style="background:var(--surface-2);border-top:2px solid var(--border-color);">
                   <td class="p-3 font-bold text-sm" colspan="2" style="color:var(--text-primary)">TOTAIS</td>
                   <td class="p-3 text-sm text-right font-mono font-bold" style="color:var(--text-primary)">{{ sumSaldoAnterior() | currency:'BRL' }}</td>
-                  <td class="p-3 text-sm text-right font-mono font-bold" style="color:#34C759">{{ sumDebitos() | currency:'BRL' }}</td>
-                  <td class="p-3 text-sm text-right font-mono font-bold" style="color:#FF3B30">{{ sumCreditos() | currency:'BRL' }}</td>
+                  <td class="p-3 text-sm text-right font-mono font-bold ink-success">{{ sumDebitos() | currency:'BRL' }}</td>
+                  <td class="p-3 text-sm text-right font-mono font-bold ink-error">{{ sumCreditos() | currency:'BRL' }}</td>
                   <td class="p-3 text-sm text-right font-mono font-bold" style="color:var(--text-primary)">{{ sumSaldoAtual() | currency:'BRL' }}</td>
                 </tr>
               </tfoot>

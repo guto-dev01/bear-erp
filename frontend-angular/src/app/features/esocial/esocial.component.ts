@@ -148,7 +148,7 @@ interface EventoEsocialView extends EventoEsocialDoc {
                     }
                     @if (e.status === 'VALIDADO') {
                       <button class="bear-btn bear-btn--ghost p-2" title="Enviar" (click)="enviar(e.id)">
-                        <span class="material-symbols-rounded text-base" style="color: #34C759;">send</span>
+                        <span class="material-symbols-rounded text-base ink-success">send</span>
                       </button>
                     }
                     @if (e.status === 'ENVIADO' || e.status === 'PROCESSANDO' || e.status === 'PROCESSADO') {
@@ -315,7 +315,7 @@ interface EventoEsocialView extends EventoEsocialDoc {
                             @for (o of tab.lateralidade; track o.cod) { <mat-option [value]="o.cod">{{ o.desc }}</mat-option> }
                           </mat-select>
                         </mat-form-field>
-                        <button type="button" class="bear-btn bear-btn--ghost p-2" (click)="removerParte($index)"><span class="material-symbols-rounded text-base" style="color:#FF3B30;">delete</span></button>
+                        <button type="button" class="bear-btn bear-btn--ghost p-2" (click)="removerParte($index)"><span class="material-symbols-rounded text-base ink-error">delete</span></button>
                       </div>
                     </div>
                   }
@@ -335,7 +335,7 @@ interface EventoEsocialView extends EventoEsocialDoc {
                           @for (o of tab.agenteCausador; track o.cod) { <mat-option [value]="o.cod">{{ o.desc }}</mat-option> }
                         </mat-select>
                       </mat-form-field>
-                      <button type="button" class="bear-btn bear-btn--ghost p-2 justify-self-start" (click)="removerAgente($index)"><span class="material-symbols-rounded text-base" style="color:#FF3B30;">delete</span></button>
+                      <button type="button" class="bear-btn bear-btn--ghost p-2 justify-self-start" (click)="removerAgente($index)"><span class="material-symbols-rounded text-base ink-error">delete</span></button>
                     </div>
                   }
                 </div>
