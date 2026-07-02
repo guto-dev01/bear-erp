@@ -145,6 +145,12 @@ export interface NotaImportada {
   valorFrete: number;
   valorDesconto: number;
   itens: ItemImportado[];
+  /** 'completo' = NF-e inteira (nfeProc/NFe); 'resumo' = resNFe da Distribuição DF-e. */
+  detalhamento?: 'completo' | 'resumo';
+  /** cSitNFe do resumo: 1 autorizada, 2 cancelada, 3 denegada. */
+  situacao?: string;
+  /** NSU de origem quando veio da Distribuição DF-e. */
+  nsu?: string;
 }
 
 // ────────────────────────────────────────────────────────────
@@ -245,5 +251,59 @@ export function importarNfeXml(xml: string): NotaImportada {
     valorFrete: n(total, 'vFrete'),
     valorDesconto: n(total, 'vDesc'),
     itens,
+    detalhamento: 'completo',
   };
+}
+
+/**
+ * Importa um RESUMO de NF-e (`resNFe`) entregue pela Distribuição DF-e. O resumo
+ * NÃO tem itens nem impostos — só cabeçalho e valor total. Serve para listar as
+ * notas destinadas ao CNPJ e oferecer a Manifestação (Ciência libera o XML completo).
+ */
+export function importarResumoNfe(xml: string, nsu = ''): NotaImportada {
+  const root = parseXml(xml);
+  const r = child(root, 'resNFe') ?? root.children[0];
+  if (!r || r.tag !== 'resNFe') throw new Error('XML não contém resNFe.');
+  const cnpjCpf = txt(r, 'CNPJ') || txt(r, 'CPF');
+  return {
+    chaveAcesso: txt(r, 'chNFe'),
+    modelo: '55',
+    numero: 0,
+    serie: '',
+    dataEmissao: (txt(r, 'dhEmi') || '').slice(0, 10),
+    naturezaOperacao: '',
+    tipoOperacaoDocumento: txt(r, 'tpNF') === '0' ? 'ENTRADA' : 'SAIDA',
+    emitenteCnpj: cnpjCpf,
+    emitenteNome: txt(r, 'xNome'),
+    ufEmitente: '',
+    destinatarioCpfCnpj: '',
+    destinatarioNome: '',
+    ufDestino: '',
+    contribuinteIcms: false,
+    valorProdutos: 0,
+    valorTotal: n(r, 'vNF'),
+    valorICMS: 0,
+    valorICMSST: 0,
+    valorIPI: 0,
+    valorPIS: 0,
+    valorCOFINS: 0,
+    valorFrete: 0,
+    valorDesconto: 0,
+    itens: [],
+    detalhamento: 'resumo',
+    situacao: txt(r, 'cSitNFe'),
+    nsu,
+  };
+}
+
+/**
+ * Detecta o tipo do documento vindo da Distribuição DF-e e roteia para o parser.
+ * Devolve `null` para documentos que não são NF-e (eventos, CT-e).
+ */
+export function parsearDocumento(xml: string, nsu = ''): NotaImportada | null {
+  const root = parseXml(xml);
+  const primeiro = root.children[0]?.tag;
+  if (primeiro === 'nfeProc' || primeiro === 'NFe') return { ...importarNfeXml(xml), nsu };
+  if (primeiro === 'resNFe') return importarResumoNfe(xml, nsu);
+  return null;
 }

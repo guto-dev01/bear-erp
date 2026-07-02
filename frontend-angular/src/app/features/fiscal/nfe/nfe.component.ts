@@ -11,7 +11,9 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialogModule } from '@angular/material/dialog';
-import { FiscalService, RetornoSefaz } from '../fiscal.service';
+import { FiscalService, RetornoSefaz, RetornoDistribuicao } from '../fiscal.service';
+import { importarNfeXml, NotaImportada } from '../engine/importador-xml-nfe';
+import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'bear-nfe',
@@ -41,6 +43,17 @@ import { FiscalService, RetornoSefaz } from '../fiscal.service';
                   matTooltip="Ping no serviço da SEFAZ — valida o A1 + mTLS sem emitir nota">
             <span class="material-symbols-rounded">wifi_tethering</span> Status SEFAZ
           </button>
+          <button class="bear-btn bear-btn--outline" (click)="baixarDistribuicao()" [disabled]="baixando()"
+                  matTooltip="Baixar NF-e de entrada na SEFAZ (Distribuição DF-e por NSU) — captura automática, como o FSist">
+            <span class="material-symbols-rounded">cloud_download</span>
+            {{ baixando() ? 'Baixando…' : 'Baixar da SEFAZ' }}
+          </button>
+          <button class="bear-btn bear-btn--outline" (click)="xmlInput.click()"
+                  matTooltip="Importar XML de NF-e (mod. 55) para escrituração de entradas/saídas">
+            <span class="material-symbols-rounded">upload_file</span> Importar XML
+          </button>
+          <input #xmlInput type="file" accept=".xml,text/xml,application/xml" multiple hidden
+                 (change)="onXmlSelected($event)">
           <button class="bear-btn bear-btn--primary" (click)="showForm.set(true); resetForm()">
             <span class="material-symbols-rounded">add</span> Nova NF-e
           </button>
@@ -66,6 +79,54 @@ import { FiscalService, RetornoSefaz } from '../fiscal.service';
         </div>
       }
 
+      <!-- Resumos de NF-e destinadas (Distribuição DF-e) — pendentes de manifestação -->
+      @if (resumosPendentes().length) {
+        <div class="bear-card" style="margin-bottom:1rem;">
+          <div class="p-4">
+            <div class="flex items-start justify-between" style="margin-bottom:.75rem; gap:1rem;">
+              <div>
+                <h3 class="text-heading">NF-e destinadas ao CNPJ — {{ resumosPendentes().length }} resumo(s)</h3>
+                <p class="text-label">Baixadas da SEFAZ (Distribuição DF-e). Dê <strong>Ciência</strong> para liberar o download do XML completo; depois clique em “Baixar da SEFAZ” de novo.</p>
+              </div>
+              <button class="bear-btn bear-btn--ghost bear-btn--icon" (click)="resumosPendentes.set([])" matTooltip="Fechar">
+                <span class="material-symbols-rounded">close</span>
+              </button>
+            </div>
+            <table style="width:100%; border-collapse:collapse;">
+              <thead>
+                <tr>
+                  <th class="text-label" style="text-align:left;padding:.5rem;">Emitente</th>
+                  <th class="text-label" style="text-align:left;padding:.5rem;">Chave de acesso</th>
+                  <th class="text-label" style="text-align:right;padding:.5rem;">Valor</th>
+                  <th class="text-label" style="text-align:center;padding:.5rem;">Manifestação</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (r of resumosPendentes(); track r.chaveAcesso) {
+                  <tr style="border-top:1px solid var(--separator);">
+                    <td style="padding:.5rem;">{{ r.emitenteNome }}<br><span class="text-label">{{ r.emitenteCnpj }}</span></td>
+                    <td style="padding:.5rem;"><code style="font-size:.7rem;">{{ r.chaveAcesso }}</code></td>
+                    <td style="padding:.5rem;text-align:right;" class="tabular">{{ r.valorTotal | currency:'BRL' }}</td>
+                    <td style="padding:.5rem;text-align:center; white-space:nowrap;">
+                      <button class="bear-btn bear-btn--outline" (click)="manifestar(r, '210210')"
+                              [disabled]="manifestandoChave() === r.chaveAcesso" matTooltip="Ciência da Operação (210210) — libera o XML completo">
+                        {{ manifestandoChave() === r.chaveAcesso ? '…' : 'Ciência' }}
+                      </button>
+                      <button class="bear-btn bear-btn--ghost" (click)="manifestar(r, '210200')"
+                              [disabled]="manifestandoChave() === r.chaveAcesso" matTooltip="Confirmação da Operação (210200)">Confirmar</button>
+                      <button class="bear-btn bear-btn--ghost" (click)="manifestar(r, '210220')"
+                              [disabled]="manifestandoChave() === r.chaveAcesso" matTooltip="Desconhecimento da Operação (210220)">Desconhecer</button>
+                      <button class="bear-btn bear-btn--ghost" (click)="manifestar(r, '210240')"
+                              [disabled]="manifestandoChave() === r.chaveAcesso" matTooltip="Operação não Realizada (210240) — exige justificativa">Não realizada</button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
       <!-- Pré-visualização do XML gerado no navegador (não assinado) -->
       @if (preview(); as p) {
         <div class="bear-card" style="margin-bottom:1rem;">
@@ -87,9 +148,76 @@ import { FiscalService, RetornoSefaz } from '../fiscal.service';
         </div>
       }
 
+      <!-- Importação de XML de NF-e (parser local → escrituração) -->
+      @if (importPreview().length || importErrors().length) {
+        <div class="bear-card" style="margin-bottom:1rem;">
+          <div class="p-4">
+            <div class="flex items-start justify-between" style="margin-bottom:.75rem; gap:1rem;">
+              <div>
+                <h3 class="text-heading">Importar XML — {{ importPreview().length }} nota(s) lida(s)</h3>
+                <p class="text-label">Revise e confirme a escrituração. XML de terceiros normalmente é entrada (compra).</p>
+              </div>
+              <button class="bear-btn bear-btn--ghost bear-btn--icon" (click)="cancelarImportacao()" matTooltip="Fechar">
+                <span class="material-symbols-rounded">close</span>
+              </button>
+            </div>
+
+            @if (importErrors().length) {
+              <span class="badge badge--error" style="margin-bottom:.75rem;">
+                <span class="material-symbols-rounded" style="font-size:1rem;">warning</span>
+                {{ importErrors().length }} arquivo(s) ignorado(s): {{ importErrors().join(', ') }}
+              </span>
+            }
+
+            @if (importPreview().length) {
+              <div class="flex items-center gap-3" style="margin-bottom:.75rem;">
+                <span class="text-label">Registrar como</span>
+                <div class="ios-segmented">
+                  <button type="button" class="ios-segmented__item" [class.ios-segmented__item--active]="importTipo()==='ENTRADA'" (click)="importTipo.set('ENTRADA')">Entrada</button>
+                  <button type="button" class="ios-segmented__item" [class.ios-segmented__item--active]="importTipo()==='SAIDA'" (click)="importTipo.set('SAIDA')">Saída</button>
+                </div>
+              </div>
+
+              <div class="table-scroll">
+                <table class="w-full" style="border-collapse:collapse;">
+                  <thead>
+                    <tr>
+                      <th class="text-label" style="text-align:left;padding:.5rem;">Número</th>
+                      <th class="text-label" style="text-align:left;padding:.5rem;">Emitente</th>
+                      <th class="text-label" style="text-align:left;padding:.5rem;">Chave de acesso</th>
+                      <th class="text-label" style="text-align:right;padding:.5rem;">Itens</th>
+                      <th class="text-label" style="text-align:right;padding:.5rem;">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (n of importPreview(); track n.chaveAcesso) {
+                      <tr style="border-top:1px solid var(--separator);">
+                        <td style="padding:.5rem;">{{ n.numero }}<span class="text-label">/{{ n.serie }}</span></td>
+                        <td style="padding:.5rem;">{{ n.emitenteNome }}<br><span class="text-label">{{ n.emitenteCnpj }}</span></td>
+                        <td style="padding:.5rem;"><code style="font-size:.7rem;">{{ n.chaveAcesso }}</code></td>
+                        <td style="padding:.5rem;text-align:right;" class="tabular">{{ n.itens.length }}</td>
+                        <td style="padding:.5rem;text-align:right;" class="tabular">{{ n.valorTotal | currency:'BRL' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="flex justify-end gap-2" style="margin-top:1rem;">
+                <button class="bear-btn bear-btn--outline" (click)="cancelarImportacao()" [disabled]="importing()">Cancelar</button>
+                <button class="bear-btn bear-btn--primary" (click)="confirmarImportacao()" [disabled]="importing()">
+                  <span class="material-symbols-rounded">save</span>
+                  {{ importing() ? 'Importando…' : 'Importar ' + importPreview().length + ' nota(s)' }}
+                </button>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
       @if (loading() || transmitindo()) {
         <div class="flex justify-center p-8">
-          <div class="login__spinner" style="width:32px;height:32px;border:3px solid var(--surface-3);border-top-color:var(--brand-primary);"></div>
+          <div class="bear-spinner bear-spinner--xl"></div>
         </div>
       }
 
@@ -329,6 +457,17 @@ export class NfeComponent implements OnInit {
   sefazResultado = signal<RetornoSefaz | null>(null);
   preview = signal<{ numero: unknown; chave: string; xml: string } | null>(null);
 
+  // Importação de XML de NF-e
+  importPreview = signal<NotaImportada[]>([]);
+  importErrors = signal<string[]>([]);
+  importTipo = signal<'ENTRADA' | 'SAIDA'>('ENTRADA');
+  importing = signal(false);
+
+  // Captura por Distribuição DF-e (entrada automática) + manifestação
+  baixando = signal(false);
+  resumosPendentes = signal<NotaImportada[]>([]);
+  manifestandoChave = signal<string>('');
+
   constructor(private fb: FormBuilder, private fiscalService: FiscalService, private snackBar: MatSnackBar) {
     this.nfeForm = this.fb.group({
       tipo: ['SAIDA', Validators.required],
@@ -348,6 +487,113 @@ export class NfeComponent implements OnInit {
   get itensArray() { return this.nfeForm.get('itens') as FormArray; }
 
   ngOnInit() { this.loadNfes(); }
+
+  // ─── Importação de XML de NF-e ───────────────────────────────
+  /** Lê os XMLs escolhidos, faz o parse local e monta a pré-visualização. */
+  async onXmlSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const files = Array.from(input.files ?? []);
+    input.value = ''; // permite reselecionar o mesmo arquivo depois
+    if (!files.length) return;
+
+    const notas: NotaImportada[] = [];
+    const erros: string[] = [];
+    for (const file of files) {
+      try {
+        notas.push(importarNfeXml(await file.text()));
+      } catch {
+        erros.push(file.name);
+      }
+    }
+    this.importErrors.set(erros);
+    this.importPreview.set(notas);
+    if (!notas.length && erros.length) {
+      this.snackBar.open('Nenhum XML de NF-e válido encontrado.', 'Fechar', { duration: 4000 });
+    }
+  }
+
+  /** Escritura as notas lidas (cabeçalho + itens) no tipo escolhido. */
+  confirmarImportacao(): void {
+    const notas = this.importPreview();
+    if (!notas.length || this.importing()) return;
+    const tipo = this.importTipo();
+    this.importing.set(true);
+    forkJoin(notas.map(n => this.fiscalService.escriturarNotaImportada(n, tipo))).subscribe({
+      next: () => {
+        this.importing.set(false);
+        this.snackBar.open(
+          `${notas.length} nota(s) importada(s) como ${tipo === 'ENTRADA' ? 'entrada' : 'saída'}.`,
+          'OK', { duration: 4000 });
+        this.cancelarImportacao();
+        this.loadNfes();
+      },
+      error: err => {
+        this.importing.set(false);
+        this.snackBar.open(err?.message || err?.error?.message || 'Erro ao importar notas.', 'Fechar', { duration: 5000 });
+      },
+    });
+  }
+
+  cancelarImportacao(): void {
+    this.importPreview.set([]);
+    this.importErrors.set([]);
+    this.importTipo.set('ENTRADA');
+  }
+
+  // ─── Captura por Distribuição DF-e (entrada automática, estilo FSist) ────────
+  /**
+   * Baixa na SEFAZ as NF-e destinadas ao CNPJ (Distribuição DF-e). O loop de NSU
+   * roda na Function; as notas completas já são escrituradas como entrada e os
+   * resumos ficam listados para manifestação (Ciência libera o XML completo).
+   */
+  baixarDistribuicao(): void {
+    if (this.baixando()) return;
+    this.baixando.set(true);
+    this.fiscalService.baixarNotasDistribuicao(this.ambiente()).subscribe({
+      next: (r: RetornoDistribuicao) => {
+        this.baixando.set(false);
+        if (!r.ok) {
+          this.snackBar.open(r.erro || 'Falha na Distribuição DF-e.', 'Fechar', { duration: 6000 });
+          return;
+        }
+        this.resumosPendentes.set(r.resumos ?? []);
+        const dup = r.duplicadas ? ` (${r.duplicadas} já existia(m))` : '';
+        const msg = `${r.escrituradas ?? 0} NF-e escriturada(s)${dup}; ${r.resumos?.length ?? 0} resumo(s) para manifestar.`;
+        this.snackBar.open(msg, 'OK', { duration: 5000 });
+        if (r.escrituradas) this.loadNfes();
+      },
+      error: err => {
+        this.baixando.set(false);
+        this.snackBar.open(err?.message || 'Erro ao baixar da SEFAZ.', 'Fechar', { duration: 6000 });
+      },
+    });
+  }
+
+  /** Manifestação do Destinatário sobre um resumo (por padrão, Ciência 210210). */
+  manifestar(nota: NotaImportada, tpEvento: '210200' | '210210' | '210220' | '210240' = '210210'): void {
+    if (this.manifestandoChave()) return;
+    let xJust = '';
+    if (tpEvento === '210240') {
+      xJust = (prompt('Justificativa da Operação não Realizada (15 a 255 caracteres):') || '').trim();
+      if (xJust.length < 15) { this.snackBar.open('Justificativa muito curta.', 'Fechar', { duration: 4000 }); return; }
+    }
+    this.manifestandoChave.set(nota.chaveAcesso);
+    this.fiscalService.manifestarNota(nota.chaveAcesso, tpEvento, xJust, this.ambiente()).subscribe({
+      next: (r: RetornoSefaz) => {
+        this.manifestandoChave.set('');
+        if (r.ok && (r as { registrado?: boolean }).registrado !== false && (r.cStat === 135 || r.cStat === 136 || r.cStat === 573)) {
+          this.snackBar.open(`Manifestação registrada (cStat ${r.cStat}).`, 'OK', { duration: 4000 });
+          this.resumosPendentes.update(list => list.filter(n => n.chaveAcesso !== nota.chaveAcesso));
+        } else {
+          this.snackBar.open(r.erro || r.xMotivo || 'Manifestação não registrada.', 'Fechar', { duration: 6000 });
+        }
+      },
+      error: err => {
+        this.manifestandoChave.set('');
+        this.snackBar.open(err?.message || 'Erro ao manifestar.', 'Fechar', { duration: 6000 });
+      },
+    });
+  }
 
   loadNfes(page = 0) {
     this.loading.set(true);

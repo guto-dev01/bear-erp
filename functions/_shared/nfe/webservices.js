@@ -100,8 +100,15 @@ const ENDPOINTS = {
   SVCAN: { producao: estiloNacional('www.sefazvirtual.fazenda.gov.br'), homologacao: estiloNacional('hom.nfe.fazenda.gov.br', 'hom.sefazvirtual.fazenda.gov.br') },
   SVCRS: { producao: estiloRS('nfe.svrs.rs.gov.br', 'cad.svrs.rs.gov.br'), homologacao: estiloRS('nfe-homologacao.svrs.rs.gov.br', 'cad.svrs.rs.gov.br') },
   AN: {
-    producao: { NFeDistribuicaoDFe: 'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx' },
-    homologacao: { NFeDistribuicaoDFe: 'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx' },
+    producao: {
+      NFeDistribuicaoDFe: 'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx',
+      // Manifestação do Destinatário é recebida pelo Ambiente Nacional.
+      NFeRecepcaoEvento4: 'https://www.nfe.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx',
+    },
+    homologacao: {
+      NFeDistribuicaoDFe: 'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx',
+      NFeRecepcaoEvento4: 'https://hom.nfe.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx',
+    },
   },
 };
 

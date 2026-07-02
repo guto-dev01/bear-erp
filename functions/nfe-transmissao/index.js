@@ -5,6 +5,7 @@ const fs = require('fs');
 const { Client, Databases, Storage } = require('node-appwrite');
 const { AppwriteStorageVault } = require('../_shared/cofre/appwrite-storage-vault');
 const { transmitirNfe, statusServico } = require('../_shared/nfe/transmissao');
+const { baixarNovos, manifestarDestinatario } = require('../_shared/nfe/importacao');
 const { criarLogger } = require('../_shared/log/logger');
 
 // CA do servidor da SEFAZ (ICP-Brasil / AC SOLUTI) empacotada com a função em
@@ -25,9 +26,14 @@ if (!process.env.NODE_EXTRA_CA_CERTS) {
  *
  * Entrada (JSON no corpo):
  *   { empresaId, uf, ambiente?: 'homologacao'|'producao',
- *     operacao?: 'autorizar'|'status', xmlNFe?, idLote? }
+ *     operacao?: 'autorizar'|'status'|'distribuir'|'manifestar', xmlNFe?, idLote?,
+ *     cnpjCpf?, ultNSU?, chave?, tpEvento?, xJust? }
  *   - 'autorizar' (padrão): exige xmlNFe (gerado no front por gerarXmlNotaFiscal).
  *   - 'status': "ping" do serviço (valida A1 + mTLS sem mandar nota).
+ *   - 'distribuir': baixa NF-e de ENTRADA via Distribuição DF-e (loop de NSU);
+ *     opcional ultNSU (padrão 0) e cnpjCpf (padrão: o do certificado).
+ *   - 'manifestar': Manifestação do Destinatário; exige chave e tpEvento
+ *     (210200/210210/210220/210240); xJust obrigatório na 210240.
  *
  * Variáveis de ambiente: APPWRITE_FUNCTION_API_ENDPOINT,
  *   APPWRITE_FUNCTION_PROJECT_ID, APPWRITE_DB_ID, CERT_BUCKET_ID,
@@ -38,7 +44,10 @@ module.exports = async ({ req, res, log, error }) => {
   const logger = criarLogger('fn:nfe-transmissao');
   try {
     const corpo = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
-    const { empresaId, uf, ambiente = 'homologacao', operacao = 'autorizar', xmlNFe, idLote } = corpo;
+    const {
+      empresaId, uf, ambiente = 'homologacao', operacao = 'autorizar', xmlNFe, idLote,
+      cnpjCpf, ultNSU, chave, tpEvento, xJust,
+    } = corpo;
     if (!empresaId || !uf) {
       return res.json({ ok: false, erro: 'empresaId e uf são obrigatórios' }, 400);
     }
@@ -64,6 +73,21 @@ module.exports = async ({ req, res, log, error }) => {
     if (operacao === 'status') {
       const r = await statusServico({ cofre, empresaId, uf, ambiente, truststoreEstrito });
       logger.info('Status do serviço consultado', { empresaId, uf, online: r.online });
+      return res.json({ ok: true, ...r });
+    }
+
+    if (operacao === 'distribuir') {
+      const r = await baixarNovos({ cofre, empresaId, uf, cnpjCpf, ultNSU: ultNSU ?? '0', ambiente, truststoreEstrito });
+      logger.info('Distribuição DF-e', { empresaId, uf, baixados: r.documentos.length, ultNSU: r.ultNSU });
+      return res.json({ ok: true, ...r });
+    }
+
+    if (operacao === 'manifestar') {
+      if (!chave || !tpEvento) {
+        return res.json({ ok: false, erro: 'chave e tpEvento são obrigatórios para manifestar' }, 400);
+      }
+      const r = await manifestarDestinatario({ cofre, empresaId, chave, cnpj: cnpjCpf, tpEvento, xJust, ambiente, truststoreEstrito });
+      logger.info('Manifestação', { empresaId, chave, tpEvento, cStat: r.cStat });
       return res.json({ ok: true, ...r });
     }
 

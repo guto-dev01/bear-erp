@@ -16,7 +16,7 @@ import {
   ResultadoIrpjCsll,
   ResultadoSimples,
 } from './engine/apuracao-federal';
-import { ItemImportado, NotaImportada } from './engine/importador-xml-nfe';
+import { ItemImportado, NotaImportada, parsearDocumento } from './engine/importador-xml-nfe';
 import { EmitenteNFe, gerarXmlNFe, ItemNFe, NotaNFe } from './engine/nfe-xml';
 import { montarGuia } from './engine/guias';
 import { calendarioObrigacoes, descricaoObrigacao } from './engine/obrigacoes';
@@ -243,6 +243,29 @@ export interface RetornoSefaz {
   online?: boolean;
 }
 
+/** Documento cru devolvido pela Distribuição DF-e (Function, operacao 'distribuir'). */
+export interface DocDistribuicao {
+  nsu: string;
+  schema: string;
+  tipo: string;
+  xml: string;
+}
+
+/** Resultado da captura por Distribuição DF-e já processado no front. */
+export interface RetornoDistribuicao {
+  ok: boolean;
+  erro?: string;
+  /** NF-e completas escrituradas em notas_fiscais (entrada). */
+  escrituradas?: number;
+  /** NF-e completas ignoradas por já existirem (dedup por chaveAcesso). */
+  duplicadas?: number;
+  /** Resumos (resNFe) pendentes de manifestação para liberar o XML completo. */
+  resumos?: NotaImportada[];
+  totalDocs?: number;
+  ultNSU?: string;
+  maxNSU?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class FiscalService {
   constructor(private appwrite: AppwriteService, private auth: AuthService) {}
@@ -428,6 +451,115 @@ export class FiscalService {
         return this.appwrite.executeFunction<RetornoSefaz>(
           environment.appwrite.functions.nfeTransmissao,
           { empresaId: this.empresaId, uf, ambiente, operacao: 'status' },
+        ).pipe(catchError(err => of<RetornoSefaz>({ ok: false, erro: this.erroFunction(err) })));
+      }),
+    );
+  }
+
+  /** Chave do localStorage que guarda o último NSU processado por empresa. */
+  private chaveUltNSU(): string { return `nfe_ultnsu_${this.empresaId}`; }
+
+  /** Lê o último NSU processado (0 se nunca buscou ou sem localStorage). */
+  private lerUltNSU(): string {
+    try { return localStorage.getItem(this.chaveUltNSU()) || '0'; } catch { return '0'; }
+  }
+
+  private salvarUltNSU(nsu?: string): void {
+    if (!nsu) return;
+    try { localStorage.setItem(this.chaveUltNSU(), nsu); } catch { /* sem storage */ }
+  }
+
+  /**
+   * Conjunto das `chaveAcesso` que JÁ existem em `notas_fiscais` (para dedup).
+   * Consulta em lotes de 100 (limite do operador IN do Appwrite).
+   */
+  private chavesJaEscrituradas(chaves: string[]): Observable<Set<string>> {
+    const unicas = [...new Set(chaves.filter(Boolean))];
+    if (!unicas.length) return of(new Set<string>());
+    const lotes: string[][] = [];
+    for (let i = 0; i < unicas.length; i += 100) lotes.push(unicas.slice(i, i + 100));
+    return forkJoin(lotes.map(lote =>
+      this.appwrite.listDocuments<NotaFiscalDoc>(NOTAS, [
+        this.Q.equal('chaveAcesso', lote),
+        this.Q.equal('tenantId', this.tenantId),
+        this.Q.limit(lote.length),
+      ]),
+    )).pipe(map(res => new Set(res.flat().map(d => d.chaveAcesso).filter(Boolean) as string[])));
+  }
+
+  /**
+   * Captura NF-e de ENTRADA na SEFAZ via Distribuição DF-e (Function, operação
+   * 'distribuir'). O loop de NSU roda no servidor; aqui:
+   *  - continua do último NSU salvo (localStorage por empresa) e persiste o novo;
+   *  - escritura as NF-e completas em `notas_fiscais` (entrada), **deduplicando
+   *    por `chaveAcesso`** para não duplicar em execuções repetidas;
+   *  - devolve os resumos (`resNFe`) como pendências de manifestação.
+   *
+   * Nunca lança: erros voltam como `{ ok:false, erro }` para a UI.
+   */
+  baixarNotasDistribuicao(
+    ambiente: 'homologacao' | 'producao' = 'homologacao',
+  ): Observable<RetornoDistribuicao> {
+    const ultNSU = this.lerUltNSU();
+    return this.empresaDoc().pipe(
+      switchMap(empresa => {
+        const uf = String(empresa?.uf ?? '').toUpperCase();
+        if (!uf) return of<RetornoDistribuicao>({ ok: false, erro: 'UF do emitente ausente no cadastro da empresa.' });
+        return this.appwrite.executeFunction<{ ok: boolean; erro?: string; documentos?: DocDistribuicao[]; ultNSU?: string; maxNSU?: string }>(
+          environment.appwrite.functions.nfeDistribuicao,
+          { empresaId: this.empresaId, uf, ambiente, operacao: 'distribuir', ultNSU },
+        ).pipe(
+          switchMap(ret => {
+            if (!ret?.ok) return of<RetornoDistribuicao>({ ok: false, erro: ret?.erro || 'Falha na Distribuição DF-e.' });
+            this.salvarUltNSU(ret.ultNSU); // avança o cursor mesmo se nada novo (evita cStat 656)
+            const docs = ret.documentos ?? [];
+            const notas = docs
+              .map(d => parsearDocumento(d.xml, d.nsu))
+              .filter((x): x is NotaImportada => !!x);
+            const completas = notas.filter(x => x.detalhamento === 'completo');
+            const resumos = notas.filter(x => x.detalhamento === 'resumo');
+            return this.chavesJaEscrituradas(completas.map(c => c.chaveAcesso)).pipe(
+              switchMap(existentes => {
+                const novas = completas.filter(c => !c.chaveAcesso || !existentes.has(c.chaveAcesso));
+                const escrituras = novas.map(x => this.escriturarNotaImportada(x, 'ENTRADA'));
+                const escrito$ = escrituras.length ? forkJoin(escrituras) : of([]);
+                return escrito$.pipe(map(() => ({
+                  ok: true,
+                  escrituradas: novas.length,
+                  duplicadas: completas.length - novas.length,
+                  resumos,
+                  totalDocs: docs.length,
+                  ultNSU: ret.ultNSU,
+                  maxNSU: ret.maxNSU,
+                } as RetornoDistribuicao)));
+              }),
+            );
+          }),
+          catchError(err => of<RetornoDistribuicao>({ ok: false, erro: this.erroFunction(err) })),
+        );
+      }),
+    );
+  }
+
+  /**
+   * Manifestação do Destinatário (Function, operação 'manifestar'):
+   * 210210 Ciência · 210200 Confirmação · 210220 Desconhecimento ·
+   * 210240 Operação não Realizada (exige `xJust`). A Ciência libera o download
+   * do XML completo pela próxima distribuição.
+   */
+  manifestarNota(
+    chave: string,
+    tpEvento: '210200' | '210210' | '210220' | '210240',
+    xJust = '',
+    ambiente: 'homologacao' | 'producao' = 'homologacao',
+  ): Observable<RetornoSefaz> {
+    return this.empresaDoc().pipe(
+      switchMap(empresa => {
+        const uf = String(empresa?.uf ?? '').toUpperCase();
+        if (!uf) return of<RetornoSefaz>({ ok: false, erro: 'UF do emitente ausente no cadastro da empresa.' });
+        return this.appwrite.executeFunction<RetornoSefaz>(
+          environment.appwrite.functions.nfeDistribuicao,
+          { empresaId: this.empresaId, uf, ambiente, operacao: 'manifestar', chave, tpEvento, xJust },
         ).pipe(catchError(err => of<RetornoSefaz>({ ok: false, erro: this.erroFunction(err) })));
       }),
     );

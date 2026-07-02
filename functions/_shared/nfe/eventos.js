@@ -68,6 +68,35 @@ function montarEventoCCe({ chave, cnpj, xCorrecao, nSeqEvento = 1, tpAmb = '2', 
   return montarEvento({ tpEvento: '110110', chave, cnpj, cOrgao, tpAmb, nSeqEvento, dhEvento, detEventoInterno: det });
 }
 
+// ── Manifestação do Destinatário ──────────────────────────────────────────
+// Eventos que o DESTINATÁRIO registra sobre uma NF-e recebida. Recebidos pelo
+// Ambiente Nacional (Receita Federal), por isso cOrgao é SEMPRE 91.
+const MANIFESTACAO = Object.freeze({
+  '210200': 'Confirmacao da Operacao',
+  '210210': 'Ciencia da Operacao',
+  '210220': 'Desconhecimento da Operacao',
+  '210240': 'Operacao nao Realizada',
+});
+
+/**
+ * Evento de Manifestação do Destinatário.
+ *  - 210210 Ciência da Operação — libera o download do XML completo pela distribuição.
+ *  - 210200 Confirmação · 210220 Desconhecimento · 210240 Operação não Realizada.
+ * Só a 210240 aceita/exige justificativa (xJust, 15..255). cOrgao fixo = 91 (AN).
+ * @param {{ chave, cnpj, tpEvento, xJust?, nSeqEvento?, tpAmb?, dhEvento }} p
+ */
+function montarEventoManifestacao({ chave, cnpj, tpEvento, xJust, nSeqEvento = 1, tpAmb = '2', dhEvento }) {
+  const desc = MANIFESTACAO[tpEvento];
+  if (!desc) throw new Error(`tpEvento de manifestação inválido: ${tpEvento}`);
+  let det = `<descEvento>${desc}</descEvento>`;
+  if (tpEvento === '210240') {
+    det += `<xJust>${esc(validarJust(xJust))}</xJust>`;
+  } else if (xJust) {
+    throw new Error('xJust só é aceito na Operação não Realizada (210240)');
+  }
+  return montarEvento({ tpEvento, chave, cnpj, cOrgao: '91', tpAmb, nSeqEvento, dhEvento, detEventoInterno: det });
+}
+
 /**
  * Inutilização de faixa de numeração (versão 4.00).
  * Id = "ID" + cUF(2) + ano(2) + CNPJ(14) + mod(2) + serie(3) + nNFIni(9) + nNFFin(9).
@@ -90,8 +119,10 @@ function montarInutilizacao({ cUF, ano, cnpj, mod = '55', serie, nNFIni, nNFFin,
 
 module.exports = {
   XCOND_USO_CCE,
+  MANIFESTACAO,
   idEvento,
   montarEventoCancelamento,
   montarEventoCCe,
+  montarEventoManifestacao,
   montarInutilizacao,
 };
