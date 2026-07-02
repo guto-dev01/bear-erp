@@ -15,14 +15,14 @@ import { MatTooltipModule } from '@angular/material/tooltip';
       </a>
     } @else {
       <div class="ss">
-        <div class="ss__title">
-          <span class="material-symbols-rounded">support_agent</span>
-          Precisa de ajuda?
+        <div class="ss__head">
+          <span class="ss__icon"><span class="material-symbols-rounded">support_agent</span></span>
+          <span class="ss__title">Precisa de ajuda?</span>
         </div>
         <p class="ss__text">Abra um chamado ou fale com o suporte.</p>
         <a class="ss__cta" [href]="mailto">
           <span class="material-symbols-rounded">headset_mic</span>
-          Acessar Suporte
+          Acessar suporte
         </a>
       </div>
     }
@@ -31,36 +31,51 @@ import { MatTooltipModule } from '@angular/material/tooltip';
     :host { display: block; }
     .ss {
       padding: 0.75rem;
-      border-radius: var(--radius-md);
-      background: linear-gradient(160deg, var(--brand-primary-light), transparent 92%);
+      border-radius: var(--radius-lg);
+      background: var(--sidebar-hover);
       border: 1px solid var(--sidebar-border);
     }
-    .ss__title {
+    .ss__head {
       display: flex;
       align-items: center;
-      gap: 0.4375rem;
+      gap: 0.5rem;
+    }
+    .ss__icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: var(--radius-sm);
+      background: var(--brand-primary-light);
+      color: var(--sidebar-text-active);
+      flex-shrink: 0;
+    }
+    .ss__icon .material-symbols-rounded { font-size: 1rem; }
+    .ss__title {
       font-size: 0.8125rem;
       font-weight: 600;
       color: var(--sidebar-text-hover);
+      letter-spacing: -0.006em;
     }
-    .ss__title .material-symbols-rounded { font-size: 1.0625rem; color: var(--sidebar-text-active); }
-    .ss__text { margin: 0.3125rem 0 0.625rem; font-size: 0.6875rem; line-height: 1.4; color: var(--sidebar-text); }
+    .ss__text { margin: 0.5rem 0 0.75rem; font-size: 0.6875rem; line-height: 1.45; color: var(--sidebar-text); }
     .ss__cta {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 0.375rem;
-      padding: 0.4375rem 0.75rem;
-      border-radius: var(--radius-sm);
+      height: 34px;
+      border-radius: var(--radius-md);
       background: var(--brand-primary);
       color: #fff;
       font-size: 0.75rem;
       font-weight: 600;
       text-decoration: none;
-      transition: background var(--transition-fast);
+      transition: background var(--transition-fast), transform 120ms var(--ease-ios);
     }
     .ss__cta .material-symbols-rounded { font-size: 1rem; }
     .ss__cta:hover { background: var(--brand-primary-hover); }
+    .ss__cta:active { transform: scale(0.98); }
     .ss__cta:focus-visible { outline: 2px solid var(--sidebar-active-border); outline-offset: 2px; }
 
     .ss-btn {

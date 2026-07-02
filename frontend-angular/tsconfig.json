@@ -24,7 +24,8 @@
       "@core/*": ["app/core/*"],
       "@shared/*": ["app/shared/*"],
       "@features/*": ["app/features/*"],
-      "@env/*": ["environments/*"]
+      "@env/*": ["environments/*"],
+      "animejs/adapters/three": ["../node_modules/animejs/dist/modules/adapters/three/index.d.ts"]
     }
   },
   "angularCompilerOptions": {

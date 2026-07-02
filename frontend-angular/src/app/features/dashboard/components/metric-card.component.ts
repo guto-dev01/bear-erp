@@ -72,11 +72,11 @@ import { MetricCardData } from '../dashboard.types';
     a.mc:active { transform: translateY(0); }
     a.mc:focus-visible { outline: 2px solid var(--mc); outline-offset: 2px; }
 
-    .mc--blue   { --mc: #1687ff; --mc-soft: rgba(22, 135, 255, 0.14); }
-    .mc--purple { --mc: #8b5cf6; --mc-soft: rgba(139, 92, 246, 0.16); }
-    .mc--orange { --mc: #ff8a1f; --mc-soft: rgba(255, 138, 31, 0.16); }
-    .mc--green  { --mc: #20d477; --mc-soft: rgba(32, 212, 119, 0.16); }
-    .mc--pink   { --mc: #f472b6; --mc-soft: rgba(244, 114, 182, 0.16); }
+    .mc--blue   { --mc: #0a84ff; --mc-soft: rgba(10, 132, 255, 0.16); }
+    .mc--purple { --mc: #bf5af2; --mc-soft: rgba(191, 90, 242, 0.16); }
+    .mc--orange { --mc: #ff9f0a; --mc-soft: rgba(255, 159, 10, 0.16); }
+    .mc--green  { --mc: #30d158; --mc-soft: rgba(48, 209, 88, 0.16); }
+    .mc--pink   { --mc: #ff375f; --mc-soft: rgba(255, 55, 95, 0.16); }
 
     .mc__top {
       display: flex;

@@ -65,11 +65,11 @@
 .dash__btn--ghost { width: 38px; padding: 0; justify-content: center; }
 .dash__btn--primary {
   border-color: transparent;
-  background: linear-gradient(135deg, #1687ff, #0a6fe0);
+  background: var(--brand-primary);
   color: #fff;
 }
 .dash__btn--primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #2b95ff, #1178e6);
+  background: var(--brand-primary-hover);
   border-color: transparent;
   box-shadow: 0 4px 14px var(--brand-primary-glow);
 }

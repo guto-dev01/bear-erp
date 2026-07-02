@@ -9,7 +9,11 @@ import { CommonModule } from '@angular/common';
   template: `
     <div class="sh" [class.sh--rail]="collapsed">
       <div class="sh__logo" aria-hidden="true">
-        <span class="material-symbols-rounded">pets</span>
+        @if (logoOk) {
+          <img src="assets/logo-bear.png" alt="Bear ERP" (error)="logoOk = false">
+        } @else {
+          <span class="material-symbols-rounded">pets</span>
+        }
       </div>
       @if (!collapsed) {
         <div class="sh__meta">
@@ -36,15 +40,12 @@ import { CommonModule } from '@angular/common';
       width: 34px;
       height: 34px;
       min-width: 34px;
-      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(135deg, #1687ff, #6d5cf6);
-      box-shadow: 0 2px 8px rgba(22, 135, 255, 0.28), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-      color: #fff;
     }
-    .sh__logo .material-symbols-rounded { font-size: 1.25rem; }
+    .sh__logo img { width: 100%; height: 100%; object-fit: contain; display: block; filter: drop-shadow(0 2px 6px rgba(139, 92, 246, 0.35)); }
+    .sh__logo .material-symbols-rounded { font-size: 1.5rem; color: var(--brand-primary); }
     .sh__meta { display: flex; flex-direction: column; min-width: 0; flex: 1; }
     .sh__row { display: flex; align-items: center; gap: 0.5rem; }
     .sh__name {
@@ -79,4 +80,6 @@ import { CommonModule } from '@angular/common';
 })
 export class SidebarHeaderComponent {
   @Input() collapsed = false;
+  /** Logo do urso; se o arquivo ainda não existir, cai para o ícone de pata. */
+  logoOk = true;
 }

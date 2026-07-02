@@ -28,12 +28,21 @@ $apple-mono: '"SF Mono", "JetBrains Mono", ui-monospace, "Fira Code", monospace'
   --surface-4: #c7c7cc;
   --surface-5: #aeaeb2;
 
+  // Translucent surface for popovers / menus / sheets over a blurred backdrop
+  --surface-translucent: rgba(255, 255, 255, 0.72);
+
   // Separators — used sparingly; depth comes from light, not borders
   --separator: rgba(60, 60, 67, 0.14);
   --border-color: rgba(60, 60, 67, 0.14);
   --border-subtle: rgba(60, 60, 67, 0.08);
   --border-strong: rgba(60, 60, 67, 0.26);
+  --border-hover: rgba(60, 60, 67, 0.22);
   --border-focus: #007aff;
+
+  // Backdrop blur amounts (consumed as blur(var(--blur-…)))
+  --blur-sm: 12px;
+  --blur-md: 20px;
+  --blur-lg: 30px;
 
   // Text — white/black only for titles, gray for the rest
   --text-title: #000000;
@@ -174,93 +183,103 @@ $apple-mono: '"SF Mono", "JetBrains Mono", ui-monospace, "Fira Code", monospace'
   --z-toast: 700;
 }
 
-// ─── DARK (refined — deep navy/charcoal, elevated slate cards) ─────────────────
-// Not pure black: a cool blue-grey undertone gives the premium SaaS depth seen
-// in Linear / Vercel / the reference mockup. Cards sit a step lighter than the
-// canvas so they read as distinct elevated surfaces.
+// ─── DARK (neutral cool-charcoal — true iOS / macOS dark) ──────────────────────
+// Not pure black and not saturated navy: a near-neutral graphite with a whisper of
+// cool undertone, exactly like systemBackground on a calibrated Apple display.
+// Surfaces climb a gentle elevation ramp (canvas → card → raised) so depth reads
+// from light, not from borders. Accent = Apple's real dark systemBlue (#0A84FF).
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --bg-canvas: #070d17;            // deep navy-blue canvas (reference mockup)
-  --surface-card: #111b2b;         // main slate-navy card
-  --surface-raised: #152237;       // menus / popovers / inner cards
-  --surface-0: #111b2b;
-  --surface-1: #070d17;
-  --surface-2: #152237;
-  --surface-3: #1e2c42;
-  --surface-4: #2a3a54;
-  --surface-5: #3d5170;
+  // Layered elevation ramp — each surface sits a clear step above the last so cards
+  // read as distinct elevated planes (not blended into a flat black canvas).
+  --bg-canvas: #08090c;            // systemBackground (deep neutral graphite)
+  --surface-card: #17191f;         // grouped card — a clear step above the canvas
+  --surface-raised: #232630;       // menus / popovers / sheets / inner cards
+  --surface-0: #17191f;
+  --surface-1: #08090c;
+  --surface-2: #1c1f27;            // card-secondary / hover fills
+  --surface-3: #2b2f3a;
+  --surface-4: #3a3f4c;
+  --surface-5: #4e5461;
 
-  --separator: rgba(148, 163, 184, 0.14);
-  --border-color: rgba(148, 163, 184, 0.12);
-  --border-subtle: rgba(148, 163, 184, 0.08);
-  --border-strong: rgba(148, 163, 184, 0.24);
-  --border-focus: #1687ff;
+  // Separators & borders — neutral white alpha (no blue cast). Kept crisp enough to
+  // outline every card against the canvas.
+  --surface-translucent: rgba(28, 31, 39, 0.72);
+  --separator: rgba(255, 255, 255, 0.10);
+  --border-color: rgba(255, 255, 255, 0.10);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.20);
+  --border-hover: rgba(255, 255, 255, 0.15);
+  --border-focus: #0a84ff;
 
-  --text-title: #f8fafc;
-  --text-primary: #e6edf7;
-  --text-secondary: #94a3b8;
-  --text-tertiary: rgba(148, 163, 184, 0.55);
-  --text-quaternary: rgba(148, 163, 184, 0.30);
+  --text-title: #f5f5f7;
+  --text-primary: #ebebf0;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: rgba(235, 235, 245, 0.42);
+  --text-quaternary: rgba(235, 235, 245, 0.22);
   --text-inverse: #000000;
 
-  --brand: #1687ff;
-  --brand-primary: #1687ff;
-  --brand-primary-hover: #3a99ff;
-  --brand-primary-active: #0f6fd6;
-  --brand-primary-light: rgba(22, 135, 255, 0.14);
-  --brand-primary-muted: rgba(22, 135, 255, 0.22);
-  --brand-primary-glow: rgba(22, 135, 255, 0.30);
+  // Brand — Apple dark systemBlue
+  --brand: #0a84ff;
+  --brand-primary: #0a84ff;
+  --brand-primary-hover: #3d9bff;
+  --brand-primary-active: #0a72e0;
+  --brand-primary-light: rgba(10, 132, 255, 0.16);
+  --brand-primary-muted: rgba(10, 132, 255, 0.24);
+  --brand-primary-glow: rgba(10, 132, 255, 0.34);
 
-  --brand-accent: #8b5cf6;
-  --brand-accent-hover: #9d74f8;
-  --brand-accent-active: #7a49e8;
-  --brand-accent-light: rgba(139, 92, 246, 0.16);
-  --brand-accent-muted: rgba(139, 92, 246, 0.24);
+  // Accent — Apple dark systemPurple
+  --brand-accent: #bf5af2;
+  --brand-accent-hover: #cd77f5;
+  --brand-accent-active: #ab44e0;
+  --brand-accent-light: rgba(191, 90, 242, 0.16);
+  --brand-accent-muted: rgba(191, 90, 242, 0.24);
 
-  --green: #20d477;
-  --red: #ff4d5e;
-  --orange: #ff8a1f;
-  --purple: #8b5cf6;
-  --teal: #16c7d9;
+  // Indicators — Apple dark vivid system colors
+  --green: #30d158;
+  --red: #ff453a;
+  --orange: #ff9f0a;
+  --purple: #bf5af2;
+  --teal: #64d2ff;
 
-  --color-success: #20d477;
-  --color-success-light: rgba(32, 212, 119, 0.14);
-  --color-success-muted: rgba(32, 212, 119, 0.24);
-  --color-success-text: #20d477;
+  --color-success: #30d158;
+  --color-success-light: rgba(48, 209, 88, 0.16);
+  --color-success-muted: rgba(48, 209, 88, 0.26);
+  --color-success-text: #30d158;
 
-  --color-warning: #ff8a1f;
-  --color-warning-light: rgba(255, 138, 31, 0.14);
-  --color-warning-muted: rgba(255, 138, 31, 0.24);
-  --color-warning-text: #ff8a1f;
+  --color-warning: #ff9f0a;
+  --color-warning-light: rgba(255, 159, 10, 0.16);
+  --color-warning-muted: rgba(255, 159, 10, 0.26);
+  --color-warning-text: #ff9f0a;
 
-  --color-error: #ff4d5e;
-  --color-error-light: rgba(255, 77, 94, 0.14);
-  --color-error-muted: rgba(255, 77, 94, 0.24);
-  --color-error-text: #ff4d5e;
+  --color-error: #ff453a;
+  --color-error-light: rgba(255, 69, 58, 0.16);
+  --color-error-muted: rgba(255, 69, 58, 0.26);
+  --color-error-text: #ff453a;
 
-  --color-info: #1687ff;
-  --color-info-light: rgba(22, 135, 255, 0.14);
-  --color-info-muted: rgba(22, 135, 255, 0.24);
-  --color-info-text: #1687ff;
+  --color-info: #0a84ff;
+  --color-info-light: rgba(10, 132, 255, 0.16);
+  --color-info-muted: rgba(10, 132, 255, 0.26);
+  --color-info-text: #0a84ff;
 
-  --chart-1: #1687ff;  --chart-2: #20d477;  --chart-3: #ff8a1f;  --chart-4: #8b5cf6;
-  --chart-5: #ff375f;  --chart-6: #16c7d9;  --chart-7: #af7bff;  --chart-8: #ffd60a;
-  --chart-9: #ff4d5e;  --chart-10: #40c8e0; --chart-11: #ac8e68; --chart-12: #66d4cf;
+  --chart-1: #0a84ff;  --chart-2: #30d158;  --chart-3: #ff9f0a;  --chart-4: #bf5af2;
+  --chart-5: #ff375f;  --chart-6: #64d2ff;  --chart-7: #ac8cff;  --chart-8: #ffd60a;
+  --chart-9: #ff453a;  --chart-10: #40c8e0; --chart-11: #ac8e68; --chart-12: #66d4cf;
 
-  --sidebar-bg: rgba(11, 20, 34, 0.85);      // #0b1422
-  --sidebar-hover: rgba(148, 163, 184, 0.08);
-  --sidebar-active: rgba(22, 135, 255, 0.16);
-  --sidebar-active-border: #1687ff;
-  --sidebar-text: #94a3b8;
-  --sidebar-text-hover: #f8fafc;
-  --sidebar-text-active: #4aa3ff;
-  --sidebar-border: rgba(148, 163, 184, 0.10);
-  --sidebar-section-label: rgba(148, 163, 184, 0.5);
+  --sidebar-bg: rgba(13, 14, 18, 0.80);
+  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  --sidebar-active: rgba(10, 132, 255, 0.18);
+  --sidebar-active-border: #0a84ff;
+  --sidebar-text: #a1a1aa;
+  --sidebar-text-hover: #f5f5f7;
+  --sidebar-text-active: #409cff;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-section-label: rgba(235, 235, 245, 0.40);
 
-  --toolbar-bg: rgba(8, 17, 30, 0.80);       // #08111e
-  --toolbar-border: rgba(148, 163, 184, 0.12);
-  --tabbar-bg: rgba(8, 17, 30, 0.85);
+  --toolbar-bg: rgba(9, 10, 13, 0.72);
+  --toolbar-border: rgba(255, 255, 255, 0.09);
+  --tabbar-bg: rgba(9, 10, 13, 0.82);
 
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.5);
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -270,5 +289,5 @@ $apple-mono: '"SF Mono", "JetBrains Mono", ui-monospace, "Fira Code", monospace'
   --shadow-xl: 0 16px 50px rgba(0, 0, 0, 0.7);
   --shadow-2xl: 0 24px 70px rgba(0, 0, 0, 0.8);
 
-  --ring-color: rgba(22, 135, 255, 0.5);
+  --ring-color: rgba(10, 132, 255, 0.5);
 }

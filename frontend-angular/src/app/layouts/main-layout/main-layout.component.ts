@@ -232,12 +232,12 @@ export class MainLayoutComponent implements OnInit, OnDestroy {
   unreadCount = computed(() => this.notifications().filter(n => !n.read).length);
 
   quickCreateActions = [
-    { label: 'Novo Cliente', description: 'Cadastrar cliente ou empresa', icon: 'person_add', route: '/clientes', color: '#1687FF' },
-    { label: 'Nova NF-e', description: 'Emitir nota fiscal eletrônica', icon: 'receipt_long', route: '/fiscal/nfe', color: '#20D477' },
-    { label: 'Novo Lançamento', description: 'Lançamento contábil manual', icon: 'edit_note', route: '/contabilidade/lancamentos', color: '#FF8A1F' },
-    { label: 'Nova Tarefa', description: 'Criar tarefa para equipe', icon: 'add_task', route: '/escritorio/tarefas', color: '#8B5CF6' },
-    { label: 'Conta a Pagar', description: 'Registrar conta a pagar', icon: 'money_off', route: '/financeiro/contas-pagar', color: '#FF4D5E' },
-    { label: 'Conta a Receber', description: 'Registrar conta a receber', icon: 'attach_money', route: '/financeiro/contas-receber', color: '#20D477' },
+    { label: 'Novo Cliente', description: 'Cadastrar cliente ou empresa', icon: 'person_add', route: '/clientes', color: '#0A84FF' },
+    { label: 'Nova NF-e', description: 'Emitir nota fiscal eletrônica', icon: 'receipt_long', route: '/fiscal/nfe', color: '#30D158' },
+    { label: 'Novo Lançamento', description: 'Lançamento contábil manual', icon: 'edit_note', route: '/contabilidade/lancamentos', color: '#FF9F0A' },
+    { label: 'Nova Tarefa', description: 'Criar tarefa para equipe', icon: 'add_task', route: '/escritorio/tarefas', color: '#BF5AF2' },
+    { label: 'Conta a Pagar', description: 'Registrar conta a pagar', icon: 'money_off', route: '/financeiro/contas-pagar', color: '#FF453A' },
+    { label: 'Conta a Receber', description: 'Registrar conta a receber', icon: 'attach_money', route: '/financeiro/contas-receber', color: '#30D158' },
   ];
 
   /** Itens navegáveis para a paleta ⌘K, derivados da mesma config da sidebar. */

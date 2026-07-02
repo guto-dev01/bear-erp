@@ -82,8 +82,8 @@ import { AnexoSimples, AtividadePresumido } from '../engine/apuracao-federal';
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                 <div class="bear-card">
                   <div class="flex items-center gap-3 p-4">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: var(--brand-primary-light, #DAD9F6);">
-                      <span class="material-symbols-rounded" style="color: var(--brand-primary);">trending_up</span>
+                    <div class="stat-icon stat-icon--brand">
+                      <span class="material-symbols-rounded">trending_up</span>
                     </div>
                     <div>
                       <p class="text-label">Total Débitos</p>
@@ -93,8 +93,8 @@ import { AnexoSimples, AtividadePresumido } from '../engine/apuracao-federal';
                 </div>
                 <div class="bear-card">
                   <div class="flex items-center gap-3 p-4">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #DCF3E0;">
-                      <span class="material-symbols-rounded" style="color: #34C759;">trending_down</span>
+                    <div class="stat-icon stat-icon--success">
+                      <span class="material-symbols-rounded">trending_down</span>
                     </div>
                     <div>
                       <p class="text-label">Total Créditos</p>
@@ -104,8 +104,8 @@ import { AnexoSimples, AtividadePresumido } from '../engine/apuracao-federal';
                 </div>
                 <div class="bear-card">
                   <div class="flex items-center gap-3 p-4">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #FFECEB;">
-                      <span class="material-symbols-rounded" style="color: #FF3B30;">payments</span>
+                    <div class="stat-icon stat-icon--error">
+                      <span class="material-symbols-rounded">payments</span>
                     </div>
                     <div>
                       <p class="text-label">ICMS a Recolher</p>
@@ -115,8 +115,8 @@ import { AnexoSimples, AtividadePresumido } from '../engine/apuracao-federal';
                 </div>
                 <div class="bear-card">
                   <div class="flex items-center gap-3 p-4">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #F2EBFB;">
-                      <span class="material-symbols-rounded" style="color: #5856D6;">account_balance</span>
+                    <div class="stat-icon stat-icon--purple">
+                      <span class="material-symbols-rounded">account_balance</span>
                     </div>
                     <div>
                       <p class="text-label">Saldo Credor</p>
@@ -175,8 +175,8 @@ import { AnexoSimples, AtividadePresumido } from '../engine/apuracao-federal';
               <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                 <div class="bear-card">
                   <div class="flex items-center gap-3 p-4">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: var(--brand-primary-light, #DAD9F6);">
-                      <span class="material-symbols-rounded" style="color: var(--brand-primary);">trending_up</span>
+                    <div class="stat-icon stat-icon--brand">
+                      <span class="material-symbols-rounded">trending_up</span>
                     </div>
                     <div>
                       <p class="text-label">Total Débitos</p>
@@ -186,8 +186,8 @@ import { AnexoSimples, AtividadePresumido } from '../engine/apuracao-federal';
                 </div>
                 <div class="bear-card">
                   <div class="flex items-center gap-3 p-4">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #DCF3E0;">
-                      <span class="material-symbols-rounded" style="color: #34C759;">trending_down</span>
+                    <div class="stat-icon stat-icon--success">
+                      <span class="material-symbols-rounded">trending_down</span>
                     </div>
                     <div>
                       <p class="text-label">Total Créditos</p>
@@ -197,8 +197,8 @@ import { AnexoSimples, AtividadePresumido } from '../engine/apuracao-federal';
                 </div>
                 <div class="bear-card">
                   <div class="flex items-center gap-3 p-4">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #FFECEB;">
-                      <span class="material-symbols-rounded" style="color: #FF3B30;">payments</span>
+                    <div class="stat-icon stat-icon--error">
+                      <span class="material-symbols-rounded">payments</span>
                     </div>
                     <div>
                       <p class="text-label">IPI a Recolher</p>
@@ -208,8 +208,8 @@ import { AnexoSimples, AtividadePresumido } from '../engine/apuracao-federal';
                 </div>
                 <div class="bear-card">
                   <div class="flex items-center gap-3 p-4">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #F2EBFB;">
-                      <span class="material-symbols-rounded" style="color: #5856D6;">account_balance</span>
+                    <div class="stat-icon stat-icon--purple">
+                      <span class="material-symbols-rounded">account_balance</span>
                     </div>
                     <div>
                       <p class="text-label">Saldo Credor</p>
@@ -263,8 +263,8 @@ import { AnexoSimples, AtividadePresumido } from '../engine/apuracao-federal';
                 <div class="bear-card">
                   <div class="p-4">
                     <div class="flex items-center gap-3 mb-3">
-                      <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: var(--brand-primary-light, #DAD9F6);">
-                        <span class="material-symbols-rounded" style="color: var(--brand-primary);">receipt</span>
+                      <div class="stat-icon stat-icon--brand">
+                        <span class="material-symbols-rounded">receipt</span>
                       </div>
                       <h3 class="text-heading" style="font-size: 1rem;">PIS</h3>
                     </div>
@@ -273,15 +273,15 @@ import { AnexoSimples, AtividadePresumido } from '../engine/apuracao-federal';
                       <div>Créditos: {{ apuracaoPisCofins().pisCreditoEntradas | currency:'BRL' }}</div>
                       <div>Retido: {{ apuracaoPisCofins().pisRetidoFonte | currency:'BRL' }}</div>
                       <div>Saldo Anterior: {{ apuracaoPisCofins().pisSaldoCredorAnterior | currency:'BRL' }}</div>
-                      <div class="col-span-2 text-lg font-bold mt-2" style="color: var(--status-error, #FF3B30);">A Recolher: {{ apuracaoPisCofins().pisRecolher | currency:'BRL' }}</div>
+                      <div class="col-span-2 text-lg font-bold mt-2 ink-error">A Recolher: {{ apuracaoPisCofins().pisRecolher | currency:'BRL' }}</div>
                     </div>
                   </div>
                 </div>
                 <div class="bear-card">
                   <div class="p-4">
                     <div class="flex items-center gap-3 mb-3">
-                      <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #DCF3E0;">
-                        <span class="material-symbols-rounded" style="color: #34C759;">receipt</span>
+                      <div class="stat-icon stat-icon--success">
+                        <span class="material-symbols-rounded">receipt</span>
                       </div>
                       <h3 class="text-heading" style="font-size: 1rem;">COFINS</h3>
                     </div>
@@ -290,7 +290,7 @@ import { AnexoSimples, AtividadePresumido } from '../engine/apuracao-federal';
                       <div>Créditos: {{ apuracaoPisCofins().cofinsCreditoEntradas | currency:'BRL' }}</div>
                       <div>Retido: {{ apuracaoPisCofins().cofinsRetidoFonte | currency:'BRL' }}</div>
                       <div>Saldo Anterior: {{ apuracaoPisCofins().cofinsSaldoCredorAnterior | currency:'BRL' }}</div>
-                      <div class="col-span-2 text-lg font-bold mt-2" style="color: var(--status-error, #FF3B30);">A Recolher: {{ apuracaoPisCofins().cofinsRecolher | currency:'BRL' }}</div>
+                      <div class="col-span-2 text-lg font-bold mt-2 ink-error">A Recolher: {{ apuracaoPisCofins().cofinsRecolher | currency:'BRL' }}</div>
                     </div>
                   </div>
                 </div>
@@ -392,7 +392,7 @@ import { AnexoSimples, AtividadePresumido } from '../engine/apuracao-federal';
             </div>
             @if (apuracaoSimples()) {
               @if (apuracaoSimples().foraDoSimples) {
-                <div class="bear-card mb-4" style="border-left: 3px solid #FF3B30;">
+                <div class="bear-card mb-4" style="border-left: 3px solid var(--color-error);">
                   <div class="p-4 text-sm">RBT12 acima de R$ 4,8 milhões — empresa fora do limite do Simples Nacional.</div>
                 </div>
               }

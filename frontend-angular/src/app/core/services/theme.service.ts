@@ -26,7 +26,11 @@ export class ThemeService {
   private getInitialTheme(): Theme {
     const stored = localStorage.getItem(this.storageKey) as Theme | null;
     if (stored === 'light' || stored === 'dark') return stored;
-    // Default to the dark Apple aesthetic (the agreed design target)
+    // No stored preference → follow the OS setting (matches the pre-paint script in
+    // index.html). Falls back to the dark Apple aesthetic when unavailable.
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    }
     return 'dark';
   }
 }
