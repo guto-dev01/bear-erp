@@ -259,6 +259,8 @@ export interface RetornoDistribuicao {
   escrituradas?: number;
   /** NF-e completas ignoradas por já existirem (dedup por chaveAcesso). */
   duplicadas?: number;
+  /** NF-e completas do lote (novas e já existentes), para exibição na tela. */
+  notas?: NotaImportada[];
   /** Resumos (resNFe) pendentes de manifestação para liberar o XML completo. */
   resumos?: NotaImportada[];
   totalDocs?: number;
@@ -527,6 +529,7 @@ export class FiscalService {
                   ok: true,
                   escrituradas: novas.length,
                   duplicadas: completas.length - novas.length,
+                  notas: completas,
                   resumos,
                   totalDocs: docs.length,
                   ultNSU: ret.ultNSU,

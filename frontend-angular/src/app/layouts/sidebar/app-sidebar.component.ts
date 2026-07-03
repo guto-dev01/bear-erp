@@ -5,10 +5,9 @@ import { SidebarService } from '@core/services/sidebar.service';
 import { SidebarHeaderComponent } from './sidebar-header.component';
 import { SidebarNavComponent } from './sidebar-nav.component';
 import { SidebarUserComponent } from './sidebar-user.component';
-import { SidebarSupportComponent } from './sidebar-support.component';
 
 /**
- * AppSidebar — casca da navegação. Compõe header + nav + user + support e
+ * AppSidebar — casca da navegação. Compõe header + nav + user e
  * decide o regime de exibição:
  *  - Desktop: sidebar fixa (trilho/expandida), colapso persistido.
  *  - Tablet: trilho fixo + drawer sobreposto sob demanda.
@@ -19,7 +18,7 @@ import { SidebarSupportComponent } from './sidebar-support.component';
   standalone: true,
   imports: [
     CommonModule, MatTooltipModule,
-    SidebarHeaderComponent, SidebarNavComponent, SidebarUserComponent, SidebarSupportComponent,
+    SidebarHeaderComponent, SidebarNavComponent, SidebarUserComponent,
   ],
   template: `
     <!-- ── Sidebar fixa (desktop + tablet) ── -->
@@ -46,7 +45,6 @@ import { SidebarSupportComponent } from './sidebar-support.component';
 
         <div class="sb__footer">
           <bear-sidebar-user [collapsed]="rail()"></bear-sidebar-user>
-          <bear-sidebar-support [collapsed]="rail()"></bear-sidebar-support>
           @if (rail()) {
             <button type="button" class="sb__collapse sb__collapse--rail" (click)="sidebar.primaryToggle()"
                     matTooltip="Expandir menu" matTooltipPosition="right" aria-label="Expandir menu">
@@ -80,7 +78,6 @@ import { SidebarSupportComponent } from './sidebar-support.component';
         </div>
         <div class="sb__footer">
           <bear-sidebar-user [collapsed]="false"></bear-sidebar-user>
-          <bear-sidebar-support [collapsed]="false"></bear-sidebar-support>
         </div>
       </aside>
     }
