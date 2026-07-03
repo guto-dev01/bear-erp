@@ -6,7 +6,8 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '@core/auth/auth.service';
 import { AppwriteService } from '@core/services/appwrite.service';
-import { SefazImportService, DocumentoSefaz, ResultadoSync } from './sefaz-import.service';
+import { FiscalService, RetornoDistribuicao, RetornoSefaz } from '../fiscal.service';
+import { NotaView, montarLinhas, resumoSync } from './importar-nfe.mapper';
 
 /** Documento da coleção `empresas` (campos reais reaproveitados do cadastro existente). */
 interface EmpresaDoc {
@@ -33,12 +34,17 @@ interface CertDoc {
   metadados?: { titular?: string; cnpjCpf?: string; validoAte?: string; diasParaVencer?: number };
 }
 
-interface NotaView {
-  chave: string; numero: string; serie: string; emitente: string; cnpjEmitente: string;
-  emissao: string | null; valor: number | null; tipo: string; tipoRaw: string; status: string;
-}
-
 type Ambiente = 'homologacao' | 'producao';
+
+/** Registro (desta sessão) de uma sincronização com a SEFAZ. */
+interface HistoricoSync {
+  id: string;
+  quando: string;
+  ultNsu: string;
+  maxNsu: string;
+  docs: number;
+  motivo: string;
+}
 
 @Component({
   selector: 'bear-importar-nfe',
@@ -106,13 +112,7 @@ type Ambiente = 'homologacao' | 'producao';
                 <div><dt class="text-label">Inscrição estadual</dt><dd class="text-body-sm tabular">{{ empresa()?.inscricaoEstadual || empresa()?.ie || '—' }}</dd></div>
                 <div>
                   <dt class="text-label">Estado (UF)</dt>
-                  <dd class="text-body-sm">
-                    @if (empresa()?.uf || empresa()?.estado) { {{ empresa()?.uf || empresa()?.estado }} }
-                    @else {
-                      <input class="bear-input bear-input--sm" style="width:80px" maxlength="2" placeholder="UF"
-                             [ngModel]="ufManual()" (ngModelChange)="ufManual.set(($event||'').toUpperCase())">
-                    }
-                  </dd>
+                  <dd class="text-body-sm">{{ empresa()?.uf || empresa()?.estado || '— (preencha no cadastro da empresa)' }}</dd>
                 </div>
                 <div>
                   <dt class="text-label">Ambiente SEFAZ</dt>
@@ -150,37 +150,28 @@ type Ambiente = 'homologacao' | 'producao';
                 <div><dt class="text-label">Dias restantes</dt><dd class="text-body-sm tabular">{{ diasRestantes() ?? '—' }}</dd></div>
               </dl>
             } @else {
-              <p class="text-body-sm ink-secondary mb-3">Nenhum certificado cadastrado para esta empresa no sistema. Para testar a conexão real agora, forneça o A1 abaixo.</p>
+              <p class="text-body-sm ink-secondary mb-3">
+                Nenhum certificado no cofre para esta empresa. Envie o A1 (.pfx/.p12) na tela
+                <a routerLink="/certificados">Certificados</a> — ele fica guardado no cofre e é usado
+                automaticamente nas consultas à SEFAZ.
+              </p>
             }
 
-            <!-- Painel de teste: fornece o A1 para a chamada real (o cofre do backend não é acessível daqui). -->
+            <!-- Teste de conexão: usa o A1 do cofre no backend (Function nfe-transmissao, operação 'status'). -->
             <div class="mt-1 p-3 rounded-lg" style="background:var(--surface-2)">
               <p class="text-label mb-2 flex items-center gap-1.5">
-                <span class="material-symbols-rounded text-base ink-warning">lock</span>
-                Certificado A1 para a consulta (uso local — não é armazenado)
+                <span class="material-symbols-rounded text-base ink-success">cloud_done</span>
+                Conexão com a SEFAZ (certificado do cofre)
               </p>
-              <div class="flex flex-wrap items-center gap-2">
-                <label class="bear-btn bear-btn--outline bear-btn--sm" style="cursor:pointer">
-                  <span class="material-symbols-rounded text-base mr-1">attach_file</span>
-                  {{ certFileName() || 'Escolher .pfx / .p12' }}
-                  <input type="file" accept=".pfx,.p12" hidden (change)="onCertFile($event)">
-                </label>
-                <input class="bear-input bear-input--sm" type="password" placeholder="Senha do certificado"
-                       style="min-width:180px" [ngModel]="certSenha()" (ngModelChange)="certSenha.set($event)">
-                <div class="flex items-center gap-1.5">
-                  <label class="text-label">últ. NSU</label>
-                  <input class="bear-input bear-input--sm tabular" style="width:90px" [ngModel]="ultNsu()"
-                         (ngModelChange)="ultNsu.set($event)">
-                </div>
-                <button class="bear-btn bear-btn--tinted bear-btn--sm" (click)="testarCertificado()" [disabled]="testando()">
-                  {{ testando() ? 'Testando…' : 'Testar certificado' }}
-                </button>
-              </div>
-              @if (certTeste()) {
-                <p class="text-caption mt-2" [ngClass]="certTeste()!.ok ? 'ink-success' : 'ink-error'">
-                  {{ certTeste()!.ok
-                      ? 'Válido · ' + certTeste()!.certificate_cnpj + ' · ' + certTeste()!.issuer + ' · vence em ' + certTeste()!.dias_restantes + ' dias'
-                      : certTeste()!.erro }}
+              <button class="bear-btn bear-btn--tinted bear-btn--sm" (click)="testarConexao()"
+                      [disabled]="testando() || !certificado()">
+                {{ testando() ? 'Testando…' : 'Testar conexão SEFAZ' }}
+              </button>
+              @if (statusSefaz(); as st) {
+                <p class="text-caption mt-2" [ngClass]="st.ok && st.online ? 'ink-success' : 'ink-error'">
+                  {{ st.ok && st.online
+                      ? 'Serviço online · cStat ' + st.cStat + ' · ' + st.xMotivo
+                      : (st.erro || st.xMotivo || 'Serviço indisponível.') }}
                 </p>
               }
             </div>
@@ -211,8 +202,6 @@ type Ambiente = 'homologacao' | 'producao';
                 <option value="">Todos</option>
                 <option value="procNFe">NF-e completa</option>
                 <option value="resNFe">Resumo de NF-e</option>
-                <option value="procEventoNFe">Evento</option>
-                <option value="resEvento">Resumo de evento</option>
               </select>
             </div>
             <button class="bear-btn bear-btn--outline bear-btn--sm" (click)="atualizarLista()"
@@ -236,8 +225,9 @@ type Ambiente = 'homologacao' | 'producao';
               <div class="empty-state__icon"><span class="material-symbols-rounded">inbox</span></div>
               <p class="empty-state__title">Nenhuma nota carregada</p>
               <p class="empty-state__description">
-                Forneça o certificado A1 acima e clique em <strong>Sincronizar agora</strong> para consultar a SEFAZ
-                (NFeDistribuicaoDFe). Os documentos disponíveis para esta empresa aparecerão aqui.
+                Clique em <strong>Sincronizar agora</strong> para consultar a SEFAZ (Distribuição DF-e) usando o
+                certificado A1 do cofre. As NF-e completas são escrituradas em Notas Fiscais (entrada); os resumos
+                ficam aguardando manifestação para liberar o XML completo.
               </p>
             </div>
           } @else {
@@ -281,29 +271,25 @@ type Ambiente = 'homologacao' | 'producao';
             <div class="empty-state">
               <div class="empty-state__icon"><span class="material-symbols-rounded">manage_history</span></div>
               <p class="empty-state__title">Nenhuma sincronização registrada</p>
-              <p class="empty-state__description">O histórico persistente (NSU, documentos, duração, status) aparecerá aqui quando o backend de persistência estiver ligado.</p>
+              <p class="empty-state__description">As sincronizações desta sessão (NSU, documentos, resultado) aparecerão aqui após o primeiro "Sincronizar agora".</p>
             </div>
           } @else {
             <div class="table-scroll">
               <table class="w-full">
                 <thead><tr>
                   <th class="text-label" style="padding:.75rem 1rem;text-align:left">Quando</th>
-                  <th class="text-label" style="padding:.75rem 1rem;text-align:left">NSU enviado</th>
                   <th class="text-label" style="padding:.75rem 1rem;text-align:left">últ. NSU</th>
                   <th class="text-label" style="padding:.75rem 1rem;text-align:left">max NSU</th>
                   <th class="text-label" style="padding:.75rem 1rem;text-align:right">Docs</th>
-                  <th class="text-label" style="padding:.75rem 1rem;text-align:left">cStat</th>
-                  <th class="text-label" style="padding:.75rem 1rem;text-align:left">Mensagem</th>
+                  <th class="text-label" style="padding:.75rem 1rem;text-align:left">Resultado</th>
                 </tr></thead>
                 <tbody>
                   @for (h of historico(); track h.id) {
                     <tr style="border-top:1px solid var(--separator)">
                       <td style="padding:.75rem 1rem" class="tabular text-caption">{{ h.quando }}</td>
-                      <td style="padding:.75rem 1rem" class="tabular">{{ h.enviado }}</td>
                       <td style="padding:.75rem 1rem" class="tabular">{{ h.ultNsu }}</td>
                       <td style="padding:.75rem 1rem" class="tabular">{{ h.maxNsu }}</td>
                       <td style="padding:.75rem 1rem;text-align:right" class="tabular">{{ h.docs }}</td>
-                      <td style="padding:.75rem 1rem" class="tabular">{{ h.cstat }}</td>
                       <td style="padding:.75rem 1rem" class="text-caption">{{ h.motivo }}</td>
                     </tr>
                   }
@@ -319,7 +305,7 @@ type Ambiente = 'homologacao' | 'producao';
 export class ImportarNfeComponent implements OnInit {
   private auth = inject(AuthService);
   private appwrite = inject(AppwriteService);
-  private sefaz = inject(SefazImportService);
+  private fiscal = inject(FiscalService);
   private snack = inject(MatSnackBar);
 
   readonly empresaId = computed(() => this.auth.empresaId());
@@ -332,18 +318,13 @@ export class ImportarNfeComponent implements OnInit {
   testando = signal(false);
 
   ambiente = signal<Ambiente>('homologacao');
-  ufManual = signal('');
 
-  // Certificado A1 fornecido para a consulta real (não é persistido).
-  certFile: File | null = null;
-  certFileName = signal('');
-  certSenha = signal('');
-  ultNsu = signal('0');
-  certTeste = signal<{ ok: boolean; certificate_cnpj?: string; issuer?: string; dias_restantes?: number; erro?: string } | null>(null);
+  // Teste de conexão com a SEFAZ (A1 do cofre, operação 'status' da Function).
+  statusSefaz = signal<RetornoSefaz | null>(null);
 
   notas = signal<NotaView[]>([]);
-  historico = signal<any[]>([]);
-  lastResumo = signal<ResultadoSync | null>(null);
+  historico = signal<HistoricoSync[]>([]);
+  lastResumo = signal<RetornoDistribuicao | null>(null);
 
   busca = signal('');
   filtroTipo = signal('');
@@ -377,103 +358,54 @@ export class ImportarNfeComponent implements OnInit {
     });
   }
 
-  private uf(): string { return (this.empresa()?.uf || this.empresa()?.estado || this.ufManual() || '').toUpperCase(); }
-  private cnpj(): string { return (this.empresa()?.cnpj || '').replace(/\D/g, ''); }
-
-  onCertFile(ev: Event): void {
-    const f = (ev.target as HTMLInputElement).files?.[0] ?? null;
-    this.certFile = f;
-    this.certFileName.set(f?.name ?? '');
-    this.certTeste.set(null);
-  }
-
-  testarCertificado(): void {
-    if (!this.certFile || !this.certSenha()) {
-      this.snack.open('Selecione o arquivo .pfx/.p12 e informe a senha.', 'Fechar', { duration: 4000, panelClass: 'warning-snackbar' });
-      return;
-    }
+  /**
+   * Ping do serviço da SEFAZ (Function `nfe-transmissao`, operação 'status'):
+   * valida A1 do cofre + mTLS sem emitir nem consultar nada.
+   */
+  testarConexao(): void {
+    if (this.testando()) return;
     this.testando.set(true);
-    this.sefaz.testarCertificado(this.certFile, this.certSenha(), this.cnpj() || undefined).subscribe({
-      next: (info) => {
-        this.testando.set(false);
-        this.certTeste.set(info);
-        this.snack.open(info.ok ? 'Certificado válido.' : (info.erro || 'Falha na validação.'),
-          'Fechar', { duration: 5000, panelClass: info.ok ? 'success-snackbar' : 'error-snackbar' });
-      },
-      error: (e) => { this.testando.set(false); this.erroWorker(e); },
+    this.statusSefaz.set(null);
+    this.fiscal.consultarStatusSefaz(this.ambiente()).subscribe(st => {
+      this.testando.set(false);
+      this.statusSefaz.set(st);
+      const ok = st.ok && !!st.online;
+      this.snack.open(
+        ok ? `Serviço SEFAZ online · ${st.xMotivo || ''}` : (st.erro || st.xMotivo || 'Serviço indisponível.'),
+        'Fechar', { duration: 6000, panelClass: ok ? 'success-snackbar' : 'error-snackbar' });
     });
   }
 
+  /**
+   * Captura via Distribuição DF-e (Function + A1 do cofre). O loop de NSU e a
+   * escrituração em `notas_fiscais` acontecem no FiscalService; aqui só exibimos.
+   */
   sincronizar(): void {
-    if (!this.empresaId()) return;
-    if (!this.certFile || !this.certSenha()) {
-      this.snack.open('Forneça o certificado A1 (.pfx/.p12) e a senha no painel abaixo para consultar a SEFAZ.', 'Fechar', { duration: 6000, panelClass: 'warning-snackbar' });
-      return;
-    }
-    if (!this.cnpj()) { this.snack.open('A empresa selecionada não tem CNPJ cadastrado.', 'Fechar', { duration: 5000, panelClass: 'error-snackbar' }); return; }
-    if (!this.uf()) { this.snack.open('Informe a UF da empresa.', 'Fechar', { duration: 5000, panelClass: 'warning-snackbar' }); return; }
-
+    if (!this.empresaId() || this.sincronizando()) return;
     this.sincronizando.set(true);
-    this.sefaz.sincronizar({
-      pfx: this.certFile, senha: this.certSenha(), cnpj: this.cnpj(), uf: this.uf(),
-      ambiente: this.ambiente(), ultNsu: this.ultNsu() || '0', cnpjEmpresa: this.cnpj(),
-    }).subscribe({
-      next: (res) => { this.sincronizando.set(false); this.aplicarResultado(res); },
-      error: (e) => { this.sincronizando.set(false); this.erroWorker(e); },
+    this.fiscal.baixarNotasDistribuicao(this.ambiente()).subscribe(ret => {
+      this.sincronizando.set(false);
+      this.aplicarResultado(ret);
     });
   }
 
-  private aplicarResultado(res: ResultadoSync): void {
-    this.lastResumo.set(res);
-    if (!res.ok) {
-      this.snack.open(res.erro || 'Falha na sincronização.', 'Fechar', { duration: 6000, panelClass: 'error-snackbar' });
+  private aplicarResultado(ret: RetornoDistribuicao): void {
+    this.lastResumo.set(ret);
+    if (!ret.ok) {
+      this.snack.open(ret.erro || 'Falha na sincronização.', 'Fechar', { duration: 6000, panelClass: 'error-snackbar' });
       return;
     }
-    const notas = (res.documentos || []).map(d => this.mapDoc(d));
-    this.notas.set(notas);
-    // avança o NSU sugerido para a próxima consulta paginada
-    if (res.ult_nsu) this.ultNsu.set(res.ult_nsu);
+    this.notas.set(montarLinhas(ret));
     // registra no histórico local desta sessão
     this.historico.update(h => [{
-      id: (h.length + 1) + '-' + res.ult_nsu,
+      id: `${h.length + 1}-${ret.ultNSU ?? ''}`,
       quando: new Date().toLocaleString('pt-BR'),
-      enviado: this.ultNsu(), ultNsu: res.ult_nsu, maxNsu: res.max_nsu,
-      docs: (res.documentos || []).length, cstat: res.cstat, motivo: res.motivo,
+      ultNsu: ret.ultNSU ?? '—',
+      maxNsu: ret.maxNSU ?? '—',
+      docs: ret.totalDocs ?? 0,
+      motivo: resumoSync(ret),
     }, ...h]);
-
-    const msg = `cStat ${res.cstat} · ${res.motivo} · ${(res.documentos || []).length} documento(s)`;
-    this.snack.open(msg, 'Fechar', { duration: 6000, panelClass: res.consumo_indevido ? 'warning-snackbar' : 'info-snackbar' });
-  }
-
-  private mapDoc(d: DocumentoSefaz): NotaView {
-    const dd = d.dados || {};
-    const tipos: Record<string, string> = { procNFe: 'NF-e', resNFe: 'Resumo NF-e', procEventoNFe: 'Evento', resEvento: 'Resumo evento' };
-    const statusPorTipo: Record<string, string> = {
-      procNFe: 'XML completo', resNFe: 'Aguardando XML completo',
-      procEventoNFe: 'Operação confirmada', resEvento: 'Resumo encontrado',
-    };
-    return {
-      chave: d.access_key || '',
-      numero: dd['nNF'] || '—',
-      serie: dd['serie'] || '',
-      emitente: dd['xNome'] || d.cnpj_emitente || '—',
-      cnpjEmitente: d.cnpj_emitente || '',
-      emissao: dd['dhEmi'] || dd['dhEvento'] || null,
-      valor: dd['vNF'] != null ? Number(dd['vNF']) : null,
-      tipo: tipos[d.document_type] || d.document_type,
-      tipoRaw: d.document_type,
-      status: statusPorTipo[d.document_type] || 'Desconhecida',
-    };
-  }
-
-  private erroWorker(e: any): void {
-    const status = e?.status;
-    if (status === 0) {
-      this.snack.open('Worker SEFAZ (Python) não respondeu em localhost:8770. Verifique se está rodando.', 'Fechar', { duration: 8000, panelClass: 'error-snackbar' });
-    } else {
-      const msg = e?.error?.erro || e?.error?.detalhe || e?.message || 'Erro ao chamar o worker SEFAZ.';
-      this.snack.open(msg, 'Fechar', { duration: 7000, panelClass: 'error-snackbar' });
-    }
+    this.snack.open(resumoSync(ret), 'Fechar', { duration: 6000, panelClass: 'info-snackbar' });
   }
 
   // ── Status do certificado (vocabulário da tela de Certificados) ────────────
@@ -507,18 +439,17 @@ export class ImportarNfeComponent implements OnInit {
   ultimaSync(): string {
     const r = this.lastResumo();
     if (!r) return 'Ainda não sincronizado nesta sessão.';
-    return `cStat ${r.cstat} — ${r.motivo} · últ.NSU ${r.ult_nsu} / max ${r.max_nsu}`;
+    if (!r.ok) return r.erro || 'Falha na sincronização.';
+    return `${resumoSync(r)} · últ.NSU ${r.ultNSU ?? '—'} / max ${r.maxNSU ?? '—'}`;
   }
   statusSync(): string {
     const r = this.lastResumo();
     if (!r) return 'Aguardando';
-    if (!r.ok) return 'Falhou';
-    if (r.consumo_indevido) return 'Bloqueada';
-    return r.fim_do_lote ? 'Concluída' : 'Processando';
+    return r.ok ? 'Concluída' : 'Falhou';
   }
   statusSyncBadge(): Record<string, boolean> {
     const s = this.statusSync();
-    return { 'badge--neutral': s === 'Aguardando', 'badge--error': s === 'Falhou', 'badge--warning': s === 'Bloqueada', 'badge--success': s === 'Concluída', 'badge--info': s === 'Processando' };
+    return { 'badge--neutral': s === 'Aguardando', 'badge--error': s === 'Falhou', 'badge--success': s === 'Concluída' };
   }
 
   importarManualmente(): void {
