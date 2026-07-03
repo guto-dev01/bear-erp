@@ -1,507 +1,400 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
-import { MatIconModule } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { AuthService } from '@core/auth/auth.service';
 import { AppwriteService } from '@core/services/appwrite.service';
 
-interface DashboardMetrics {
-  receitaBruta: number;
-  despesasTotais: number;
-  lucroLiquido: number;
-  margemLucro: number;
-  totalFuncionarios: number;
-  saldoBancario: number;
-  impostosMes: number;
-  contasPagarVencidas: number;
-  contasReceberVencidas: number;
+import { MetricCardComponent } from './components/metric-card.component';
+import { AlertPanelComponent } from './components/alert-panel.component';
+import { FinancePerformanceComponent } from './components/finance-performance.component';
+import { CashFlowCardComponent } from './components/cash-flow-card.component';
+import { TopCompaniesCardComponent } from './components/top-companies-card.component';
+import { RecentActivitiesCardComponent } from './components/recent-activities-card.component';
+import {
+  ActivityItem, AlertItem, CashFlow, FinanceSummary, MetricCardData, Periodo, TopCompany, Trend,
+} from './dashboard.types';
+
+// ── Schema (campos usados; o Appwrite devolve o documento completo) ──────────
+interface Empresa { $id: string; status?: string; razaoSocial?: string; nomeFantasia?: string; $createdAt?: string; }
+interface ContaPagar { valor: number; valorPago?: number; dataEmissao?: string; dataVencimento?: string; dataPagamento?: string; status?: string; }
+interface ContaReceber { valor: number; valorRecebido?: number; dataEmissao?: string; dataVencimento?: string; dataRecebimento?: string; status?: string; empresaId?: string; }
+interface Funcionario { status?: string; }
+interface ContaBancaria { saldoAtual?: number; }
+interface ApuracaoFiscal { competencia?: string; valorRecolher?: number; }
+interface NotaFiscal { tipo?: string; dataEmissao?: string; }
+interface Obrigacao { status?: string; }
+interface Certificado { dataValidade?: string; status?: string; }
+interface Tarefa { status?: string; dataVencimento?: string; }
+interface Holerite { competencia?: string; valorLiquido?: number; }
+interface Honorario { valor?: number; status?: string; }
+interface AuditLog { $id: string; usuario?: string; acao?: string; modulo?: string; descricao?: string; timestamp?: string; $createdAt: string; }
+
+interface RawData {
+  empresas: Empresa[];
+  contasPagar: ContaPagar[];
+  contasReceber: ContaReceber[];
+  funcionarios: Funcionario[];
+  contasBancarias: ContaBancaria[];
+  apuracoes: ApuracaoFiscal[];
+  notasFiscais: NotaFiscal[];
+  obrigacoes: Obrigacao[];
+  certificados: Certificado[];
+  tarefas: Tarefa[];
+  holerites: Holerite[];
+  honorarios: Honorario[];
 }
 
-interface ContaPagar { valor: number; valorPago?: number; dataEmissao: string; dataVencimento: string; status: string; }
-interface ContaReceber { valor: number; valorRecebido?: number; dataEmissao: string; dataVencimento: string; status: string; }
-interface Funcionario { status: string; }
-interface ContaBancaria { saldoAtual?: number; }
-interface ApuracaoFiscal { competencia: string; valorRecolher?: number; }
-interface Empresa { status: string; $createdAt?: string; }
-interface NotaFiscal { tipo: string; dataEmissao?: string; }
-interface Obrigacao { status: string; }
-interface Certificado { dataValidade: string; status: string; }
-interface Tarefa { status: string; dataVencimento?: string; }
-interface Holerite { competencia: string; valorLiquido?: number; }
-interface Honorario { valor: number; status: string; }
-interface AuditLog { $id: string; usuario: string; acao: string; modulo: string; descricao: string; timestamp?: string; $createdAt: string; }
-interface TimelineEvent { id: string; user: string; action: string; icon: string; type: string; time: string; }
+const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
 @Component({
   selector: 'bear-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, MatIconModule, MatButtonModule, MatTooltipModule],
-  template: `
-    <div class="dashboard">
-
-      <!-- ═══ Page Header ═══ -->
-      <header class="header">
-        <div class="header__left">
-          <h1 class="header__greeting">{{ getGreeting() }}, {{ getFirstName() }}</h1>
-          <p class="header__context">
-            <span class="header__dot"></span>
-            Visão geral do escritório &middot; {{ getCurrentDateFormatted() }}
-          </p>
-        </div>
-        <div class="header__actions">
-          <button class="header-btn header-btn--ghost" matTooltip="Atualizar dados" (click)="ngOnInit()">
-            <span class="material-symbols-rounded">refresh</span>
-          </button>
-          <button class="header-btn header-btn--outline">
-            <span class="material-symbols-rounded">calendar_today</span>
-            {{ getCurrentMonth() }}
-          </button>
-          <button class="header-btn header-btn--primary">
-            <span class="material-symbols-rounded">download</span>
-            Exportar
-          </button>
-        </div>
-      </header>
-
-      <!-- ═══ KPI Strip ═══ -->
-      <section class="kpi-strip">
-        @for (kpi of kpiCards; track kpi.title; let i = $index) {
-          <a [routerLink]="kpi.route"
-             class="kpi-card"
-             [class]="'kpi-card kpi-card--' + kpi.theme"
-             [style.animation-delay]="(i * 80) + 'ms'">
-            <div class="kpi-card__top">
-              <div class="kpi-card__icon-wrap" [class]="'kpi-card__icon-wrap kpi-card__icon-wrap--' + kpi.theme">
-                <span class="material-symbols-rounded">{{ kpi.icon }}</span>
-              </div>
-              <span class="material-symbols-rounded kpi-card__arrow">north_east</span>
-            </div>
-            <div class="kpi-card__value">{{ kpi.value }}</div>
-            <div class="kpi-card__title">{{ kpi.title }}</div>
-            @if (kpi.change) {
-              <div class="kpi-card__trend" [class.kpi-card__trend--up]="kpi.changeUp"
-                   [class.kpi-card__trend--down]="!kpi.changeUp">
-                <span class="material-symbols-rounded">
-                  {{ kpi.changeUp ? 'trending_up' : 'trending_down' }}
-                </span>
-                <span>{{ kpi.change }}</span>
-                <!-- sparkline decoration -->
-                <svg class="kpi-card__spark" viewBox="0 0 40 16" fill="none">
-                  @if (kpi.changeUp) {
-                    <polyline points="0,14 8,10 16,12 24,6 32,8 40,2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                  } @else {
-                    <polyline points="0,2 8,6 16,4 24,10 32,8 40,14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                  }
-                </svg>
-              </div>
-            }
-          </a>
-        }
-      </section>
-
-      <!-- ═══ Financial Overview + Alerts ═══ -->
-      <section class="grid-main">
-        <!-- Desempenho Financeiro -->
-        <div class="finance-panel">
-          <div class="finance-panel__header">
-            <h3 class="finance-panel__title">Desempenho Financeiro</h3>
-            <button class="finance-panel__period" type="button">
-              Este mês
-              <span class="material-symbols-rounded">expand_more</span>
-            </button>
-          </div>
-
-          <div class="finance-row">
-          <div class="finance-card finance-card--green">
-            <div class="finance-card__pattern"></div>
-            <div class="finance-card__content">
-              <div class="finance-card__head">
-                <div class="finance-card__icon-wrap">
-                  <span class="material-symbols-rounded">trending_up</span>
-                </div>
-                <span class="finance-card__badge finance-card__badge--green">
-                  <span class="material-symbols-rounded">arrow_upward</span> +12.5%
-                </span>
-              </div>
-              <span class="finance-card__label">Receita Bruta</span>
-              <span class="finance-card__value">{{ formatCurrency(dashboard()?.receitaBruta || 0) }}</span>
-            </div>
-          </div>
-
-          <div class="finance-card finance-card--rose">
-            <div class="finance-card__pattern"></div>
-            <div class="finance-card__content">
-              <div class="finance-card__head">
-                <div class="finance-card__icon-wrap">
-                  <span class="material-symbols-rounded">trending_down</span>
-                </div>
-                <span class="finance-card__badge finance-card__badge--rose">
-                  <span class="material-symbols-rounded">arrow_upward</span> +3.2%
-                </span>
-              </div>
-              <span class="finance-card__label">Despesas</span>
-              <span class="finance-card__value">{{ formatCurrency(dashboard()?.despesasTotais || 0) }}</span>
-            </div>
-          </div>
-
-          <div class="finance-card finance-card--indigo">
-            <div class="finance-card__pattern"></div>
-            <div class="finance-card__content">
-              <div class="finance-card__head">
-                <div class="finance-card__icon-wrap">
-                  <span class="material-symbols-rounded">account_balance_wallet</span>
-                </div>
-                <span class="finance-card__badge finance-card__badge--indigo">
-                  <span class="material-symbols-rounded">arrow_upward</span> +8.7%
-                </span>
-              </div>
-              <span class="finance-card__label">Lucro Líquido</span>
-              <span class="finance-card__value">{{ formatCurrency(dashboard()?.lucroLiquido || 0) }}</span>
-            </div>
-          </div>
-          </div>
-
-          <!-- Line chart -->
-          <div class="finance-chart">
-            <div class="finance-chart__legend">
-              <span class="finance-chart__legend-item"><i style="background:var(--green)"></i>Receita</span>
-              <span class="finance-chart__legend-item"><i style="background:var(--brand)"></i>Despesa</span>
-            </div>
-            <svg class="finance-chart__svg" viewBox="0 0 640 200" preserveAspectRatio="none" aria-hidden="true">
-              <defs>
-                <linearGradient id="recFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="var(--green)" stop-opacity="0.22"/>
-                  <stop offset="100%" stop-color="var(--green)" stop-opacity="0"/>
-                </linearGradient>
-                <linearGradient id="despFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="var(--brand)" stop-opacity="0.16"/>
-                  <stop offset="100%" stop-color="var(--brand)" stop-opacity="0"/>
-                </linearGradient>
-              </defs>
-              <line class="finance-chart__grid" x1="0" y1="20" x2="640" y2="20"/>
-              <line class="finance-chart__grid" x1="0" y1="70" x2="640" y2="70"/>
-              <line class="finance-chart__grid" x1="0" y1="120" x2="640" y2="120"/>
-              <line class="finance-chart__grid" x1="0" y1="170" x2="640" y2="170"/>
-              <polygon fill="url(#recFill)" points="0,120 53,108 106,112 160,92 213,98 266,78 320,62 373,72 426,58 480,46 533,40 586,50 640,36 640,170 0,170"/>
-              <polyline class="finance-chart__line finance-chart__line--rec" points="0,120 53,108 106,112 160,92 213,98 266,78 320,62 373,72 426,58 480,46 533,40 586,50 640,36"/>
-              <polygon fill="url(#despFill)" points="0,150 53,146 106,148 160,138 213,142 266,134 320,128 373,132 426,126 480,122 533,124 586,118 640,120 640,170 0,170"/>
-              <polyline class="finance-chart__line finance-chart__line--desp" points="0,150 53,146 106,148 160,138 213,142 266,134 320,128 373,132 426,126 480,122 533,124 586,118 640,120"/>
-            </svg>
-            <div class="finance-chart__axis">
-              <span>01 Jun</span><span>08 Jun</span><span>15 Jun</span><span>22 Jun</span><span>30 Jun</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Alerts Panel -->
-        <div class="alerts-panel">
-          <div class="alerts-panel__header">
-            <h3 class="alerts-panel__title">
-              <span class="material-symbols-rounded">notifications_active</span>
-              Alertas
-            </h3>
-            <div class="alerts-panel__header-right">
-              <span class="alerts-panel__total-badge">{{ getTotalAlerts() }}</span>
-              <a routerLink="/alertas" class="alerts-panel__link">Ver tudo</a>
-            </div>
-          </div>
-          <div class="alerts-panel__list">
-            @for (alert of alertItems(); track alert.label) {
-              <a [routerLink]="alert.route" class="alert-row" [class]="'alert-row alert-row--' + alert.type">
-                <div class="alert-row__border"></div>
-                <div class="alert-row__body">
-                  <span class="material-symbols-rounded alert-row__icon">{{ alert.icon }}</span>
-                  <span class="alert-row__label">{{ alert.label }}</span>
-                  <span class="alert-row__count" [class]="'alert-row__count--' + alert.type">{{ alert.count }}</span>
-                </div>
-              </a>
-            }
-          </div>
-        </div>
-      </section>
-
-      <!-- ═══ Quick Access + Operational KPIs ═══ -->
-      <section class="grid-secondary">
-        <!-- Quick Access -->
-        <div class="section-card">
-          <div class="section-card__header">
-            <h3 class="section-card__title">
-              <span class="material-symbols-rounded">grid_view</span>
-              Acesso Rápido
-            </h3>
-          </div>
-          <div class="quick-grid">
-            @for (atalho of atalhos; track atalho.label; let i = $index) {
-              <a [routerLink]="atalho.route" class="quick-item" [class]="'quick-item quick-item--' + atalho.theme">
-                <div class="quick-item__icon-wrap">
-                  <span class="material-symbols-rounded">{{ atalho.icon }}</span>
-                </div>
-                <span class="quick-item__label">{{ atalho.label }}</span>
-              </a>
-            }
-          </div>
-        </div>
-
-        <!-- Operational KPIs -->
-        <div class="ops-grid">
-          <div class="ops-card">
-            <div class="ops-card__ring ops-card__ring--blue">
-              <svg viewBox="0 0 36 36">
-                <path class="ops-card__ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-                <path class="ops-card__ring-fill" stroke-dasharray="75, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-              </svg>
-              <span class="material-symbols-rounded ops-card__ring-icon">badge</span>
-            </div>
-            <span class="ops-card__value">{{ dashboard()?.totalFuncionarios || 0 }}</span>
-            <span class="ops-card__label">Funcionários</span>
-          </div>
-
-          <div class="ops-card">
-            <div class="ops-card__ring ops-card__ring--green">
-              <svg viewBox="0 0 36 36">
-                <path class="ops-card__ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-                <path class="ops-card__ring-fill" stroke-dasharray="60, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-              </svg>
-              <span class="material-symbols-rounded ops-card__ring-icon">account_balance</span>
-            </div>
-            <span class="ops-card__value ops-card__value--sm">{{ formatCurrency(dashboard()?.saldoBancario || 0) }}</span>
-            <span class="ops-card__label">Saldo Bancário</span>
-          </div>
-
-          <div class="ops-card">
-            <div class="ops-card__ring ops-card__ring--amber">
-              <svg viewBox="0 0 36 36">
-                <path class="ops-card__ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-                <path class="ops-card__ring-fill" stroke-dasharray="45, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-              </svg>
-              <span class="material-symbols-rounded ops-card__ring-icon">gavel</span>
-            </div>
-            <span class="ops-card__value ops-card__value--sm">{{ formatCurrency(dashboard()?.impostosMes || 0) }}</span>
-            <span class="ops-card__label">Impostos (Mês)</span>
-          </div>
-
-          <div class="ops-card">
-            <div class="ops-card__ring ops-card__ring--purple">
-              <svg viewBox="0 0 36 36">
-                <path class="ops-card__ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-                <path class="ops-card__ring-fill" [attr.stroke-dasharray]="(dashboard()?.margemLucro || 0) + ', 100'" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-              </svg>
-              <span class="material-symbols-rounded ops-card__ring-icon">analytics</span>
-            </div>
-            <span class="ops-card__value">{{ dashboard()?.margemLucro || 0 }}%</span>
-            <span class="ops-card__label">Margem Lucro</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- ═══ Activity Timeline ═══ -->
-      <section class="timeline-section">
-        <div class="section-card">
-          <div class="section-card__header">
-            <h3 class="section-card__title">
-              <span class="material-symbols-rounded">history</span>
-              Atividade Recente
-            </h3>
-            <a routerLink="/atividades" class="section-card__link">Ver histórico</a>
-          </div>
-          <div class="timeline">
-            @for (event of activityTimeline(); track event.id; let last = $last) {
-              <div class="timeline__item" [class.timeline__item--last]="last">
-                <div class="timeline__line"></div>
-                <div class="timeline__dot" [class]="'timeline__dot--' + event.type"></div>
-                <div class="timeline__content">
-                  <div class="timeline__avatar" [class]="'timeline__avatar--' + event.type">
-                    <span class="material-symbols-rounded">{{ event.icon }}</span>
-                  </div>
-                  <div class="timeline__body">
-                    <p class="timeline__desc">
-                      <strong>{{ event.user }}</strong> {{ event.action }}
-                    </p>
-                    <span class="timeline__time">{{ event.time }}</span>
-                  </div>
-                </div>
-              </div>
-            } @empty {
-              <p style="padding:1rem 0;color:var(--text-tertiary);font-size:0.875rem;">Nenhuma atividade recente.</p>
-            }
-          </div>
-        </div>
-      </section>
-
-    </div>
-  `,
+  imports: [
+    CommonModule, MatTooltipModule,
+    MetricCardComponent, AlertPanelComponent, FinancePerformanceComponent,
+    CashFlowCardComponent, TopCompaniesCardComponent, RecentActivitiesCardComponent,
+  ],
+  templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
 export class DashboardComponent implements OnInit {
-  dashboard = signal<DashboardMetrics | null>(null);
-  alertItems = signal([
-    { label: 'Contas a Pagar Vencidas', count: 0, icon: 'money_off', type: 'error', route: '/financeiro/contas-pagar' },
-    { label: 'Contas a Receber Vencidas', count: 0, icon: 'attach_money', type: 'warning', route: '/financeiro/contas-receber' },
-    { label: 'Certificados Próx. Vencimento', count: 0, icon: 'verified', type: 'info', route: '/certificados' },
-    { label: 'Tarefas Atrasadas', count: 0, icon: 'task_alt', type: 'purple', route: '/escritorio/tarefas' },
-  ]);
+  loading = signal(true);
+  errorState = signal(false);
+  activitiesLoading = signal(true);
 
-  kpiCards = [
-    { title: 'Empresas Ativas', value: '—', icon: 'apartment', route: '/empresas', change: '', changeUp: true, theme: 'indigo' },
-    { title: 'NF-e Emitidas', value: '—', icon: 'receipt_long', route: '/fiscal/nfe', change: '', changeUp: true, theme: 'green' },
-    { title: 'Obrigações Pendentes', value: '—', icon: 'pending_actions', route: '/sped/obrigacoes', change: '', changeUp: true, theme: 'amber' },
-    { title: 'Folha (Mês)', value: '—', icon: 'badge', route: '/folha/holerites', change: '', changeUp: false, theme: 'purple' },
-    { title: 'Honorários Abertos', value: '—', icon: 'paid', route: '/escritorio/honorarios', change: '', changeUp: true, theme: 'teal' },
-  ];
+  private raw = signal<RawData | null>(null);
+  activities = signal<ActivityItem[]>([]);
 
-  atalhos = [
-    { label: 'Lançamento', icon: 'edit_note', route: '/contabilidade/lancamentos', theme: 'indigo' },
-    { label: 'NF-e', icon: 'receipt_long', route: '/fiscal/nfe', theme: 'green' },
-    { label: 'Contas Pagar', icon: 'money_off', route: '/financeiro/contas-pagar', theme: 'red' },
-    { label: 'Contas Receber', icon: 'attach_money', route: '/financeiro/contas-receber', theme: 'emerald' },
-    { label: 'Folha', icon: 'badge', route: '/folha/holerites', theme: 'purple' },
-    { label: 'Simples', icon: 'store', route: '/tributario/simples', theme: 'amber' },
-    { label: 'Simulador', icon: 'calculate', route: '/tributario/simulador', theme: 'blue' },
-    { label: 'Robô NF-e', icon: 'smart_toy', route: '/fiscal/robo-nfe', theme: 'teal' },
-    { label: 'Portal Cliente', icon: 'group', route: '/portal-cliente', theme: 'rose' },
-  ];
+  financePeriodo = signal<Periodo>('atual');
+  cashPeriodo = signal<Periodo>('atual');
 
-  activityTimeline = signal<TimelineEvent[]>([]);
+  // ── View-models derivados (recomputam com os dados e os seletores de período) ──
+  metricCards = computed<MetricCardData[]>(() => this.buildMetricCards(this.raw()));
+  alerts = computed<AlertItem[]>(() => this.buildAlerts(this.raw()));
+  topCompanies = computed<TopCompany[]>(() => this.buildTopCompanies(this.raw()));
+  financeSummary = computed<FinanceSummary>(() => this.buildFinance(this.raw(), this.financePeriodo()));
+  cashFlow = computed<CashFlow>(() => this.buildCashFlow(this.raw(), this.cashPeriodo()));
 
   constructor(public authService: AuthService, private appwrite: AppwriteService) {}
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.load();
-  }
-
-  private load() {
-    const Q = this.appwrite.query;
-    const list = [Q.limit(100), Q.orderDesc('$createdAt')];
-
-    forkJoin({
-      empresas: this.appwrite.listDocuments<Empresa>('empresas', list),
-      contasPagar: this.appwrite.listDocuments<ContaPagar>('contas_pagar', list),
-      contasReceber: this.appwrite.listDocuments<ContaReceber>('contas_receber', list),
-      funcionarios: this.appwrite.listDocuments<Funcionario>('funcionarios', list),
-      contasBancarias: this.appwrite.listDocuments<ContaBancaria>('contas_bancarias', list),
-      apuracoes: this.appwrite.listDocuments<ApuracaoFiscal>('apuracoes_fiscais', list),
-      notasFiscais: this.appwrite.listDocuments<NotaFiscal>('notas_fiscais', list),
-      obrigacoes: this.appwrite.listDocuments<Obrigacao>('obrigacoes', list),
-      certificados: this.appwrite.listDocuments<Certificado>('certificados', list),
-      tarefas: this.appwrite.listDocuments<Tarefa>('tarefas', list),
-      holerites: this.appwrite.listDocuments<Holerite>('holerites', list),
-      honorarios: this.appwrite.listDocuments<Honorario>('honorarios', list),
-    }).subscribe({
-      next: (d) => {
-        const comp = this.currentCompetencia();
-        const hoje = new Date().toISOString().slice(0, 10);
-
-        // ── Financeiro: receita/despesa da competência atual (mês corrente) ──
-        const receitaBruta = d.contasReceber
-          .filter(c => (c.dataEmissao || '').slice(0, 7) === comp)
-          .reduce((s, c) => s + (c.valor || 0), 0);
-        const despesasTotais = d.contasPagar
-          .filter(c => (c.dataEmissao || '').slice(0, 7) === comp)
-          .reduce((s, c) => s + (c.valor || 0), 0);
-        const lucroLiquido = receitaBruta - despesasTotais;
-        const margemLucro = receitaBruta > 0
-          ? Math.round((lucroLiquido / receitaBruta) * 100)
-          : 0;
-
-        // ── Operacional ──
-        const totalFuncionarios = d.funcionarios.filter(f => (f.status || 'ATIVO') === 'ATIVO').length;
-        const saldoBancario = d.contasBancarias.reduce((s, c) => s + (c.saldoAtual || 0), 0);
-        const impostosMes = d.apuracoes
-          .filter(a => a.competencia === comp)
-          .reduce((s, a) => s + (a.valorRecolher || 0), 0);
-
-        // ── Alertas ──
-        const contasPagarVencidas = d.contasPagar
-          .filter(c => !this.isPago(c.status) && (c.dataVencimento || '') < hoje).length;
-        const contasReceberVencidas = d.contasReceber
-          .filter(c => !this.isRecebido(c.status) && (c.dataVencimento || '') < hoje).length;
-        const certificadosVencendo = d.certificados
-          .filter(c => this.diasAte(c.dataValidade) >= 0 && this.diasAte(c.dataValidade) <= 30).length;
-        const tarefasAtrasadas = d.tarefas
-          .filter(t => (t.status || '') !== 'CONCLUIDA' && (t.dataVencimento || '') && (t.dataVencimento as string) < hoje).length;
-
-        const metrics: DashboardMetrics = {
-          receitaBruta, despesasTotais, lucroLiquido, margemLucro,
-          totalFuncionarios, saldoBancario, impostosMes,
-          contasPagarVencidas, contasReceberVencidas,
-        };
-        this.dashboard.set(metrics);
-
-        this.alertItems.set([
-          { label: 'Contas a Pagar Vencidas', count: contasPagarVencidas, icon: 'money_off', type: 'error', route: '/financeiro/contas-pagar' },
-          { label: 'Contas a Receber Vencidas', count: contasReceberVencidas, icon: 'attach_money', type: 'warning', route: '/financeiro/contas-receber' },
-          { label: 'Certificados Próx. Vencimento', count: certificadosVencendo, icon: 'verified', type: 'info', route: '/certificados' },
-          { label: 'Tarefas Atrasadas', count: tarefasAtrasadas, icon: 'task_alt', type: 'purple', route: '/escritorio/tarefas' },
-        ]);
-
-        // ── KPI strip: valores e tendências reais (mês corrente vs anterior) ──
-        const prevComp = this.previousCompetencia();
-        const isNfe = (n: NotaFiscal) => (n.tipo || '').toUpperCase() === 'NFE';
-
-        const empresasAtivas = d.empresas.filter(e => (e.status || 'ATIVA') === 'ATIVA').length;
-        const empresasNovas = d.empresas.filter(e => (e.$createdAt || '').slice(0, 7) === comp).length;
-        const nfeEmitidas = d.notasFiscais.filter(isNfe).length || d.notasFiscais.length;
-        const nfeAtual = d.notasFiscais.filter(n => isNfe(n) && (n.dataEmissao || '').slice(0, 7) === comp).length;
-        const nfePrev = d.notasFiscais.filter(n => isNfe(n) && (n.dataEmissao || '').slice(0, 7) === prevComp).length;
-        const obrigacoesPendentes = d.obrigacoes.filter(o => (o.status || '') !== 'ENTREGUE').length;
-        const folhaMes = d.holerites.filter(h => h.competencia === comp).reduce((s, h) => s + (h.valorLiquido || 0), 0);
-        const folhaPrev = d.holerites.filter(h => h.competencia === prevComp).reduce((s, h) => s + (h.valorLiquido || 0), 0);
-        const honorariosAbertos = d.honorarios.filter(h => !this.isPago(h.status)).reduce((s, h) => s + (h.valor || 0), 0);
-        const honorariosPendentes = d.honorarios.filter(h => !this.isPago(h.status)).length;
-
-        this.kpiCards[0] = { ...this.kpiCards[0], value: String(empresasAtivas), ...this.trendNovos(empresasNovas) };
-        this.kpiCards[1] = { ...this.kpiCards[1], value: String(nfeEmitidas), ...this.trendPct(nfeAtual, nfePrev) };
-        this.kpiCards[2] = { ...this.kpiCards[2], value: String(obrigacoesPendentes), change: '', changeUp: true };
-        this.kpiCards[3] = { ...this.kpiCards[3], value: this.formatCurrency(folhaMes), ...this.trendPct(folhaMes, folhaPrev) };
-        this.kpiCards[4] = { ...this.kpiCards[4], value: this.formatCurrency(honorariosAbertos), change: honorariosPendentes ? `${honorariosPendentes} pendentes` : '', changeUp: false };
-      },
-    });
-
     this.loadAtividades();
   }
 
-  private currentCompetencia(): string {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  // ═══ Carregamento ═══════════════════════════════════════════════════════════
+  refresh(): void {
+    this.loading.set(true);
+    this.activitiesLoading.set(true);
+    this.load();
+    this.loadAtividades();
   }
 
-  private previousCompetencia(): string {
-    const now = new Date();
-    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  private load(): void {
+    const Q = this.appwrite.query;
+    const list = [Q.limit(100), Q.orderDesc('$createdAt')];
+    const col = <T>(name: string) => this.appwrite.listDocuments<T>(name, list).pipe(catchError(() => of([] as T[])));
+
+    this.errorState.set(false);
+    forkJoin({
+      empresas: col<Empresa>('empresas'),
+      contasPagar: col<ContaPagar>('contas_pagar'),
+      contasReceber: col<ContaReceber>('contas_receber'),
+      funcionarios: col<Funcionario>('funcionarios'),
+      contasBancarias: col<ContaBancaria>('contas_bancarias'),
+      apuracoes: col<ApuracaoFiscal>('apuracoes_fiscais'),
+      notasFiscais: col<NotaFiscal>('notas_fiscais'),
+      obrigacoes: col<Obrigacao>('obrigacoes'),
+      certificados: col<Certificado>('certificados'),
+      tarefas: col<Tarefa>('tarefas'),
+      holerites: col<Holerite>('holerites'),
+      honorarios: col<Honorario>('honorarios'),
+    }).subscribe({
+      next: (d) => { this.raw.set(d); this.loading.set(false); },
+      error: () => { this.errorState.set(true); this.loading.set(false); },
+    });
   }
 
-  /** Variação percentual mês a mês (vazio quando não há base de comparação). */
-  private trendPct(atual: number, anterior: number): { change: string; changeUp: boolean } {
-    if (!anterior) return { change: '', changeUp: true };
-    const p = Math.round(((atual - anterior) / anterior) * 100);
-    return { change: `${p >= 0 ? '+' : ''}${p}%`, changeUp: p >= 0 };
-  }
-
-  private trendNovos(n: number): { change: string; changeUp: boolean } {
-    return { change: n > 0 ? `+${n} este mês` : '', changeUp: true };
-  }
-
-  /** Atividade recente real, a partir da trilha de auditoria (audit_logs). */
-  private loadAtividades() {
+  private loadAtividades(): void {
     const Q = this.appwrite.query;
     const tenant = this.authService.tenantId() || 'default';
     this.appwrite.listDocuments<AuditLog>('audit_logs', [
-      Q.equal('tenantId', tenant), Q.limit(8), Q.orderDesc('$createdAt'),
-    ]).subscribe({
-      next: (logs) => this.activityTimeline.set(logs.map(a => ({
+      Q.equal('tenantId', tenant), Q.limit(6), Q.orderDesc('$createdAt'),
+    ]).pipe(catchError(() => of([] as AuditLog[]))).subscribe((logs) => {
+      this.activities.set(logs.map(a => ({
         id: a.$id,
         user: a.usuario || 'Sistema',
-        action: a.descricao || a.acao || '',
+        action: a.descricao || a.acao || 'registrou uma ação',
         icon: this.auditIcon(a.acao),
         type: this.auditType(a.modulo),
         time: this.getRelativeTime(new Date(a.timestamp || a.$createdAt)),
-      }))),
-      error: () => this.activityTimeline.set([]),
+      })));
+      this.activitiesLoading.set(false);
     });
+  }
+
+  // ═══ Competências ═══════════════════════════════════════════════════════════
+  /** "YYYY-MM" relativa ao mês atual (monthsBack = 0 → mês corrente). */
+  private competencia(monthsBack: number): string {
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  private compFor(p: Periodo): string {
+    return this.competencia(p === 'anterior' ? 1 : 0);
+  }
+
+  private prevComp(comp: string): string {
+    const [y, m] = comp.split('-').map(Number);
+    const d = new Date(y, m - 2, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  // ═══ Indicadores principais (5 cards) ═══════════════════════════════════════
+  private buildMetricCards(d: RawData | null): MetricCardData[] {
+    const comp = this.competencia(0);
+    const prev = this.competencia(1);
+
+    const empresasAtivas = d ? d.empresas.filter(e => (e.status || 'ATIVA') === 'ATIVA').length : 0;
+    const empresasNovas = d ? d.empresas.filter(e => (e.$createdAt || '').slice(0, 7) === comp).length : 0;
+
+    const isNfe = (n: NotaFiscal) => (n.tipo || '').toUpperCase() === 'NFE' || (n.tipo || '') === '';
+    const nfe30 = d ? d.notasFiscais.filter(n => isNfe(n) && this.diasAtras(n.dataEmissao) <= 30 && this.diasAtras(n.dataEmissao) >= 0).length : 0;
+    const nfePrev30 = d ? d.notasFiscais.filter(n => isNfe(n) && this.diasAtras(n.dataEmissao) > 30 && this.diasAtras(n.dataEmissao) <= 60).length : 0;
+
+    const obrigacoesPend = d ? d.obrigacoes.filter(o => (o.status || '') !== 'ENTREGUE').length : 0;
+
+    const folhaMes = d ? d.holerites.filter(h => h.competencia === comp).reduce((s, h) => s + (h.valorLiquido || 0), 0) : 0;
+    const folhaPrev = d ? d.holerites.filter(h => h.competencia === prev).reduce((s, h) => s + (h.valorLiquido || 0), 0) : 0;
+
+    const honorariosAbertos = d ? d.honorarios.filter(h => !this.isPago(h.status)).reduce((s, h) => s + (h.valor || 0), 0) : 0;
+    const honorariosPend = d ? d.honorarios.filter(h => !this.isPago(h.status)).length : 0;
+
+    return [
+      {
+        title: 'Empresas Ativas', value: String(empresasAtivas), sublabel: 'Total cadastradas',
+        icon: 'apartment', theme: 'blue', route: '/empresas',
+        trend: empresasNovas > 0 ? { value: `+${empresasNovas} este mês`, up: true } : null,
+        spark: d ? this.empresasSpark(d.empresas) : [],
+      },
+      {
+        title: 'NF-e Emitidas', value: String(nfe30), sublabel: 'Últimos 30 dias',
+        icon: 'receipt_long', theme: 'purple', route: '/fiscal/nfe',
+        trend: this.trendPct(nfe30, nfePrev30),
+        spark: d ? this.nfeSpark(d.notasFiscais) : [],
+      },
+      {
+        title: 'Obrigações Pendentes', value: String(obrigacoesPend), sublabel: 'A vencer',
+        icon: 'pending_actions', theme: 'orange', route: '/sped/obrigacoes',
+        trend: null, spark: [],
+      },
+      {
+        title: 'Folha (Mês)', value: this.formatCurrency(folhaMes), sublabel: 'Total de despesas',
+        icon: 'payments', theme: 'green', route: '/folha/holerites',
+        trend: this.trendPct(folhaMes, folhaPrev),
+        spark: d ? this.folhaSpark(d.holerites) : [],
+      },
+      {
+        title: 'Honorários Abertos', value: this.formatCurrency(honorariosAbertos),
+        sublabel: honorariosPend ? `${honorariosPend} a receber` : 'A receber',
+        icon: 'account_balance_wallet', theme: 'pink', route: '/escritorio/honorarios',
+        trend: null, spark: [],
+      },
+    ];
+  }
+
+  private empresasSpark(empresas: Empresa[]): number[] {
+    // Total acumulado de empresas ao fim de cada um dos últimos 8 meses.
+    const out: number[] = [];
+    for (let k = 7; k >= 0; k--) {
+      const comp = this.competencia(k);
+      out.push(empresas.filter(e => (e.$createdAt || '9999').slice(0, 7) <= comp).length);
+    }
+    return out.some(v => v > 0) ? out : [];
+  }
+
+  private nfeSpark(notas: NotaFiscal[]): number[] {
+    // Contagem diária de NF-e nos últimos 14 dias.
+    const isNfe = (n: NotaFiscal) => (n.tipo || '').toUpperCase() === 'NFE' || (n.tipo || '') === '';
+    const out: number[] = [];
+    for (let k = 13; k >= 0; k--) {
+      out.push(notas.filter(n => isNfe(n) && this.diasAtras(n.dataEmissao) === k).length);
+    }
+    return out.some(v => v > 0) ? out : [];
+  }
+
+  private folhaSpark(holerites: Holerite[]): number[] {
+    const out: number[] = [];
+    for (let k = 5; k >= 0; k--) {
+      const comp = this.competencia(k);
+      out.push(holerites.filter(h => h.competencia === comp).reduce((s, h) => s + (h.valorLiquido || 0), 0));
+    }
+    return out.some(v => v > 0) ? out : [];
+  }
+
+  // ═══ Alertas ════════════════════════════════════════════════════════════════
+  private buildAlerts(d: RawData | null): AlertItem[] {
+    const hoje = new Date().toISOString().slice(0, 10);
+    const cpVenc = d ? d.contasPagar.filter(c => !this.isPago(c.status) && (c.dataVencimento || '') && (c.dataVencimento as string) < hoje).length : 0;
+    const crVenc = d ? d.contasReceber.filter(c => !this.isRecebido(c.status) && (c.dataVencimento || '') && (c.dataVencimento as string) < hoje).length : 0;
+    const certVenc = d ? d.certificados.filter(c => { const n = this.diasAte(c.dataValidade); return n >= 0 && n <= 30; }).length : 0;
+    const tarAtras = d ? d.tarefas.filter(t => (t.status || '') !== 'CONCLUIDA' && (t.dataVencimento || '') && (t.dataVencimento as string) < hoje).length : 0;
+
+    return [
+      { label: 'Contas a Pagar Vencidas', count: cpVenc, icon: 'trending_down', type: 'error', route: '/financeiro/contas-pagar' },
+      { label: 'Contas a Receber Vencidas', count: crVenc, icon: 'schedule', type: 'warning', route: '/financeiro/contas-receber' },
+      { label: 'Certidões a Vencer', count: certVenc, icon: 'verified_user', type: 'info', route: '/certificados' },
+      { label: 'Tarefas Atrasadas', count: tarAtras, icon: 'task_alt', type: 'purple', route: '/escritorio/tarefas' },
+    ];
+  }
+
+  // ═══ Desempenho financeiro ══════════════════════════════════════════════════
+  private buildFinance(d: RawData | null, p: Periodo): FinanceSummary {
+    const comp = this.compFor(p);
+    const prev = this.prevComp(comp);
+    const empty: FinanceSummary = {
+      receita: 0, despesa: 0, lucro: 0,
+      receitaTrend: null, despesaTrend: null, lucroTrend: null,
+      serieReceita: [], serieDespesa: [], labels: [],
+    };
+    if (!d) return empty;
+
+    const noMes = (data: string | undefined, c: string) => (data || '').slice(0, 7) === c;
+    const receita = d.contasReceber.filter(c => noMes(c.dataEmissao, comp)).reduce((s, c) => s + (c.valor || 0), 0);
+    const despesa = d.contasPagar.filter(c => noMes(c.dataEmissao, comp)).reduce((s, c) => s + (c.valor || 0), 0);
+    const receitaPrev = d.contasReceber.filter(c => noMes(c.dataEmissao, prev)).reduce((s, c) => s + (c.valor || 0), 0);
+    const despesaPrev = d.contasPagar.filter(c => noMes(c.dataEmissao, prev)).reduce((s, c) => s + (c.valor || 0), 0);
+    const lucro = receita - despesa;
+    const lucroPrev = receitaPrev - despesaPrev;
+
+    // Séries diárias acumuladas.
+    const [y, m] = comp.split('-').map(Number);
+    const dias = new Date(y, m, 0).getDate();
+    const serieReceita: number[] = [];
+    const serieDespesa: number[] = [];
+    const labels: string[] = [];
+    let accR = 0, accD = 0;
+    for (let dia = 1; dia <= dias; dia++) {
+      const dd = String(dia).padStart(2, '0');
+      const key = `${comp}-${dd}`;
+      accR += d.contasReceber.filter(c => (c.dataEmissao || '').slice(0, 10) === key).reduce((s, c) => s + (c.valor || 0), 0);
+      accD += d.contasPagar.filter(c => (c.dataEmissao || '').slice(0, 10) === key).reduce((s, c) => s + (c.valor || 0), 0);
+      serieReceita.push(accR);
+      serieDespesa.push(accD);
+      labels.push(`${dd}/${String(m).padStart(2, '0')}`);
+    }
+
+    return {
+      receita, despesa, lucro,
+      receitaTrend: this.trendPct(receita, receitaPrev),
+      despesaTrend: this.trendPct(despesa, despesaPrev),
+      lucroTrend: this.trendPct(lucro, lucroPrev),
+      serieReceita, serieDespesa, labels,
+    };
+  }
+
+  // ═══ Fluxo de caixa ═════════════════════════════════════════════════════════
+  private buildCashFlow(d: RawData | null, p: Periodo): CashFlow {
+    if (!d) return { entrada: 0, saida: 0, saldo: 0 };
+    const comp = this.compFor(p);
+    const entrada = d.contasReceber
+      .filter(c => this.isRecebido(c.status) && (c.dataRecebimento || '').slice(0, 7) === comp)
+      .reduce((s, c) => s + (c.valorRecebido ?? c.valor ?? 0), 0);
+    const saida = d.contasPagar
+      .filter(c => this.isPago(c.status) && (c.dataPagamento || '').slice(0, 7) === comp)
+      .reduce((s, c) => s + (c.valorPago ?? c.valor ?? 0), 0);
+    return { entrada, saida, saldo: entrada - saida };
+  }
+
+  // ═══ Top empresas ═══════════════════════════════════════════════════════════
+  private buildTopCompanies(d: RawData | null): TopCompany[] {
+    if (!d) return [];
+    const nomes = new Map<string, string>();
+    for (const e of d.empresas) nomes.set(e.$id, e.nomeFantasia || e.razaoSocial || '(sem nome)');
+
+    const porEmpresa = new Map<string, number>();
+    for (const c of d.contasReceber) {
+      const id = c.empresaId || '';
+      if (!id) continue;
+      porEmpresa.set(id, (porEmpresa.get(id) || 0) + (c.valor || 0));
+    }
+
+    const lista = Array.from(porEmpresa.entries())
+      .filter(([, v]) => v > 0)
+      .map(([id, valor]) => ({ nome: nomes.get(id) || 'Empresa', valor }))
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 5);
+
+    const max = lista[0]?.valor || 1;
+    return lista.map(c => ({ ...c, pct: Math.round((c.valor / max) * 100) }));
+  }
+
+  // ═══ Ações do cabeçalho ═════════════════════════════════════════════════════
+  /** Exporta os indicadores atuais para CSV (Excel pt-BR). Ação real, sem back-end. */
+  exportar(): void {
+    if (this.loading()) return;
+    const fmt = (v: number) => this.formatCurrency(v);
+    const fin = this.financeSummary();
+    const cf = this.cashFlow();
+    const rows: string[][] = [
+      ['Bear ERP — Painel', this.dateLabel()],
+      [],
+      ['Indicador', 'Valor'],
+      ...this.metricCards().map(c => [c.title, c.value]),
+      [],
+      ['Financeiro (mês)', 'Valor'],
+      ['Receita Bruta', fmt(fin.receita)],
+      ['Despesas', fmt(fin.despesa)],
+      ['Lucro Líquido', fmt(fin.lucro)],
+      [],
+      ['Fluxo de Caixa (mês)', 'Valor'],
+      ['Entrada', fmt(cf.entrada)],
+      ['Saída', fmt(cf.saida)],
+      ['Saldo', fmt(cf.saldo)],
+      [],
+      ['Alertas', 'Quantidade'],
+      ...this.alerts().map(a => [a.label, String(a.count)]),
+    ];
+    const csv = rows.map(r => r.map(cell => `"${(cell ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bear-dashboard-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ═══ Helpers de tendência/formatação ════════════════════════════════════════
+  private trendPct(atual: number, anterior: number): Trend {
+    if (!anterior) return null;
+    const p = Math.round(((atual - anterior) / anterior) * 100);
+    return { value: `${p >= 0 ? '+' : ''}${p}%`, up: p >= 0 };
+  }
+
+  private isPago(status?: string): boolean {
+    return ['PAGO', 'PAGA', 'QUITADO', 'QUITADA'].includes((status || '').toUpperCase());
+  }
+
+  private isRecebido(status?: string): boolean {
+    return ['RECEBIDO', 'RECEBIDA', 'PAGO', 'PAGA', 'QUITADO', 'QUITADA'].includes((status || '').toUpperCase());
+  }
+
+  private diasAte(data?: string): number {
+    if (!data) return Number.NaN;
+    const alvo = new Date(data + 'T00:00:00');
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    return Math.round((alvo.getTime() - hoje.getTime()) / 86400000);
+  }
+
+  private diasAtras(data?: string): number {
+    if (!data) return Number.NaN;
+    const alvo = new Date((data || '').slice(0, 10) + 'T00:00:00');
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    return Math.round((hoje.getTime() - alvo.getTime()) / 86400000);
   }
 
   private auditIcon(acao?: string): string {
@@ -509,7 +402,7 @@ export class DashboardComponent implements OnInit {
       CRIAR: 'add_circle', EDITAR: 'edit', EXCLUIR: 'delete',
       LOGIN: 'login', LOGOUT: 'logout', EXPORTAR: 'download',
     };
-    return m[(acao || '').toUpperCase()] || 'sync';
+    return m[(acao || '').toUpperCase()] || 'bolt';
   }
 
   private auditType(modulo?: string): string {
@@ -524,52 +417,34 @@ export class DashboardComponent implements OnInit {
     const diff = Date.now() - ts.getTime();
     const mins = Math.floor(diff / 60000);
     if (mins < 1) return 'agora';
-    if (mins < 60) return `Há ${mins} min`;
+    if (mins < 60) return `há ${mins} min`;
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `Há ${hrs}h`;
-    return `Há ${Math.floor(hrs / 24)}d`;
+    if (hrs < 24) return `há ${hrs}h`;
+    return `há ${Math.floor(hrs / 24)}d`;
   }
 
-  private isPago(status?: string): boolean {
-    return ['PAGO', 'PAGA', 'QUITADO', 'QUITADA'].includes((status || '').toUpperCase());
-  }
-
-  private isRecebido(status?: string): boolean {
-    return ['RECEBIDO', 'RECEBIDA', 'PAGO', 'PAGA', 'QUITADO', 'QUITADA'].includes((status || '').toUpperCase());
-  }
-
-  private diasAte(data?: string): number {
-    if (!data) return Number.NaN;
-    const alvo = new Date(data + 'T00:00:00');
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    return Math.round((alvo.getTime() - hoje.getTime()) / 86400000);
-  }
-
-  getGreeting(): string {
+  // ═══ Cabeçalho (dinâmico) ═══════════════════════════════════════════════════
+  greeting(): string {
     const h = new Date().getHours();
     if (h < 12) return 'Bom dia';
     if (h < 18) return 'Boa tarde';
     return 'Boa noite';
   }
 
-  getFirstName(): string {
+  firstName(): string {
     return this.authService.user()?.nome?.split(' ')[0] || 'Usuário';
   }
 
-  getCurrentMonth(): string {
-    return new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  }
-
-  getCurrentDateFormatted(): string {
+  dateLabel(): string {
     return new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
   }
 
-  getTotalAlerts(): number {
-    return this.alertItems().reduce((sum, a) => sum + a.count, 0);
+  periodChip(): string {
+    const now = new Date();
+    return `${MESES_CURTOS[now.getMonth()].replace(/^\w/, c => c.toUpperCase())} de ${now.getFullYear()}`;
   }
 
   formatCurrency(value: number): string {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
   }
 }

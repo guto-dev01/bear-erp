@@ -62,20 +62,20 @@ interface BemPatrimonial {
       <!-- Stats -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">inventory_2</span></div>
+          <div class="stat-icon stat-icon--brand"><span class="material-symbols-rounded">inventory_2</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Bens</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ totalElements() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">payments</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Valor Total</p><p class="text-xl font-bold" style="color:#34C759">{{ valorTotal() | currency:'BRL' }}</p></div>
+          <div class="stat-icon stat-icon--success"><span class="material-symbols-rounded">payments</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Valor Total</p><p class="text-xl font-bold ink-success">{{ valorTotal() | currency:'BRL' }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">trending_down</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Deprec. Acum.</p><p class="text-xl font-bold" style="color:#FF3B30">{{ depreciacao() | currency:'BRL' }}</p></div>
+          <div class="stat-icon stat-icon--error"><span class="material-symbols-rounded">trending_down</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Deprec. Acum.</p><p class="text-xl font-bold ink-error">{{ depreciacao() | currency:'BRL' }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E6F8FB"><span class="material-symbols-rounded" style="color:#30B0C7">account_balance</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Valor Atual</p><p class="text-xl font-bold" style="color:#30B0C7">{{ valorAtual() | currency:'BRL' }}</p></div>
+          <div class="stat-icon stat-icon--teal"><span class="material-symbols-rounded">account_balance</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Valor Atual</p><p class="text-xl font-bold ink-teal">{{ valorAtual() | currency:'BRL' }}</p></div>
         </div>
       </div>
 
@@ -95,7 +95,7 @@ interface BemPatrimonial {
             <ng-container matColumnDef="grupo"><th mat-header-cell *matHeaderCellDef>Grupo</th><td mat-cell *matCellDef="let b"><span class="badge badge--info">{{ formatGrupo(b.grupoContabil) }}</span></td></ng-container>
             <ng-container matColumnDef="valorAquisicao"><th mat-header-cell *matHeaderCellDef>Valor Aquisição</th><td mat-cell *matCellDef="let b" class="font-semibold">{{ b.valorAquisicao | currency:'BRL' }}</td></ng-container>
             <ng-container matColumnDef="valorAtual"><th mat-header-cell *matHeaderCellDef>Valor Atual</th><td mat-cell *matCellDef="let b">{{ b.valorAtual | currency:'BRL' }}</td></ng-container>
-            <ng-container matColumnDef="depreciacao"><th mat-header-cell *matHeaderCellDef>Deprec. Acum.</th><td mat-cell *matCellDef="let b" style="color:#FF3B30">{{ b.valorDepreciadoAcumulado | currency:'BRL' }}</td></ng-container>
+            <ng-container matColumnDef="depreciacao"><th mat-header-cell *matHeaderCellDef>Deprec. Acum.</th><td mat-cell *matCellDef="let b" class="ink-error">{{ b.valorDepreciadoAcumulado | currency:'BRL' }}</td></ng-container>
             <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th>
               <td mat-cell *matCellDef="let b">
                 <span class="badge" [ngClass]="b.status === 'ATIVO' ? 'badge--success' : 'badge--neutral'">

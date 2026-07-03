@@ -80,68 +80,52 @@ interface FuncionarioDoc { status?: string; }
       @if (dashboard(); as d) {
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
           <div class="bear-card p-4 flex flex-col gap-1">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #ecfdf5;">
-              <span class="material-symbols-rounded text-lg" style="color: #059669;">trending_up</span>
-            </div>
-            <p class="text-xs font-medium" style="color: var(--text-secondary);">Receita Bruta</p>
-            <p class="text-lg font-bold" style="color: #059669;">{{ d.receitaBruta | currency:'BRL' }}</p>
+            <div class="stat-icon stat-icon--success mb-2"><span class="material-symbols-rounded">trending_up</span></div>
+            <p class="text-xs font-medium ink-secondary">Receita Bruta</p>
+            <p class="text-lg font-bold tabular ink-success">{{ d.receitaBruta | currency:'BRL' }}</p>
           </div>
           <div class="bear-card p-4 flex flex-col gap-1">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #fef2f2;">
-              <span class="material-symbols-rounded text-lg" style="color: #dc2626;">trending_down</span>
-            </div>
-            <p class="text-xs font-medium" style="color: var(--text-secondary);">Despesas</p>
-            <p class="text-lg font-bold" style="color: #dc2626;">{{ d.despesasTotais | currency:'BRL' }}</p>
+            <div class="stat-icon stat-icon--error mb-2"><span class="material-symbols-rounded">trending_down</span></div>
+            <p class="text-xs font-medium ink-secondary">Despesas</p>
+            <p class="text-lg font-bold tabular ink-error">{{ d.despesasTotais | currency:'BRL' }}</p>
           </div>
           <div class="bear-card p-4 flex flex-col gap-1">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #eef2ff;">
-              <span class="material-symbols-rounded text-lg" style="color: #4f46e5;">account_balance_wallet</span>
-            </div>
-            <p class="text-xs font-medium" style="color: var(--text-secondary);">Lucro Líquido</p>
-            <p class="text-lg font-bold" style="color: #4f46e5;">{{ d.lucroLiquido | currency:'BRL' }}</p>
+            <div class="stat-icon stat-icon--brand mb-2"><span class="material-symbols-rounded">account_balance_wallet</span></div>
+            <p class="text-xs font-medium ink-secondary">Lucro Líquido</p>
+            <p class="text-lg font-bold tabular ink-brand">{{ d.lucroLiquido | currency:'BRL' }}</p>
           </div>
           <div class="bear-card p-4 flex flex-col gap-1">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #eff6ff;">
-              <span class="material-symbols-rounded text-lg" style="color: #2563eb;">analytics</span>
-            </div>
-            <p class="text-xs font-medium" style="color: var(--text-secondary);">Margem Lucro</p>
-            <p class="text-lg font-bold" style="color: #2563eb;">{{ d.margemLucro }}%</p>
+            <div class="stat-icon stat-icon--info mb-2"><span class="material-symbols-rounded">analytics</span></div>
+            <p class="text-xs font-medium ink-secondary">Margem Lucro</p>
+            <p class="text-lg font-bold tabular ink-info">{{ d.margemLucro }}%</p>
           </div>
           <div class="bear-card p-4 flex flex-col gap-1">
-            <div class="w-9 h-9 rounded-lg flex items-center justify-center mb-2" style="background: #faf5ff;">
-              <span class="material-symbols-rounded text-lg" style="color: #7c3aed;">account_balance</span>
-            </div>
-            <p class="text-xs font-medium" style="color: var(--text-secondary);">Saldo Bancário</p>
-            <p class="text-lg font-bold" style="color: #7c3aed;">{{ d.saldoBancario | currency:'BRL' }}</p>
+            <div class="stat-icon stat-icon--purple mb-2"><span class="material-symbols-rounded">account_balance</span></div>
+            <p class="text-xs font-medium ink-secondary">Saldo Bancário</p>
+            <p class="text-lg font-bold tabular ink-purple">{{ d.saldoBancario | currency:'BRL' }}</p>
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #fef2f2;">
-              <span class="material-symbols-rounded" style="color: #dc2626;">money_off</span>
-            </div>
+            <div class="stat-icon stat-icon--error stat-icon--lg"><span class="material-symbols-rounded">money_off</span></div>
             <div>
-              <p class="text-xs font-medium" style="color: var(--text-secondary);">Contas a Pagar Vencidas</p>
-              <p class="text-2xl font-bold" style="color: #dc2626;">{{ d.contasPagarVencidas }}</p>
+              <p class="text-xs font-medium ink-secondary">Contas a Pagar Vencidas</p>
+              <p class="text-2xl font-bold tabular ink-error">{{ d.contasPagarVencidas }}</p>
             </div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #fff7ed;">
-              <span class="material-symbols-rounded" style="color: #ea580c;">attach_money</span>
-            </div>
+            <div class="stat-icon stat-icon--warning stat-icon--lg"><span class="material-symbols-rounded">attach_money</span></div>
             <div>
-              <p class="text-xs font-medium" style="color: var(--text-secondary);">Contas a Receber Vencidas</p>
-              <p class="text-2xl font-bold" style="color: #ea580c;">{{ d.contasReceberVencidas }}</p>
+              <p class="text-xs font-medium ink-secondary">Contas a Receber Vencidas</p>
+              <p class="text-2xl font-bold tabular ink-warning">{{ d.contasReceberVencidas }}</p>
             </div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #eff6ff;">
-              <span class="material-symbols-rounded" style="color: #2563eb;">badge</span>
-            </div>
+            <div class="stat-icon stat-icon--info stat-icon--lg"><span class="material-symbols-rounded">badge</span></div>
             <div>
-              <p class="text-xs font-medium" style="color: var(--text-secondary);">Total Funcionários</p>
-              <p class="text-2xl font-bold" style="color: #2563eb;">{{ d.totalFuncionarios }}</p>
+              <p class="text-xs font-medium ink-secondary">Total Funcionários</p>
+              <p class="text-2xl font-bold tabular ink-info">{{ d.totalFuncionarios }}</p>
             </div>
           </div>
         </div>
@@ -150,7 +134,7 @@ interface FuncionarioDoc { status?: string; }
       <!-- Loading -->
       @if (loading()) {
         <div class="flex justify-center p-8">
-          <div class="login__spinner" style="width:32px;height:32px;border:3px solid var(--surface-3);border-top-color:var(--brand-primary);"></div>
+          <div class="bear-spinner bear-spinner--xl"></div>
         </div>
       }
 

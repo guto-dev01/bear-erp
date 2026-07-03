@@ -24,6 +24,8 @@ const { agentOptions } = require('../../soap/truststore-sectigo');
  * @param {number} [p.timeoutMs=60000]
  * @param {boolean} [p.truststoreEstrito=true]
  * @param {boolean} [p.anexarCadeiaCliente=true]  false p/ SEFAZ (não usar a cadeia do cert como trust anchor do servidor)
+ * @param {string[]} [p.caExtra=[]]  CAs adicionais p/ validar o SERVIDOR (ex.: cadeia SERPRO do Ambiente Nacional)
+ * @param {boolean} [p.incluirRaizesPadrao=false]  soma as raízes públicas do Node (tls.rootCertificates) — necessário p/ hosts com CA pública (ex.: Let's Encrypt no RecepcaoEvento do AN)
  * @param {object} [p.env=process.env]
  * @param {object} [p.httpsModule=https]  injeção p/ teste
  * @returns {Promise<{ status: number, body: string, headers: object }>}
@@ -36,6 +38,8 @@ function chamarSoap({
   timeoutMs = 60000,
   truststoreEstrito = true,
   anexarCadeiaCliente = true,
+  caExtra = [],
+  incluirRaizesPadrao = false,
   env = process.env,
   httpsModule = https,
 }) {
@@ -56,7 +60,17 @@ function chamarSoap({
   // e o cert do SERVIDOR da SEFAZ deixa de validar — por isso a NF-e passa false
   // e confia no truststore configurado (Sectigo/NODE_EXTRA_CA_CERTS) ou no bundle
   // padrão do Node quando `ca` fica vazio.
-  const caFinal = anexarCadeiaCliente ? [...ca, ...(material.chainPem || [])] : [...ca];
+  // Trust anchors do servidor: cadeia do truststore (+ opcionalmente a do cliente),
+  // mais CAs extras explícitas (ex.: SERPRO do AN) e, quando pedido, as raízes
+  // públicas do Node (p/ hosts com CA pública como Let's Encrypt). Passar `ca`
+  // SUBSTITUI o bundle padrão do Node — por isso somamos rootCertificates aqui
+  // quando `incluirRaizesPadrao` (senão CAs públicas deixariam de validar).
+  const raizesPadrao = incluirRaizesPadrao ? require('tls').rootCertificates : [];
+  const caFinal = [
+    ...(anexarCadeiaCliente ? [...ca, ...(material.chainPem || [])] : [...ca]),
+    ...caExtra,
+    ...raizesPadrao,
+  ];
   const agent = new httpsModule.Agent({
     cert: material.leafPem,
     key: material.privateKeyPem,

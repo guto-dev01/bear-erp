@@ -166,10 +166,16 @@ const ENDPOINTS: Record<Autorizador, Record<AmbienteSefaz, Mapa>> = {
     producao: estiloRS('nfe.svrs.rs.gov.br', 'cad.svrs.rs.gov.br'),
     homologacao: estiloRS('nfe-homologacao.svrs.rs.gov.br', 'cad.svrs.rs.gov.br'),
   },
-  // Receita Federal — serviços nacionais (DistribuicaoDFe).
+  // Receita Federal — serviços nacionais (DistribuicaoDFe + RecepcaoEvento p/ manifestação).
   AN: {
-    producao: { NFeDistribuicaoDFe: 'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx' },
-    homologacao: { NFeDistribuicaoDFe: 'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx' },
+    producao: {
+      NFeDistribuicaoDFe: 'https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx',
+      NFeRecepcaoEvento4: 'https://www.nfe.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx',
+    },
+    homologacao: {
+      NFeDistribuicaoDFe: 'https://hom1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx',
+      NFeRecepcaoEvento4: 'https://hom.nfe.fazenda.gov.br/NFeRecepcaoEvento4/NFeRecepcaoEvento4.asmx',
+    },
   },
 };
 

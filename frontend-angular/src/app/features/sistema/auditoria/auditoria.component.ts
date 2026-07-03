@@ -57,20 +57,20 @@ interface AuditEvent {
       <!-- Stats -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">today</span></div>
+          <div class="stat-icon stat-icon--brand"><span class="material-symbols-rounded">today</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Eventos Hoje</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ countHoje() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">date_range</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Eventos Semana</p><p class="text-2xl font-bold" style="color:#34C759">{{ eventos().length }}</p></div>
+          <div class="stat-icon stat-icon--success"><span class="material-symbols-rounded">date_range</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Eventos Semana</p><p class="text-2xl font-bold ink-success">{{ eventos().length }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#F2EBFB"><span class="material-symbols-rounded" style="color:#AF52DE">group</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Usuários Ativos</p><p class="text-2xl font-bold" style="color:#AF52DE">{{ uniqueUsers() }}</p></div>
+          <div class="stat-icon stat-icon--purple"><span class="material-symbols-rounded">group</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Usuários Ativos</p><p class="text-2xl font-bold ink-purple">{{ uniqueUsers() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">warning</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Alertas</p><p class="text-2xl font-bold" style="color:#FF3B30">{{ countAlertas() }}</p></div>
+          <div class="stat-icon stat-icon--error"><span class="material-symbols-rounded">warning</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Alertas</p><p class="text-2xl font-bold ink-error">{{ countAlertas() }}</p></div>
         </div>
       </div>
 

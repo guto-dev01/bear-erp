@@ -163,7 +163,7 @@ interface ConfigSection {
             @for (u of usuarios; track u.email) {
               <div class="flex items-center justify-between p-4 rounded-xl" style="background:var(--surface-1)">
                 <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white" style="background:linear-gradient(135deg,#007AFF,#5856D6)">{{ u.nome.charAt(0) }}</div>
+                  <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white" style="background:var(--brand-primary)">{{ u.nome.charAt(0) }}</div>
                   <div>
                     <p class="text-sm font-semibold" style="color:var(--text-primary)">{{ u.nome }}</p>
                     <p class="text-xs" style="color:var(--text-tertiary)">{{ u.email }}</p>

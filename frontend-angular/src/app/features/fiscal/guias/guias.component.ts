@@ -69,8 +69,8 @@ import { FiscalService } from '../fiscal.service';
           </div>
           <div class="bear-card">
             <div class="flex items-center gap-3 p-4">
-              <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #fef9c3;">
-                <span class="material-symbols-rounded" style="color: #ca8a04;">schedule</span>
+              <div class="stat-icon stat-icon--warning">
+                <span class="material-symbols-rounded">schedule</span>
               </div>
               <div>
                 <p class="text-label">Geradas</p>
@@ -80,8 +80,8 @@ import { FiscalService } from '../fiscal.service';
           </div>
           <div class="bear-card">
             <div class="flex items-center gap-3 p-4">
-              <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #DCF3E0;">
-                <span class="material-symbols-rounded" style="color: #34C759;">check_circle</span>
+              <div class="stat-icon stat-icon--success">
+                <span class="material-symbols-rounded">check_circle</span>
               </div>
               <div>
                 <p class="text-label">Pagas</p>
@@ -91,8 +91,8 @@ import { FiscalService } from '../fiscal.service';
           </div>
           <div class="bear-card">
             <div class="flex items-center gap-3 p-4">
-              <div class="flex items-center justify-center w-10 h-10 rounded-lg" style="background: #FFECEB;">
-                <span class="material-symbols-rounded" style="color: #FF3B30;">error</span>
+              <div class="stat-icon stat-icon--error">
+                <span class="material-symbols-rounded">error</span>
               </div>
               <div>
                 <p class="text-label">Vencidas</p>

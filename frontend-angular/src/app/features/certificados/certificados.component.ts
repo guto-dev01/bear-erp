@@ -86,39 +86,39 @@ interface OperacaoCertificado {
       <!-- KPI Cards -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #ecfdf5;">
-            <span class="material-symbols-rounded" style="color: #059669;">verified</span>
+          <div class="stat-icon stat-icon--success">
+            <span class="material-symbols-rounded">verified</span>
           </div>
           <div>
-            <p class="text-xs font-medium" style="color: var(--text-secondary);">Ativos</p>
-            <p class="text-2xl font-bold" style="color: #059669;">{{ contarPorStatus('ATIVO') }}</p>
+            <p class="text-xs font-medium ink-secondary">Ativos</p>
+            <p class="text-2xl font-bold ink-success">{{ contarPorStatus('ATIVO') }}</p>
           </div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #fffbeb;">
-            <span class="material-symbols-rounded" style="color: #d97706;">schedule</span>
+          <div class="stat-icon stat-icon--warning">
+            <span class="material-symbols-rounded">schedule</span>
           </div>
           <div>
-            <p class="text-xs font-medium" style="color: var(--text-secondary);">Próximos a Vencer</p>
-            <p class="text-2xl font-bold" style="color: #d97706;">{{ contarPorStatus('PROXIMO_VENCIMENTO') }}</p>
+            <p class="text-xs font-medium ink-secondary">Próximos a Vencer</p>
+            <p class="text-2xl font-bold ink-warning">{{ contarPorStatus('PROXIMO_VENCIMENTO') }}</p>
           </div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: #fef2f2;">
-            <span class="material-symbols-rounded" style="color: #dc2626;">error</span>
+          <div class="stat-icon stat-icon--error">
+            <span class="material-symbols-rounded">error</span>
           </div>
           <div>
-            <p class="text-xs font-medium" style="color: var(--text-secondary);">Expirados</p>
-            <p class="text-2xl font-bold" style="color: #dc2626;">{{ contarPorStatus('EXPIRADO') }}</p>
+            <p class="text-xs font-medium ink-secondary">Expirados</p>
+            <p class="text-2xl font-bold ink-error">{{ contarPorStatus('EXPIRADO') }}</p>
           </div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: var(--surface-2);">
-            <span class="material-symbols-rounded" style="color: var(--text-secondary);">block</span>
+          <div class="stat-icon stat-icon--neutral">
+            <span class="material-symbols-rounded">block</span>
           </div>
           <div>
-            <p class="text-xs font-medium" style="color: var(--text-secondary);">Revogados</p>
-            <p class="text-2xl font-bold" style="color: var(--text-secondary);">{{ contarPorStatus('REVOGADO') }}</p>
+            <p class="text-xs font-medium ink-secondary">Revogados</p>
+            <p class="text-2xl font-bold ink-secondary">{{ contarPorStatus('REVOGADO') }}</p>
           </div>
         </div>
       </div>
@@ -157,7 +157,7 @@ interface OperacaoCertificado {
                     </button>
                     @if (c.status === 'ATIVO' || c.status === 'PROXIMO_VENCIMENTO') {
                       <button class="bear-btn bear-btn--ghost p-2" title="Revogar" (click)="revogar(c.$id)">
-                        <span class="material-symbols-rounded text-base" style="color: #dc2626;">block</span>
+                        <span class="material-symbols-rounded text-base ink-error">block</span>
                       </button>
                     }
                   </div>
@@ -214,8 +214,8 @@ interface OperacaoCertificado {
           <!-- Cabeçalho -->
           <div class="flex items-start justify-between px-6 py-5 border-b" style="border-color: var(--border-subtle);">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style="background:#ECEBFB;">
-                <span class="material-symbols-rounded" style="color:#5856D6;">enterprise</span>
+              <div class="stat-icon stat-icon--purple">
+                <span class="material-symbols-rounded">enterprise</span>
               </div>
               <div>
                 <h3 class="text-heading text-base">Enviar Certificado A1</h3>
@@ -230,7 +230,7 @@ interface OperacaoCertificado {
           <div class="p-6">
             <!-- Aviso de segurança -->
             <div class="flex items-start gap-2 p-3 rounded-lg mb-5" style="background: var(--surface-2);">
-              <span class="material-symbols-rounded text-base mt-0.5" style="color:#34C759;">shield_lock</span>
+              <span class="material-symbols-rounded text-base mt-0.5 ink-success">shield_lock</span>
               <p class="text-xs leading-relaxed" style="color: var(--text-secondary);">
                 Arquivo e senha vão direto ao cofre seguro (server-side). A senha é cifrada e
                 <strong style="color: var(--text-primary);">nunca</strong> fica salva no navegador.
@@ -259,7 +259,7 @@ interface OperacaoCertificado {
             @if (arquivo(); as f) {
               <div class="flex items-center justify-between gap-3 p-3 rounded-lg mb-5" style="border:1px solid var(--border-subtle);">
                 <div class="flex items-center gap-3 min-w-0">
-                  <span class="material-symbols-rounded shrink-0" style="color:#5856D6;">lock</span>
+                  <span class="material-symbols-rounded shrink-0 ink-purple">lock</span>
                   <div class="min-w-0">
                     <p class="text-sm font-medium truncate" style="color: var(--text-primary);">{{ f.name }}</p>
                     <p class="text-2xs" style="color: var(--text-tertiary);">{{ (f.size / 1024) | number:'1.0-1' }} KB</p>
@@ -283,8 +283,8 @@ interface OperacaoCertificado {
             <!-- Feedback -->
             @if (uploadResultado(); as r) {
               @if (r.ok && r.metadados) {
-                <div class="p-4 rounded-lg mb-5" style="background:#E9FAEF; border:1px solid #34C75933;">
-                  <p class="text-sm font-semibold mb-1.5 flex items-center gap-1.5" style="color:#1f9d4d;">
+                <div class="p-4 rounded-lg mb-5" style="background:var(--color-success-light); border:1px solid var(--color-success-muted);">
+                  <p class="text-sm font-semibold mb-1.5 flex items-center gap-1.5 ink-success">
                     <span class="material-symbols-rounded text-base">check_circle</span> Certificado válido e armazenado
                   </p>
                   <div class="grid grid-cols-1 sm:grid-cols-3 gap-1 text-xs" style="color: var(--text-secondary);">
@@ -298,9 +298,9 @@ interface OperacaoCertificado {
                   </div>
                 </div>
               } @else {
-                <div class="p-3 rounded-lg mb-5 flex items-start gap-2" style="background:#FDECEC; border:1px solid #dc262633;">
-                  <span class="material-symbols-rounded text-base mt-0.5" style="color:#dc2626;">error</span>
-                  <p class="text-sm" style="color:#b91c1c;">{{ r.erro }}</p>
+                <div class="p-3 rounded-lg mb-5 flex items-start gap-2" style="background:var(--color-error-light); border:1px solid var(--color-error-muted);">
+                  <span class="material-symbols-rounded text-base mt-0.5 ink-error">error</span>
+                  <p class="text-sm ink-error">{{ r.erro }}</p>
                 </div>
               }
             }

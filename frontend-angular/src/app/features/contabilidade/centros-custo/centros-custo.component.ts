@@ -36,20 +36,20 @@ import { ContabilidadeService, CentroCustoView } from '../contabilidade.service'
       <!-- Stats -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">hub</span></div>
+          <div class="stat-icon stat-icon--brand"><span class="material-symbols-rounded">hub</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Centros</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ totalElements() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">check_circle</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativos</p><p class="text-2xl font-bold" style="color:#34C759">{{ countAtivos() }}</p></div>
+          <div class="stat-icon stat-icon--success"><span class="material-symbols-rounded">check_circle</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativos</p><p class="text-2xl font-bold ink-success">{{ countAtivos() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFF4E5"><span class="material-symbols-rounded" style="color:#FF9500">account_balance_wallet</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Orçamento Total</p><p class="text-xl font-bold" style="color:#FF9500">{{ orcamentoTotal() | currency:'BRL' }}</p></div>
+          <div class="stat-icon stat-icon--warning"><span class="material-symbols-rounded">account_balance_wallet</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Orçamento Total</p><p class="text-xl font-bold ink-warning">{{ orcamentoTotal() | currency:'BRL' }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">trending_up</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Utilizado</p><p class="text-xl font-bold" style="color:#FF3B30">{{ utilizado() | currency:'BRL' }}</p></div>
+          <div class="stat-icon stat-icon--error"><span class="material-symbols-rounded">trending_up</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Utilizado</p><p class="text-xl font-bold ink-error">{{ utilizado() | currency:'BRL' }}</p></div>
         </div>
       </div>
 

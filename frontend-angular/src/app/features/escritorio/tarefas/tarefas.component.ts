@@ -46,7 +46,7 @@ interface Tarefa {
         </div>
         <div class="page-header__actions">
           <button class="bear-btn bear-btn--outline" style="padding:0.5rem 1rem;font-size:0.8125rem;" (click)="carregarAtrasadas()">
-            <span class="material-symbols-rounded text-base mr-1" style="color:#ef4444">warning</span> Atrasadas
+            <span class="material-symbols-rounded text-base mr-1 ink-error">warning</span> Atrasadas
           </button>
           <button class="bear-btn bear-btn--primary" style="padding:0.5rem 1.25rem;font-size:0.875rem;" (click)="showForm.set(true); resetForm()">
             <span class="material-symbols-rounded text-lg mr-1.5">add</span> Nova Tarefa

@@ -353,27 +353,10 @@ interface Cliente {
     }
     .material-symbols-rounded { font-variation-settings:'wght' 400; vertical-align:middle; }
 
-    /* Topbar */
-    .crm-topbar { display:flex; align-items:center; gap:1.5rem; padding:0 1.75rem; height:64px;
-      background:rgba(10,17,23,.85); backdrop-filter:blur(12px); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20; }
-    .crm-brand { font-weight:800; font-size:1.25rem; letter-spacing:.22em; color:var(--accent);
-      text-decoration:none; text-shadow:0 0 18px var(--accent-glow); white-space:nowrap; }
-    .crm-topbar__search { position:relative; flex:1; max-width:420px; margin:0 auto; }
-    .crm-topbar__search input { width:100%; height:40px; border-radius:12px; border:1px solid var(--line-strong);
-      background:var(--panel); color:var(--txt); padding:0 2.5rem 0 1rem; font-size:.875rem; font-family:inherit; outline:none; }
-    .crm-topbar__search input::placeholder { color:var(--txt-3); }
-    .crm-topbar__search input:focus { border-color:var(--accent); }
-    .crm-topbar__search > .material-symbols-rounded { position:absolute; right:.85rem; top:50%; transform:translateY(-50%); color:var(--txt-3); font-size:1.1rem; }
-    .crm-topbar__right { display:flex; align-items:center; gap:1rem; }
+    /* Icon button (row actions) */
     .crm-icon-btn { width:38px; height:38px; border-radius:50%; border:1px solid var(--line-strong); background:var(--panel);
       color:var(--txt-2); display:flex; align-items:center; justify-content:center; cursor:pointer; }
     .crm-icon-btn:hover { color:var(--txt); border-color:var(--accent); }
-    .crm-user { display:flex; align-items:center; gap:.6rem; }
-    .crm-user__avatar { width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,var(--accent),#0ea5b5);
-      color:var(--on-accent); font-weight:700; font-size:.8rem; display:flex; align-items:center; justify-content:center; }
-    .crm-user__info { display:flex; flex-direction:column; line-height:1.2; }
-    .crm-user__name { font-size:.8rem; font-weight:700; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .crm-user__mail { font-size:.7rem; color:var(--txt-3); max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
     /* Page */
     .crm-page { padding:1.75rem; max-width:1180px; margin:0 auto; }

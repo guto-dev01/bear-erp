@@ -364,6 +364,43 @@ body {
 }
 @keyframes dotPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.85); } }
 
+// ─── Semantic icon chip (standalone) & ink utilities ──────────────────────────
+// Token-driven replacements for the hard-coded `style="background:#…;color:#…"`
+// icon squares scattered across feature pages. Adapts to light & dark for free.
+.stat-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: var(--radius-md);
+  font-size: 1.25rem; flex-shrink: 0;
+  background: var(--surface-2); color: var(--text-secondary);
+
+  .material-symbols-rounded { font-size: 1.375rem; }
+
+  &--brand   { background: var(--brand-primary-light); color: var(--brand-primary); }
+  &--info    { background: var(--color-info-light);    color: var(--color-info-text); }
+  &--success { background: var(--color-success-light); color: var(--color-success-text); }
+  &--warning { background: var(--color-warning-light); color: var(--color-warning-text); }
+  &--error   { background: var(--color-error-light);   color: var(--color-error-text); }
+  &--purple  { background: var(--brand-accent-light);  color: var(--brand-accent); }
+  &--teal    { background: rgba(100, 210, 255, 0.16);  color: var(--teal); }
+  &--neutral { background: var(--surface-2);           color: var(--text-secondary); }
+
+  &--sm { width: 32px; height: 32px; border-radius: var(--radius-sm); font-size: 1rem; .material-symbols-rounded { font-size: 1.125rem; } }
+  &--lg { width: 48px; height: 48px; border-radius: var(--radius-lg); font-size: 1.5rem; .material-symbols-rounded { font-size: 1.625rem; } }
+  &--pill { border-radius: var(--radius-full); }
+}
+
+// Text colour utilities mapped to semantic tokens (legible in both themes).
+.ink-brand     { color: var(--brand-primary) !important; }
+.ink-success   { color: var(--color-success-text) !important; }
+.ink-warning   { color: var(--color-warning-text) !important; }
+.ink-error     { color: var(--color-error-text) !important; }
+.ink-info      { color: var(--color-info-text) !important; }
+.ink-purple    { color: var(--brand-accent) !important; }
+.ink-teal      { color: var(--teal) !important; }
+.ink-primary   { color: var(--text-primary) !important; }
+.ink-secondary { color: var(--text-secondary) !important; }
+.ink-tertiary  { color: var(--text-tertiary) !important; }
+
 // ─── Skeleton ───────────────────────────────────────────────────────────────────
 
 .skeleton {
@@ -571,7 +608,7 @@ body {
     &:active { transform: scale(0.92); }
   }
 
-  @media (max-width: 768px) { display: flex; }
+  @media (max-width: 767px) { display: flex; }
 }
 
 // ─── Avatar / Kbd / Dot / Divider ──────────────────────────────────────────────
@@ -675,28 +712,56 @@ body {
 // legible on the darker fill. (Prefer the `.stat-card__icon--*` modifiers for new
 // code; this net covers the existing pages.)
 [data-theme="dark"] {
+  // Info / blue pales
   [style*="#E5F1FF"], [style*="#e5f1ff"],
-  [style*="#CCE3FF"] { background: var(--color-info-light) !important; }
+  [style*="#CCE3FF"], [style*="#cce3ff"],
+  [style*="#eff6ff"], [style*="#EFF6FF"],
+  [style*="#dbeafe"], [style*="#DBEAFE"] { background: var(--color-info-light) !important; }
 
+  // Success / green pales
   [style*="#E9FAEF"], [style*="#e9faef"],
-  [style*="#DCF3DA"], [style*="#DCF3E0"], [style*="#D1F3DA"],
-  [style*="#ecfdf5"], [style*="#ECFDF5"] { background: var(--color-success-light) !important; }
+  [style*="#DCF3DA"], [style*="#DCF3E0"], [style*="#dcf3e0"], [style*="#D1F3DA"],
+  [style*="#ecfdf5"], [style*="#ECFDF5"],
+  [style*="#f0fdf4"], [style*="#F0FDF4"],
+  [style*="#d1fae5"], [style*="#D1FAE5"] { background: var(--color-success-light) !important; }
 
+  // Error / red pales
   [style*="#FFECEB"], [style*="#ffeceb"],
-  [style*="#FFD0CD"] { background: var(--color-error-light) !important; }
+  [style*="#FFD0CD"], [style*="#ffd0cd"],
+  [style*="#fef2f2"], [style*="#FEF2F2"],
+  [style*="#fdecec"], [style*="#FDECEC"],
+  [style*="#fee2e2"], [style*="#FEE2E2"] { background: var(--color-error-light) !important; }
 
+  // Warning / orange / yellow pales
   [style*="#FFF4E5"], [style*="#fff4e5"],
-  [style*="#FFEACC"] { background: var(--color-warning-light) !important; }
+  [style*="#FFEACC"], [style*="#ffeacc"],
+  [style*="#fffbeb"], [style*="#FFFBEB"],
+  [style*="#fff7ed"], [style*="#FFF7ED"],
+  [style*="#fff8e6"], [style*="#FFF8E6"],
+  [style*="#fef9c3"], [style*="#FEF9C3"],
+  [style*="#fef3c7"], [style*="#FEF3C7"] { background: var(--color-warning-light) !important; }
 
+  // Brand / indigo pales
   [style*="#ECEBFB"], [style*="#ecebfb"],
-  [style*="#DAD9F6"],
-  [style*="#eef2ff"], [style*="#EEF2FF"] { background: var(--brand-primary-light) !important; }
+  [style*="#DAD9F6"], [style*="#dad9f6"],
+  [style*="#eef2ff"], [style*="#EEF2FF"],
+  [style*="#e0e7ff"], [style*="#E0E7FF"] { background: var(--brand-primary-light) !important; }
 
+  // Accent / purple pales
   [style*="#F2EBFB"], [style*="#f2ebfb"],
-  [style*="#E6E3F9"] { background: var(--brand-accent-light) !important; }
+  [style*="#E6E3F9"], [style*="#e6e3f9"],
+  [style*="#faf5ff"], [style*="#FAF5FF"],
+  [style*="#f3e8ff"], [style*="#F3E8FF"] { background: var(--brand-accent-light) !important; }
 
+  // Teal / cyan pales
   [style*="#E6F8FB"], [style*="#e6f8fb"],
-  [style*="#CFF0F4"] { background: rgba(100, 210, 255, 0.16) !important; }
+  [style*="#CFF0F4"], [style*="#cff0f4"],
+  [style*="#ecfeff"], [style*="#ECFEFF"] { background: rgba(100, 210, 255, 0.16) !important; }
+
+  // Neutral grey pales (chips / avatars that used a flat light grey)
+  [style*="#f3f4f6"], [style*="#F3F4F6"],
+  [style*="#f1f5f9"], [style*="#F1F5F9"],
+  [style*="#f9fafb"], [style*="#F9FAFB"] { background: var(--surface-2) !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -47,16 +47,16 @@ import { ContabilidadeService, ContaBP } from '../contabilidade.service';
       @if (contas().length > 0) {
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 animate-fade-in-up">
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">account_balance</span></div>
-            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Ativo</p><p class="text-xl font-bold" style="color:#007AFF">{{ totalAtivo() | currency:'BRL' }}</p></div>
+            <div class="stat-icon stat-icon--brand"><span class="material-symbols-rounded">account_balance</span></div>
+            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Ativo</p><p class="text-xl font-bold ink-brand">{{ totalAtivo() | currency:'BRL' }}</p></div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFECEB"><span class="material-symbols-rounded" style="color:#FF3B30">credit_card</span></div>
-            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Passivo</p><p class="text-xl font-bold" style="color:#FF3B30">{{ totalPassivo() | currency:'BRL' }}</p></div>
+            <div class="stat-icon stat-icon--error"><span class="material-symbols-rounded">credit_card</span></div>
+            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total Passivo</p><p class="text-xl font-bold ink-error">{{ totalPassivo() | currency:'BRL' }}</p></div>
           </div>
           <div class="bear-card p-4 flex items-center gap-4">
-            <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">savings</span></div>
-            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Patrimônio Líquido</p><p class="text-xl font-bold" style="color:#34C759">{{ totalPL() | currency:'BRL' }}</p></div>
+            <div class="stat-icon stat-icon--success"><span class="material-symbols-rounded">savings</span></div>
+            <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Patrimônio Líquido</p><p class="text-xl font-bold ink-success">{{ totalPL() | currency:'BRL' }}</p></div>
           </div>
         </div>
       }

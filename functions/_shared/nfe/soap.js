@@ -22,7 +22,13 @@ const WSDL = Object.freeze({
   NFeStatusServico4: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4',
   NFeRecepcaoEvento4: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4',
   NFeInutilizacao4: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4',
+  NFeDistribuicaoDFe: 'http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe',
 });
+
+/** Versão do leiaute da Distribuição DF-e. */
+const VERSAO_DIST_DFE = '1.35';
+
+function pad15(v) { return String(v ?? 0).padStart(15, '0'); }
 
 /** Remove a declaração <?xml ?> de um fragmento que vai ser embutido. */
 function semProlog(xml) {
@@ -98,10 +104,47 @@ function envelopeInutilizacao(inutNFeAssinada) {
   return { xmlEnvelope: envelope(corpo), soapAction: WSDL.NFeInutilizacao4 };
 }
 
+/**
+ * Monta a mensagem `distDFeInt` da Distribuição DF-e, com UM critério de consulta:
+ *  - `ultNSU` → `distNSU` (traz o próximo lote a partir do último NSU processado);
+ *  - `nsu`    → `consNSU` (baixa um NSU específico);
+ *  - `chNFe`  → `consChNFe` (baixa a NF-e completa por chave, se houver interesse).
+ * @param {{ tpAmb:'1'|'2', cUFAutor:string|number, cnpjCpf:string, ultNSU?, nsu?, chNFe? }} p
+ */
+function montarDistDFeInt({ tpAmb, cUFAutor, cnpjCpf, ultNSU, nsu, chNFe }) {
+  if (!cUFAutor) throw new Error('cUFAutor é obrigatório na Distribuição DF-e');
+  if (!cnpjCpf) throw new Error('cnpjCpf é obrigatório na Distribuição DF-e');
+  const tag = String(cnpjCpf).length === 14 ? 'CNPJ' : 'CPF';
+  let consulta;
+  if (chNFe) consulta = `<consChNFe><chNFe>${chNFe}</chNFe></consChNFe>`;
+  else if (nsu != null) consulta = `<consNSU><NSU>${pad15(nsu)}</NSU></consNSU>`;
+  else consulta = `<distNSU><ultNSU>${pad15(ultNSU)}</ultNSU></distNSU>`;
+  return (
+    `<distDFeInt versao="${VERSAO_DIST_DFE}" xmlns="${NFE_NS}">` +
+    `<tpAmb>${tpAmb}</tpAmb><cUFAutor>${cUFAutor}</cUFAutor>` +
+    `<${tag}>${cnpjCpf}</${tag}>${consulta}` +
+    `</distDFeInt>`
+  );
+}
+
+/**
+ * Envelope da operação NFeDistribuicaoDFe. Peculiaridade: o corpo tem o wrapper
+ * `<nfeDistDFeInteresse>` POR FORA do `<nfeDadosMsg>` (diferente dos demais).
+ * @param {string} distDFeIntXml  resultado de montarDistDFeInt
+ */
+function envelopeDistribuicao(distDFeIntXml) {
+  const corpo =
+    `<nfeDistDFeInteresse xmlns="${WSDL.NFeDistribuicaoDFe}">` +
+    `<nfeDadosMsg>${semProlog(distDFeIntXml)}</nfeDadosMsg>` +
+    `</nfeDistDFeInteresse>`;
+  return { xmlEnvelope: envelope(corpo), soapAction: `${WSDL.NFeDistribuicaoDFe}/nfeDistDFeInteresse` };
+}
+
 module.exports = {
   NFE_NS,
   SOAP_NS,
   WSDL,
+  VERSAO_DIST_DFE,
   semProlog,
   envelope,
   montarEnviNFe,
@@ -110,4 +153,6 @@ module.exports = {
   montarEnvEvento,
   envelopeEvento,
   envelopeInutilizacao,
+  montarDistDFeInt,
+  envelopeDistribuicao,
 };

@@ -78,20 +78,20 @@ interface FuncionarioDoc {
       <!-- Stats -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#ECEBFB"><span class="material-symbols-rounded" style="color:#007AFF">groups</span></div>
+          <div class="stat-icon stat-icon--brand"><span class="material-symbols-rounded">groups</span></div>
           <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Total</p><p class="text-2xl font-bold" style="color:var(--text-primary)">{{ totalElements() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E9FAEF"><span class="material-symbols-rounded" style="color:#34C759">badge</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativos</p><p class="text-2xl font-bold" style="color:#34C759">{{ countAtivos() }}</p></div>
+          <div class="stat-icon stat-icon--success"><span class="material-symbols-rounded">badge</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Ativos</p><p class="text-2xl font-bold ink-success">{{ countAtivos() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#FFF4E5"><span class="material-symbols-rounded" style="color:#FF9500">beach_access</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Férias</p><p class="text-2xl font-bold" style="color:#FF9500">{{ countFerias() }}</p></div>
+          <div class="stat-icon stat-icon--warning"><span class="material-symbols-rounded">beach_access</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Férias</p><p class="text-2xl font-bold ink-warning">{{ countFerias() }}</p></div>
         </div>
         <div class="bear-card p-4 flex items-center gap-4">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:#E6F8FB"><span class="material-symbols-rounded" style="color:#30B0C7">payments</span></div>
-          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Folha Total</p><p class="text-xl font-bold" style="color:#30B0C7">{{ totalFolha() | currency:'BRL' }}</p></div>
+          <div class="stat-icon stat-icon--teal"><span class="material-symbols-rounded">payments</span></div>
+          <div><p class="text-xs font-medium" style="color:var(--text-secondary)">Folha Total</p><p class="text-xl font-bold ink-teal">{{ totalFolha() | currency:'BRL' }}</p></div>
         </div>
       </div>
 

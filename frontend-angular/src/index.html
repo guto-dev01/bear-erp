@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Bear ERP — O sistema contábil SaaS mais avançado do Brasil. IA integrada, multi-tenant, 100% cloud.">
   <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0A0A0C" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#08090C" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="manifest" href="manifest.webmanifest">
@@ -44,8 +44,8 @@
     }
 
     [data-theme="dark"] body {
-      background: #0A0A0C;
-      color: #FFFFFF;
+      background: #08090C;
+      color: #EBEBF0;
     }
 
     /* Initial loading state — premium spinner */
@@ -89,6 +89,21 @@
       50% { transform: scale(0.92); opacity: 0.7; }
     }
   </style>
+
+  <!-- Resolve the theme before first paint: stored preference wins, else follow the
+       OS setting. Prevents a flash of the wrong theme (FOUC) on load. -->
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem('bear-theme');
+        var theme = (stored === 'light' || stored === 'dark')
+          ? stored
+          : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.style.colorScheme = theme;
+      } catch (e) { /* keep the data-theme default on <html> */ }
+    })();
+  </script>
 </head>
 <body class="mat-typography">
   <bear-root></bear-root>

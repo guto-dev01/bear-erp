@@ -1,0 +1,60 @@
+<div class="dash">
+
+  <!-- ═══ Cabeçalho ═══ -->
+  <header class="dash__header">
+    <div class="dash__intro">
+      <h1 class="dash__greeting">{{ greeting() }}, {{ firstName() }}! <span aria-hidden="true">👋</span></h1>
+      <p class="dash__sub">Visão geral do seu negócio &middot; {{ dateLabel() }}</p>
+    </div>
+    <div class="dash__actions">
+      <button class="dash__btn dash__btn--ghost" type="button" (click)="refresh()"
+              matTooltip="Atualizar dados" aria-label="Atualizar dados">
+        <span class="material-symbols-rounded" [class.dash__spin]="loading()">refresh</span>
+      </button>
+      <span class="dash__chip" [attr.aria-label]="'Período: ' + periodChip()">
+        <span class="material-symbols-rounded" aria-hidden="true">calendar_today</span>
+        {{ periodChip() }}
+      </span>
+      <button class="dash__btn dash__btn--primary" type="button" (click)="exportar()"
+              [disabled]="loading()" matTooltip="Exportar indicadores em CSV">
+        <span class="material-symbols-rounded" aria-hidden="true">download</span>
+        Exportar
+      </button>
+    </div>
+  </header>
+
+  @if (errorState()) {
+    <div class="dash__error" role="alert">
+      <span class="material-symbols-rounded" aria-hidden="true">error</span>
+      <span>Não foi possível carregar alguns dados.</span>
+      <button type="button" (click)="refresh()">Tentar novamente</button>
+    </div>
+  }
+
+  <!-- ═══ Indicadores principais ═══ -->
+  <section class="kpi-strip" aria-label="Indicadores principais">
+    @for (m of metricCards(); track m.title) {
+      <bear-metric-card [data]="m" [loading]="loading()"></bear-metric-card>
+    }
+  </section>
+
+  <!-- ═══ Desempenho financeiro + Alertas ═══ -->
+  <section class="grid-main">
+    <bear-finance-performance
+      [summary]="financeSummary()" [loading]="loading()"
+      [periodo]="financePeriodo()" (periodoChange)="financePeriodo.set($event)">
+    </bear-finance-performance>
+    <bear-alert-panel [alerts]="alerts()" [loading]="loading()"></bear-alert-panel>
+  </section>
+
+  <!-- ═══ Fluxo de caixa · Top empresas · Atividades ═══ -->
+  <section class="grid-bottom">
+    <bear-cash-flow-card
+      [data]="cashFlow()" [loading]="loading()"
+      [periodo]="cashPeriodo()" (periodoChange)="cashPeriodo.set($event)">
+    </bear-cash-flow-card>
+    <bear-top-companies-card [companies]="topCompanies()" [loading]="loading()"></bear-top-companies-card>
+    <bear-recent-activities-card [activities]="activities()" [loading]="activitiesLoading()"></bear-recent-activities-card>
+  </section>
+
+</div>

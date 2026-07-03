@@ -54,3 +54,12 @@ Thumbs.db
 coverage/
 **/coverage/
 *.lcov
+
+# Python (módulo fiscal_sefaz)
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+# nunca versionar certificados reais
+*.pfx
+*.p12

@@ -1,1125 +1,160 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   BEAR ERP — Dashboard Premium
-   Inspired by Linear, Vercel, and Stripe design language
+   Dashboard — layout / grid only.
+   Card visuals live in the presentational sub-components (./components/*).
    ═══════════════════════════════════════════════════════════════════════════ */
 
-// ─── Animations ─────────────────────────────────────────────────────────────
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-@keyframes ringFill {
-  from { stroke-dasharray: 0, 100; }
-}
-
-@keyframes pulseGlow {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
-}
-
-@keyframes iconFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
-}
-
-// ─── Dashboard Container ────────────────────────────────────────────────────
-
-.dashboard {
+.dash {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
-  padding: 1.75rem 2rem 2.5rem;
-  max-width: 1600px;
+  gap: 1.25rem;
+  padding: clamp(1rem, 2vw, 1.75rem);
+  max-width: 1640px;
   margin: 0 auto;
-  animation: fadeInUp 400ms ease-out;
-
-  @media (max-width: 640px) {
-    padding: 1.25rem 1rem 2rem;
-    gap: 1.25rem;
-  }
+  width: 100%;
 }
 
-// ─── Header ─────────────────────────────────────────────────────────────────
-
-.header {
+/* ─── Header ─────────────────────────────────────────────────────────────── */
+.dash__header {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-
-  &__left {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-  }
-
-  &__greeting {
-    font-size: 2rem;
-    font-weight: 700;
-    letter-spacing: -0.021em;
-    color: var(--text-title);
-    line-height: 1.1;
-  }
-
-  &__context {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    font-weight: 450;
-  }
-
-  &__dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #34C759;
-    animation: pulseGlow 2s ease-in-out infinite;
-    flex-shrink: 0;
-  }
-
-  &__actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
+}
+.dash__greeting {
+  font-size: clamp(1.5rem, 2.4vw, 1.9rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-title);
+  line-height: 1.15;
+}
+.dash__sub {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  text-transform: capitalize;
 }
 
-.header-btn {
+.dash__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+.dash__btn {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  padding: 0.5rem 0.875rem;
+  height: 38px;
+  padding: 0 0.875rem;
+  border-radius: var(--r-control);
+  border: 1px solid var(--border-color);
+  background: var(--surface-card);
+  color: var(--text-primary);
   font-size: 0.8125rem;
-  font-weight: 550;
-  font-family: inherit;
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
+  font-weight: 600;
   cursor: pointer;
-  transition: all var(--transition-fast);
-  white-space: nowrap;
+  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.dash__btn .material-symbols-rounded { font-size: 1.125rem; }
+.dash__btn:hover { background: var(--surface-raised); border-color: var(--border-strong); }
+.dash__btn:active { transform: scale(0.97); }
+.dash__btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.dash__btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
-  .material-symbols-rounded {
-    font-size: 1.125rem;
-  }
-
-  &--ghost {
-    background: transparent;
-    color: var(--text-secondary);
-    padding: 0.5rem;
-
-    &:hover {
-      background: var(--surface-2);
-      color: var(--text-primary);
-    }
-  }
-
-  &--outline {
-    background: var(--surface-0);
-    color: var(--text-primary);
-    border-color: var(--border-color);
-
-    &:hover {
-      background: var(--surface-1);
-      border-color: var(--surface-4);
-    }
-  }
-
-  &--primary {
-    background: var(--brand-primary);
-    color: #fff;
-
-    &:hover {
-      background: var(--brand-primary-hover);
-      box-shadow: 0 4px 12px -2px var(--brand-primary-glow);
-    }
-  }
+.dash__btn--ghost { width: 38px; padding: 0; justify-content: center; }
+.dash__btn--primary {
+  border-color: transparent;
+  background: var(--brand-primary);
+  color: #fff;
+}
+.dash__btn--primary:hover:not(:disabled) {
+  background: var(--brand-primary-hover);
+  border-color: transparent;
+  box-shadow: 0 4px 14px var(--brand-primary-glow);
 }
 
-// ─── KPI Strip ──────────────────────────────────────────────────────────────
+.dash__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  height: 38px;
+  padding: 0 0.875rem;
+  border-radius: var(--r-control);
+  border: 1px solid var(--border-color);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.dash__chip .material-symbols-rounded { font-size: 1.0625rem; color: var(--text-tertiary); }
 
+.dash__spin { animation: dashSpin 0.9s linear infinite; }
+@keyframes dashSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .dash__spin { animation: none; } }
+
+.dash__error {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--r-control);
+  background: var(--color-error-light);
+  border: 1px solid var(--color-error-muted);
+  color: var(--color-error-text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.dash__error .material-symbols-rounded { font-size: 1.25rem; }
+.dash__error button {
+  margin-left: auto;
+  padding: 0.3125rem 0.75rem;
+  border-radius: var(--r-control);
+  border: 1px solid var(--color-error-muted);
+  background: transparent;
+  color: var(--color-error-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ─── Grids ──────────────────────────────────────────────────────────────── */
 .kpi-strip {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 0.875rem;
-
-  @media (max-width: 1200px) { grid-template-columns: repeat(3, 1fr); }
-  @media (max-width: 768px) { grid-template-columns: repeat(2, 1fr); }
-  @media (max-width: 480px) { grid-template-columns: 1fr; }
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1rem;
 }
-
-.kpi-card {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  padding: 1.25rem;
-  background: var(--surface-0);
-  border: 1px solid transparent;
-  box-shadow: var(--shadow-card);
-  border-radius: var(--r-card);
-  text-decoration: none;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  animation: fadeInUp 500ms ease-out both;
-  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
-
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    opacity: 0;
-    transition: opacity 300ms;
-    pointer-events: none;
-  }
-
-  // Theme-specific hover glows
-  &--indigo {
-    &::after { box-shadow: 0 8px 32px -4px var(--brand-primary-glow); }
-    &:hover::after { opacity: 1; }
-  }
-  &--green {
-    &::after { box-shadow: 0 8px 32px -4px rgba(52, 199, 89, 0.2); }
-    &:hover::after { opacity: 1; }
-  }
-  &--amber {
-    &::after { box-shadow: 0 8px 32px -4px rgba(255, 149, 0, 0.2); }
-    &:hover::after { opacity: 1; }
-  }
-  &--purple {
-    &::after { box-shadow: 0 8px 32px -4px rgba(175, 82, 222, 0.2); }
-    &:hover::after { opacity: 1; }
-  }
-  &--teal {
-    &::after { box-shadow: 0 8px 32px -4px rgba(48, 176, 199, 0.2); }
-    &:hover::after { opacity: 1; }
-  }
-
-  &:hover {
-    transform: translateY(-3px);
-    border-color: var(--surface-4);
-
-    .kpi-card__arrow {
-      opacity: 1;
-      transform: translate(2px, -2px);
-    }
-
-    .kpi-card__icon-wrap { transform: scale(1.06); }
-  }
-
-  &__top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1rem;
-  }
-
-  &__icon-wrap {
-    width: 42px;
-    height: 42px;
-    border-radius: var(--radius-full);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    transition: transform 250ms var(--ease-spring);
-
-    .material-symbols-rounded {
-      font-size: 1.25rem;
-      position: relative;
-      z-index: 1;
-    }
-
-    // Light-mode themed chips: soft tinted fill + vibrant icon
-    &--indigo { background: rgba(0, 122, 255, 0.12);  .material-symbols-rounded { color: #007AFF; } }
-    &--green  { background: rgba(52, 199, 89, 0.14);  .material-symbols-rounded { color: #248A3D; } }
-    &--amber  { background: rgba(255, 149, 0, 0.14);  .material-symbols-rounded { color: #C93400; } }
-    &--purple { background: rgba(88, 86, 214, 0.14);  .material-symbols-rounded { color: #5856D6; } }
-    &--teal   { background: rgba(48, 176, 199, 0.14); .material-symbols-rounded { color: #0E7C8B; } }
-  }
-
-  &__arrow {
-    font-size: 1rem;
-    color: var(--text-tertiary);
-    opacity: 0;
-    transition: all 250ms;
-  }
-
-  &__value {
-    font-size: 1.875rem;
-    font-weight: 700;
-    color: var(--text-title);
-    letter-spacing: -0.028em;
-    line-height: 1.1;
-    margin-bottom: 0.25rem;
-    font-variant-numeric: tabular-nums;
-  }
-
-  &__title {
-    font-size: 0.9375rem;
-    color: var(--text-secondary);
-    font-weight: 400;
-  }
-
-  &__trend {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    margin-top: 0.625rem;
-
-    .material-symbols-rounded {
-      font-size: 0.875rem;
-    }
-
-    &--up { color: #34C759; }
-    &--down { color: #FF3B30; }
-  }
-
-  &__spark {
-    width: 40px;
-    height: 16px;
-    margin-left: auto;
-    opacity: 0.5;
-  }
-}
-
-// ─── Financial + Alerts Grid ────────────────────────────────────────────────
 
 .grid-main {
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 1.25rem;
-
-  @media (max-width: 1024px) { grid-template-columns: 1fr; }
-}
-
-.finance-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.875rem;
-
-  @media (max-width: 640px) { grid-template-columns: 1fr; }
-}
-
-.finance-card {
-  position: relative;
-  border-radius: var(--r-card);
-  border: none;
-  box-shadow: var(--shadow-card);
-  overflow: hidden;
-  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  animation: fadeInUp 500ms ease-out both;
-  animation-delay: 400ms;
-
-  &:hover {
-    transform: translateY(-2px);
-  }
-
-  &__pattern {
-    position: absolute;
-    inset: 0;
-    opacity: 0.04;
-    background-image: radial-gradient(circle at 20% 50%, currentColor 1px, transparent 1px);
-    background-size: 16px 16px;
-    pointer-events: none;
-  }
-
-  &__content {
-    position: relative;
-    padding: 1.375rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.625rem;
-  }
-
-  &__head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  &__icon-wrap {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.55);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(4px);
-
-    .material-symbols-rounded { font-size: 1.25rem; }
-  }
-
-  &__badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.2rem;
-    padding: 0.25rem 0.625rem;
-    border-radius: var(--radius-full);
-    font-size: 0.6875rem;
-    font-weight: 650;
-    backdrop-filter: blur(4px);
-
-    .material-symbols-rounded { font-size: 0.75rem; }
-
-    &--green {
-      background: rgba(52, 199, 89, 0.14);
-      color: #248A3D;
-    }
-    &--rose {
-      background: rgba(255, 59, 48, 0.12);
-      color: #D70015;
-    }
-    &--indigo {
-      background: rgba(0, 122, 255, 0.12);
-      color: #0062CC;
-    }
-  }
-
-  &__label {
-    font-size: 0.8125rem;
-    font-weight: 550;
-    opacity: 0.65;
-  }
-
-  &__value {
-    font-size: 1.5rem;
-    font-weight: 750;
-    letter-spacing: -0.03em;
-    line-height: 1;
-  }
-
-  // Themes
-  &--green {
-    background: linear-gradient(145deg, #E9FAEF 0%, #D1F3DA 50%, #CDF3D8 100%);
-    border-color: #9CE7B1;
-    color: #248A3D;
-
-    &:hover { box-shadow: 0 8px 24px -4px rgba(52, 199, 89, 0.2); }
-  }
-
-  &--rose {
-    background: linear-gradient(145deg, #FFECEB 0%, #FFD0CD 50%, #FFD0CD 100%);
-    border-color: #FFA19B;
-    color: #D70015;
-
-    &:hover { box-shadow: 0 8px 24px -4px rgba(255, 59, 48, 0.18); }
-  }
-
-  &--indigo {
-    background: linear-gradient(145deg, #ECEBFB 0%, #DAD9F6 50%, #CCE3FF 100%);
-    border-color: #99C7FF;
-    color: #3634A3;
-
-    &:hover { box-shadow: 0 8px 24px -4px rgba(0, 122, 255, 0.18); }
-  }
-}
-
-// Dark: finance cards become dark colored-tints (not bright pastels)
-[data-theme="dark"] {
-  .finance-card {
-    box-shadow: var(--shadow-card);
-    &__value { color: #fff; }
-    &__label { color: rgba(235, 235, 245, 0.60); opacity: 1; }
-    &__icon-wrap { background: rgba(255, 255, 255, 0.10); }
-
-    &--green  { background: linear-gradient(145deg, rgba(48, 209, 88, 0.20), rgba(48, 209, 88, 0.04)); }
-    &--rose   { background: linear-gradient(145deg, rgba(255, 69, 58, 0.20), rgba(255, 69, 58, 0.04)); }
-    &--indigo { background: linear-gradient(145deg, rgba(10, 132, 255, 0.22), rgba(10, 132, 255, 0.04)); }
-
-    &__badge--green  { background: rgba(48, 209, 88, 0.22);  color: #30D158; }
-    &__badge--rose   { background: rgba(255, 69, 58, 0.22);  color: #FF453A; }
-    &__badge--indigo { background: rgba(10, 132, 255, 0.22); color: #0A84FF; }
-
-    .finance-card__icon-wrap .material-symbols-rounded { color: #fff; }
-  }
-}
-
-// ─── Dark-mode card definition, glass sheen & themed icon chips ───────────────
-[data-theme="dark"] {
-  // Give every floating card a hairline border + soft inner highlight so it
-  // reads as a distinct, elevated surface against the near-black canvas.
-  .kpi-card,
-  .alerts-panel,
-  .section-card,
-  .ops-card {
-    border-color: var(--border-subtle);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0)) padding-box,
-      var(--surface-0) padding-box;
-  }
-
-  // KPI icon chips: deeper translucent tint + bright system color icon
-  .kpi-card__icon-wrap {
-    &--indigo { background: rgba(10, 132, 255, 0.18);  .material-symbols-rounded { color: #0A84FF; } }
-    &--green  { background: rgba(48, 209, 88, 0.18);   .material-symbols-rounded { color: #30D158; } }
-    &--amber  { background: rgba(255, 159, 10, 0.18);  .material-symbols-rounded { color: #FF9F0A; } }
-    &--purple { background: rgba(94, 92, 230, 0.20);   .material-symbols-rounded { color: #7D7AFF; } }
-    &--teal   { background: rgba(100, 210, 255, 0.16); .material-symbols-rounded { color: #64D2FF; } }
-  }
-
-  // Hover: lift the hairline to a faintly colored glow edge
-  .kpi-card:hover { border-color: var(--border-strong); }
-  .ops-card:hover { border-color: var(--border-strong); }
-
-  // Alert count chips: translucent tints instead of bright light pills
-  .alert-row__count {
-    &--error   { background: rgba(255, 69, 58, 0.18);  color: #FF453A; }
-    &--warning { background: rgba(255, 159, 10, 0.18); color: #FF9F0A; }
-    &--info    { background: rgba(10, 132, 255, 0.18); color: #0A84FF; }
-    &--purple  { background: rgba(94, 92, 230, 0.20);  color: #7D7AFF; }
-  }
-  .alerts-panel__total-badge { background: rgba(255, 69, 58, 0.18); color: #FF453A; }
-
-  // Timeline avatars: translucent tints to match the dark surface
-  .timeline__avatar {
-    &--fiscal  { background: rgba(48, 209, 88, 0.16);  color: #30D158; }
-    &--finance { background: rgba(10, 132, 255, 0.16); color: #0A84FF; }
-    &--task    { background: rgba(191, 90, 242, 0.16); color: #BF5AF2; }
-    &--import  { background: rgba(255, 159, 10, 0.16); color: #FF9F0A; }
-  }
-
-  // Quick-access hover tints: dark translucent fills (not bright pastels)
-  .quick-item {
-    &--indigo:hover,
-    &--blue:hover   { background: rgba(10, 132, 255, 0.14); .quick-item__icon-wrap { background: rgba(10, 132, 255, 0.20); .material-symbols-rounded { color: #0A84FF; } } }
-    &--green:hover,
-    &--emerald:hover { background: rgba(48, 209, 88, 0.14); .quick-item__icon-wrap { background: rgba(48, 209, 88, 0.20); .material-symbols-rounded { color: #30D158; } } }
-    &--red:hover,
-    &--rose:hover   { background: rgba(255, 69, 58, 0.14); .quick-item__icon-wrap { background: rgba(255, 69, 58, 0.20); .material-symbols-rounded { color: #FF453A; } } }
-    &--purple:hover { background: rgba(94, 92, 230, 0.16); .quick-item__icon-wrap { background: rgba(94, 92, 230, 0.22); .material-symbols-rounded { color: #7D7AFF; } } }
-    &--amber:hover  { background: rgba(255, 159, 10, 0.14); .quick-item__icon-wrap { background: rgba(255, 159, 10, 0.20); .material-symbols-rounded { color: #FF9F0A; } } }
-    &--teal:hover   { background: rgba(100, 210, 255, 0.14); .quick-item__icon-wrap { background: rgba(100, 210, 255, 0.20); .material-symbols-rounded { color: #64D2FF; } } }
-  }
-}
-
-// ─── Desempenho Financeiro Panel + Chart ─────────────────────────────────────
-
-.finance-panel {
-  background: var(--surface-card);
-  border-radius: var(--r-card);
-  box-shadow: var(--shadow-card);
-  padding: 1.375rem;
-  animation: fadeInUp 500ms ease-out both;
-  animation-delay: 350ms;
-
-  [data-theme="dark"] & { border: 1px solid var(--border-subtle); }
-
-  &__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1.125rem;
-  }
-
-  &__title {
-    font-size: 1.0625rem;
-    font-weight: 600;
-    color: var(--text-title);
-    letter-spacing: -0.014em;
-  }
-
-  &__period {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.375rem 0.75rem 0.375rem 0.875rem;
-    border-radius: var(--radius-full);
-    border: 1px solid var(--border-color);
-    background: var(--surface-2);
-    color: var(--text-secondary);
-    font-size: 0.8125rem;
-    font-weight: 500;
-    font-family: inherit;
-    cursor: pointer;
-    transition: color var(--transition-fast), background var(--transition-fast);
-
-    .material-symbols-rounded { font-size: 1rem; }
-    &:hover { color: var(--text-primary); background: var(--surface-3); }
-  }
-
-  .finance-row {
-    margin-bottom: 1.25rem;
-    animation: none;
-  }
-}
-
-.finance-chart {
-  &__legend {
-    display: flex;
-    gap: 1.25rem;
-    margin-bottom: 0.75rem;
-
-    &-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      font-size: 0.8125rem;
-      color: var(--text-secondary);
-      font-weight: 500;
-
-      i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-    }
-  }
-
-  &__svg {
-    width: 100%;
-    height: 190px;
-    display: block;
-  }
-
-  &__grid {
-    stroke: var(--separator);
-    stroke-width: 1;
-    stroke-dasharray: 3 5;
-  }
-
-  &__line {
-    fill: none;
-    stroke-width: 2.5;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    vector-effect: non-scaling-stroke;
-
-    &--rec { stroke: var(--green); }
-    &--desp { stroke: var(--brand); }
-  }
-
-  &__axis {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 0.5rem;
-
-    span { font-size: 0.6875rem; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
-  }
-}
-
-// ─── Alerts Panel ───────────────────────────────────────────────────────────
-
-.alerts-panel {
-  background: var(--surface-0);
-  border: 1px solid transparent;
-  box-shadow: var(--shadow-card);
-  border-radius: var(--r-card);
-  padding: 1.375rem;
-  animation: fadeInUp 500ms ease-out both;
-  animation-delay: 500ms;
-
-  &__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1rem;
-    padding-bottom: 0.875rem;
-    border-bottom: 1px solid var(--border-subtle);
-  }
-
-  &__title {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9375rem;
-    font-weight: 650;
-    color: var(--text-primary);
-    letter-spacing: -0.015em;
-
-    .material-symbols-rounded {
-      font-size: 1.125rem;
-      color: var(--text-tertiary);
-    }
-  }
-
-  &__header-right {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  &__total-badge {
-    font-size: 0.6875rem;
-    font-weight: 700;
-    min-width: 22px;
-    height: 22px;
-    padding: 0 0.375rem;
-    border-radius: var(--radius-full);
-    background: #FFECEB;
-    color: #FF3B30;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  &__link {
-    font-size: 0.75rem;
-    font-weight: 550;
-    color: var(--brand-primary);
-    text-decoration: none;
-    transition: color var(--transition-fast);
-
-    &:hover { color: var(--brand-primary-hover); }
-  }
-
-  &__list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-}
-
-.alert-row {
-  display: flex;
+  grid-template-columns: minmax(0, 2.35fr) minmax(300px, 1fr);
+  gap: 1rem;
   align-items: stretch;
-  text-decoration: none;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  transition: background var(--transition-fast);
-  cursor: pointer;
-
-  &:hover {
-    background: var(--surface-1);
-  }
-
-  &__border {
-    width: 3px;
-    flex-shrink: 0;
-    border-radius: 3px;
-    transition: width var(--transition-fast);
-  }
-
-  &--error .alert-row__border { background: #FF3B30; }
-  &--warning .alert-row__border { background: #FF9500; }
-  &--info .alert-row__border { background: #007AFF; }
-  &--purple .alert-row__border { background: #AF52DE; }
-
-  &:hover .alert-row__border { width: 4px; }
-
-  &__body {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    padding: 0.625rem 0.75rem;
-    flex: 1;
-    min-width: 0;
-  }
-
-  &__icon {
-    font-size: 1.125rem;
-    flex-shrink: 0;
-  }
-
-  &--error .alert-row__icon { color: #FF3B30; }
-  &--warning .alert-row__icon { color: #FF9500; }
-  &--info .alert-row__icon { color: #007AFF; }
-  &--purple .alert-row__icon { color: #AF52DE; }
-
-  &__label {
-    flex: 1;
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  &__count {
-    font-size: 0.75rem;
-    font-weight: 700;
-    min-width: 24px;
-    height: 24px;
-    padding: 0 0.375rem;
-    border-radius: var(--radius-full);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-
-    &--error { background: #FFECEB; color: #FF3B30; }
-    &--warning { background: #FFF4E5; color: #C93400; }
-    &--info { background: #E5F1FF; color: #007AFF; }
-    &--purple { background: #F2EBFB; color: #5856D6; }
-  }
 }
 
-// ─── Quick Access + Operational Grid ────────────────────────────────────────
-
-.grid-secondary {
+.grid-bottom {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.25rem;
-
-  @media (max-width: 1024px) { grid-template-columns: 1fr; }
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 1rem;
+  align-items: stretch;
 }
 
-.section-card {
-  background: var(--surface-0);
-  border: 1px solid transparent;
-  box-shadow: var(--shadow-card);
-  border-radius: var(--r-card);
-  padding: 1.375rem;
-  animation: fadeInUp 500ms ease-out both;
-  animation-delay: 600ms;
-
-  &__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1.125rem;
-  }
-
-  &__title {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9375rem;
-    font-weight: 650;
-    color: var(--text-primary);
-    letter-spacing: -0.015em;
-
-    .material-symbols-rounded {
-      font-size: 1.125rem;
-      color: var(--text-tertiary);
-    }
-  }
-
-  &__link {
-    font-size: 0.75rem;
-    font-weight: 550;
-    color: var(--brand-primary);
-    text-decoration: none;
-    transition: color var(--transition-fast);
-
-    &:hover { color: var(--brand-primary-hover); }
-  }
+/* ─── Responsividade ─────────────────────────────────────────────────────── */
+@media (max-width: 1200px) {
+  .kpi-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-
-// ─── Quick Grid ─────────────────────────────────────────────────────────────
-
-.quick-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
+@media (max-width: 1024px) {
+  .grid-main { grid-template-columns: 1fr; }
+  .grid-bottom { grid-template-columns: 1fr 1fr; }
+  .grid-bottom > :last-child { grid-column: 1 / -1; }
 }
-
-.quick-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 1rem 0.5rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-subtle);
-  text-decoration: none;
-  cursor: pointer;
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-
-  &__icon-wrap {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--surface-1);
-    transition: all 200ms;
-
-    .material-symbols-rounded {
-      font-size: 1.25rem;
-      color: var(--text-secondary);
-      transition: all 200ms;
-    }
-  }
-
-  &__label {
-    font-size: 0.75rem;
-    font-weight: 550;
-    color: var(--text-secondary);
-    text-align: center;
-    transition: color 200ms;
-  }
-
-  // Hover theme colors
-  &:hover {
-    border-color: transparent;
-    transform: translateY(-2px);
-
-    .quick-item__label { color: var(--text-primary); }
-  }
-
-  &--indigo:hover {
-    background: #ECEBFB;
-    .quick-item__icon-wrap { background: #DAD9F6; }
-    .quick-item__icon-wrap .material-symbols-rounded { color: #007AFF; animation: iconFloat 600ms ease-in-out; }
-  }
-  &--green:hover {
-    background: #E9FAEF;
-    .quick-item__icon-wrap { background: #D1F3DA; }
-    .quick-item__icon-wrap .material-symbols-rounded { color: #34C759; animation: iconFloat 600ms ease-in-out; }
-  }
-  &--red:hover {
-    background: #FFECEB;
-    .quick-item__icon-wrap { background: #FFD0CD; }
-    .quick-item__icon-wrap .material-symbols-rounded { color: #FF3B30; animation: iconFloat 600ms ease-in-out; }
-  }
-  &--emerald:hover {
-    background: #E9FAEF;
-    .quick-item__icon-wrap { background: #D1F3DA; }
-    .quick-item__icon-wrap .material-symbols-rounded { color: #248A3D; animation: iconFloat 600ms ease-in-out; }
-  }
-  &--purple:hover {
-    background: #F2EBFB;
-    .quick-item__icon-wrap { background: #E6E3F9; }
-    .quick-item__icon-wrap .material-symbols-rounded { color: #5856D6; animation: iconFloat 600ms ease-in-out; }
-  }
-  &--amber:hover {
-    background: #FFF4E5;
-    .quick-item__icon-wrap { background: #FFEACC; }
-    .quick-item__icon-wrap .material-symbols-rounded { color: #FF9500; animation: iconFloat 600ms ease-in-out; }
-  }
-  &--blue:hover {
-    background: #E5F1FF;
-    .quick-item__icon-wrap { background: #CCE3FF; }
-    .quick-item__icon-wrap .material-symbols-rounded { color: #007AFF; animation: iconFloat 600ms ease-in-out; }
-  }
-  &--teal:hover {
-    background: #E6F8FB;
-    .quick-item__icon-wrap { background: #CFF0F4; }
-    .quick-item__icon-wrap .material-symbols-rounded { color: #30B0C7; animation: iconFloat 600ms ease-in-out; }
-  }
-  &--rose:hover {
-    background: #FFECEB;
-    .quick-item__icon-wrap { background: #FFD0CD; }
-    .quick-item__icon-wrap .material-symbols-rounded { color: #FF3B30; animation: iconFloat 600ms ease-in-out; }
-  }
+@media (max-width: 760px) {
+  .kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-
-// ─── Operational KPIs with Ring Progress ────────────────────────────────────
-
-.ops-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.875rem;
-  animation: fadeInUp 500ms ease-out both;
-  animation-delay: 650ms;
-}
-
-.ops-card {
-  background: var(--surface-0);
-  border: 1px solid transparent;
-  box-shadow: var(--shadow-card);
-  border-radius: var(--r-card);
-  padding: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  gap: 0.625rem;
-  transition: all 200ms;
-
-  &:hover {
-    border-color: var(--surface-4);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
-  }
-
-  &__ring {
-    position: relative;
-    width: 56px;
-    height: 56px;
-
-    svg {
-      width: 100%;
-      height: 100%;
-      transform: rotate(-90deg);
-    }
-
-    &-bg {
-      fill: none;
-      stroke: var(--surface-2);
-      stroke-width: 2.5;
-    }
-
-    &-fill {
-      fill: none;
-      stroke-width: 2.5;
-      stroke-linecap: round;
-      animation: ringFill 1.2s ease-out both;
-      animation-delay: 800ms;
-    }
-
-    &--blue .ops-card__ring-fill { stroke: #007AFF; }
-    &--green .ops-card__ring-fill { stroke: #34C759; }
-    &--amber .ops-card__ring-fill { stroke: #FF9500; }
-    &--purple .ops-card__ring-fill { stroke: #AF52DE; }
-
-    &-icon {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 1.125rem;
-    }
-
-    &--blue .ops-card__ring-icon { color: #007AFF; }
-    &--green .ops-card__ring-icon { color: #34C759; }
-    &--amber .ops-card__ring-icon { color: #FF9500; }
-    &--purple .ops-card__ring-icon { color: #AF52DE; }
-  }
-
-  &__value {
-    font-size: 1.375rem;
-    font-weight: 750;
-    color: var(--text-primary);
-    letter-spacing: -0.025em;
-    line-height: 1;
-
-    &--sm { font-size: 1rem; }
-  }
-
-  &__label {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    font-weight: 550;
-  }
-}
-
-// ─── Activity Timeline ──────────────────────────────────────────────────────
-
-.timeline-section {
-  animation: fadeInUp 500ms ease-out both;
-  animation-delay: 700ms;
-}
-
-.timeline {
-  display: flex;
-  flex-direction: column;
-}
-
-.timeline__item {
-  position: relative;
-  padding-left: 2rem;
-  padding-bottom: 1.25rem;
-
-  &--last {
-    padding-bottom: 0;
-
-    .timeline__line { display: none; }
-  }
-}
-
-.timeline__line {
-  position: absolute;
-  left: 5px;
-  top: 16px;
-  bottom: 0;
-  width: 1px;
-  background: var(--border-color);
-}
-
-.timeline__dot {
-  position: absolute;
-  left: 1px;
-  top: 6px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 2px solid var(--surface-0);
-  box-shadow: 0 0 0 1px var(--border-color);
-
-  &--fiscal { background: #34C759; }
-  &--finance { background: #007AFF; }
-  &--task { background: #AF52DE; }
-  &--import { background: #FF9500; }
-  &--system { background: var(--text-tertiary); }
-}
-
-.timeline__content {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
-.timeline__avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-
-  .material-symbols-rounded { font-size: 1rem; }
-
-  &--fiscal { background: #E9FAEF; color: #34C759; }
-  &--finance { background: #E5F1FF; color: #007AFF; }
-  &--task { background: #F2EBFB; color: #AF52DE; }
-  &--import { background: #FFF4E5; color: #FF9500; }
-  &--system { background: var(--surface-2); color: var(--text-tertiary); }
-}
-
-.timeline__body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  min-width: 0;
-}
-
-.timeline__desc {
-  font-size: 0.8125rem;
-  color: var(--text-secondary);
-  font-weight: 450;
-  line-height: 1.45;
-
-  strong {
-    color: var(--text-primary);
-    font-weight: 600;
-  }
-}
-
-.timeline__time {
-  font-size: 0.6875rem;
-  color: var(--text-tertiary);
-  font-weight: 500;
-}
-
-// ─── Responsive ─────────────────────────────────────────────────────────────
-
-@media (max-width: 640px) {
-  .header {
-    flex-direction: column;
-    gap: 0.875rem;
-  }
-
-  .header__actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-
-  .header__greeting {
-    font-size: 1.375rem;
-  }
-
-  .quick-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
+@media (max-width: 560px) {
+  .dash__header { align-items: flex-start; }
+  .dash__actions { width: 100%; }
+  .dash__chip { display: none; }
+  .kpi-strip { grid-template-columns: 1fr; }
+  .grid-bottom { grid-template-columns: 1fr; }
 }

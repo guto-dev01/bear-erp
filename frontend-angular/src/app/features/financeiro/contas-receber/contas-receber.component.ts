@@ -128,11 +128,11 @@ import { FinanceiroService } from '../financeiro.service';
                 @if (c.status === 'ABERTA' || c.status === 'PARCIAL' || c.status === 'VENCIDA') {
                   <div class="flex gap-0.5">
                     <button mat-icon-button (click)="iniciarBaixa(c)" matTooltip="Registrar recebimento"
-                            class="!w-8 !h-8 !text-bear-600">
+                            class="!w-8 !h-8 ink-brand">
                       <span class="material-symbols-rounded text-lg">payments</span>
                     </button>
                     <button mat-icon-button (click)="cancelar(c.id)" matTooltip="Cancelar"
-                            class="!w-8 !h-8 !text-red-400">
+                            class="!w-8 !h-8 ink-error">
                       <span class="material-symbols-rounded text-lg">cancel</span>
                     </button>
                   </div>

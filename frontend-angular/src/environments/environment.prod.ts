@@ -19,6 +19,9 @@ export const environment = {
       // do cofre (ocr-cadastro) via dispatcher functions/fiscal-cofre — limite de
       // funções do plano Appwrite. Ver scripts/deploy-nfe-transmissao.js.
       nfeTransmissao: 'ocr-cadastro',
+      // Entrada de NF-e (Distribuição DF-e + Manifestação) — mesmo slot; a
+      // operação ('distribuir'/'manifestar') é roteada em nfe-transmissao/index.js.
+      nfeDistribuicao: 'ocr-cadastro',
     },
   },
 };

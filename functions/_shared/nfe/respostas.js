@@ -1,5 +1,6 @@
 'use strict';
 
+const zlib = require('zlib');
 const { DOMParser } = require('@xmldom/xmldom');
 
 /**
@@ -85,6 +86,65 @@ function parseRetornoStatusServico(xml) {
   };
 }
 
+/**
+ * Retorno do NFeRecepcaoEvento4 (usado por manifestação / cancelamento / CC-e).
+ * O status conclusivo está em `retEvento/infEvento`; o do lote em `retEnvEvento`.
+ * cStat 135 = registrado e vinculado; 136 = registrado, não vinculado; 573 =
+ * evento em duplicidade (já registrado antes) → tratamos como sucesso.
+ * @param {string} xml
+ */
+function parseRetornoEvento(xml) {
+  const doc = parse(xml);
+  const infEvento = porLocalName(doc, 'infEvento').filter((n) => porLocalName(n, 'cStat').length)[0] || null;
+  const cStat = infEvento ? texto(infEvento, 'cStat') : texto(doc, 'cStat');
+  const c = Number(cStat);
+  return {
+    cStat: cStat != null ? Number(cStat) : null,
+    xMotivo: (infEvento ? texto(infEvento, 'xMotivo') : null) || texto(doc, 'xMotivo'),
+    nProt: infEvento ? texto(infEvento, 'nProt') : null,
+    dhRegEvento: infEvento ? texto(infEvento, 'dhRegEvento') : null,
+    registrado: [135, 136, 573].includes(c),
+    bruto: xml,
+  };
+}
+
+/**
+ * Retorno do NFeDistribuicaoDFe (`retDistDFeInt`). Descompacta cada `docZip`
+ * (base64 → gzip → XML). cStat 138 = documento(s) localizado(s); 137 = nenhum;
+ * 656 = consumo indevido (respeitar o intervalo de ~1h por CNPJ).
+ * @param {string} xml
+ * @returns {{ cStat, xMotivo, ultNSU, maxNSU, dhResp, temMais, documentos: Array<{nsu,schema,tipo,xml}> }}
+ */
+function parseRetornoDistribuicao(xml) {
+  const doc = parse(xml);
+  const ret = porLocalName(doc, 'retDistDFeInt')[0];
+  if (!ret) throw new Error('Resposta sem retDistDFeInt');
+
+  const ultNSU = texto(ret, 'ultNSU');
+  const maxNSU = texto(ret, 'maxNSU');
+  const documentos = porLocalName(ret, 'docZip').map((dz) => {
+    const b64 = (dz.textContent || '').trim();
+    const schema = dz.getAttribute ? dz.getAttribute('schema') || '' : '';
+    return {
+      nsu: dz.getAttribute ? dz.getAttribute('NSU') || '' : '',
+      schema,
+      tipo: schema.split('_')[0],
+      xml: b64 ? zlib.gunzipSync(Buffer.from(b64, 'base64')).toString('utf8') : '',
+    };
+  });
+
+  return {
+    cStat: texto(ret, 'cStat') != null ? Number(texto(ret, 'cStat')) : null,
+    xMotivo: texto(ret, 'xMotivo'),
+    ultNSU,
+    maxNSU,
+    dhResp: texto(ret, 'dhResp'),
+    temMais: Number(ultNSU) < Number(maxNSU),
+    documentos,
+    bruto: xml,
+  };
+}
+
 /** Detecta um soap:Fault no envelope. */
 function parseFault(xml) {
   const doc = parse(xml);
@@ -100,5 +160,7 @@ module.exports = {
   classificarStatus,
   parseRetornoAutorizacao,
   parseRetornoStatusServico,
+  parseRetornoEvento,
+  parseRetornoDistribuicao,
   parseFault,
 };
