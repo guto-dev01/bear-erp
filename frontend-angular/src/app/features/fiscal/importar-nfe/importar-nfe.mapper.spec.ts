@@ -1,5 +1,5 @@
 import {
-  mapearDocumentoWorker, mapearNota, montarLinhas, resumoSync, resumoSyncWorker,
+  dentroDoPeriodo, mapearDocumentoWorker, mapearNota, montarLinhas, resumoSync, resumoSyncWorker,
   DocumentoSefazView, RetornoDistribuicaoView,
 } from './importar-nfe.mapper';
 import { NotaImportada } from '../engine/importador-xml-nfe';
@@ -175,5 +175,38 @@ describe('resumoSyncWorker', () => {
 
   it('sucesso sem cStat/motivo → só a contagem (sem separadores órfãos)', () => {
     expect(resumoSyncWorker({ ok: true })).toBe('0 documento(s)');
+  });
+});
+
+describe('dentroDoPeriodo (filtro 1/2/3 meses da tela)', () => {
+  const AGORA = new Date('2026-07-06T12:00:00-03:00');
+
+  it('sem filtro (0 meses) aceita tudo, inclusive nota sem data', () => {
+    expect(dentroDoPeriodo('2020-01-01T00:00:00-03:00', 0, AGORA)).toBe(true);
+    expect(dentroDoPeriodo(null, 0, AGORA)).toBe(true);
+  });
+
+  it('último mês: 10 dias atrás entra; 45 dias atrás sai', () => {
+    expect(dentroDoPeriodo('2026-06-26T10:00:00-03:00', 1, AGORA)).toBe(true);
+    expect(dentroDoPeriodo('2026-05-22T10:00:00-03:00', 1, AGORA)).toBe(false);
+  });
+
+  it('2 meses: 45 dias atrás entra; 75 dias atrás sai', () => {
+    expect(dentroDoPeriodo('2026-05-22T10:00:00-03:00', 2, AGORA)).toBe(true);
+    expect(dentroDoPeriodo('2026-04-22T10:00:00-03:00', 2, AGORA)).toBe(false);
+  });
+
+  it('3 meses: 75 dias atrás entra; 100 dias atrás sai', () => {
+    expect(dentroDoPeriodo('2026-04-22T10:00:00-03:00', 3, AGORA)).toBe(true);
+    expect(dentroDoPeriodo('2026-03-28T10:00:00-03:00', 3, AGORA)).toBe(false);
+  });
+
+  it('exatamente no limite do período entra (>= limite)', () => {
+    expect(dentroDoPeriodo('2026-06-06T12:00:00-03:00', 1, AGORA)).toBe(true);
+  });
+
+  it('com filtro ativo, nota sem data ou com data inválida sai', () => {
+    expect(dentroDoPeriodo(null, 1, AGORA)).toBe(false);
+    expect(dentroDoPeriodo('não-é-data', 1, AGORA)).toBe(false);
   });
 });

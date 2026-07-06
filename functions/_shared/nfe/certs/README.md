@@ -5,7 +5,9 @@
 
 ## Por quê
 Os hosts do Ambiente Nacional usam CAs diferentes dos hosts de emissão da UF
-(que estão em `nfe-transmissao/certs/sefaz-ca.pem` = AC SOLUTI):
+(que estão em `nfe-transmissao/certs/sefaz-ca.pem` = intermediária AC SOLUTI
+**+ raiz ICP-Brasil v10**; o Node não aceita âncora parcial — só a intermediária
+no bundle dá `unable to get issuer certificate`):
 
 | Host | Serviço | CA |
 |---|---|---|
