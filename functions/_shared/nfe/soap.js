@@ -1,19 +1,22 @@
 'use strict';
 
 /**
- * Envelopes SOAP 1.1 dos WebServices da NF-e (modelo 55, layout 4.00).
+ * Envelopes SOAP 1.2 dos WebServices da NF-e (modelo 55, layout 4.00).
  *
- * É SOAP 1.1 (não 1.2): namespace http://schemas.xmlsoap.org/soap/envelope/ e
- * Content-Type text/xml. O corpo de cada operação é o elemento `nfeDadosMsg`
- * no namespace do WSDL do serviço, contendo o XML da mensagem (enviNFe,
- * consStatServ, …).
+ * É SOAP 1.2 (não 1.1): namespace http://www.w3.org/2003/05/soap-envelope e
+ * Content-Type application/soap+xml com o `action` embutido (o transporte
+ * cuida disso via flag `soap12` no cliente-soap). A SEFAZ REJEITA 1.1 com o
+ * fault "Possible SOAP version mismatch: … Expecting
+ * http://www.w3.org/2003/05/soap-envelope" (observado na SEFAZ-SP homolog).
+ * O corpo de cada operação é o elemento `nfeDadosMsg` no namespace do WSDL
+ * do serviço, contendo o XML da mensagem (enviNFe, consStatServ, …).
  *
  * Módulo PURO: só monta strings. A assinatura e o transporte (mTLS) ficam no
  * orquestrador (transmissao.js).
  */
 
 const NFE_NS = 'http://www.portalfiscal.inf.br/nfe';
-const SOAP_NS = 'http://schemas.xmlsoap.org/soap/envelope/';
+const SOAP_NS = 'http://www.w3.org/2003/05/soap-envelope';
 
 /** Namespaces dos WSDL por serviço (usados no nfeDadosMsg e no SOAPAction). */
 const WSDL = Object.freeze({

@@ -27,7 +27,7 @@ const resumo = (n) =>
 function retDist({ cStat, ultNSU, maxNSU, docs = [] }) {
   const lote = docs.map((d) => `<docZip NSU="${d.nsu}" schema="${d.schema}">${d.b64}</docZip>`).join('');
   return (
-    '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body>' +
+    '<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"><soap:Body>' +
     `<retDistDFeInt xmlns="${NFE_NS}" versao="1.35"><tpAmb>2</tpAmb><cStat>${cStat}</cStat>` +
     `<xMotivo>x</xMotivo><dhResp>2026-07-01T10:00:00-03:00</dhResp>` +
     `<ultNSU>${ultNSU}</ultNSU><maxNSU>${maxNSU}</maxNSU>` +
@@ -37,7 +37,7 @@ function retDist({ cStat, ultNSU, maxNSU, docs = [] }) {
 }
 
 const RET_EVENTO_OK =
-  '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body>' +
+  '<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"><soap:Body>' +
   `<retEnvEvento versao="1.00" xmlns="${NFE_NS}"><idLote>1</idLote><cStat>128</cStat><xMotivo>Lote de Evento Processado</xMotivo>` +
   '<retEvento versao="1.00"><infEvento><cOrgao>91</cOrgao><cStat>135</cStat>' +
   '<xMotivo>Evento registrado e vinculado a NF-e</xMotivo><nProt>891260000012345</nProt>' +

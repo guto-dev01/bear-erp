@@ -20,7 +20,7 @@ test('montarEnviNFe embrulha a NF-e (síncrono) e remove prolog', () => {
 test('envelopeAutorizacao monta SOAP 1.1 com nfeDadosMsg e soapAction', () => {
   const enviNFe = montarEnviNFe(NFE_ASSINADA);
   const { xmlEnvelope, soapAction } = envelopeAutorizacao(enviNFe);
-  assert.match(xmlEnvelope, /<soap:Envelope xmlns:soap="http:\/\/schemas.xmlsoap.org\/soap\/envelope\/">/);
+  assert.match(xmlEnvelope, /<soap:Envelope xmlns:soap="http:\/\/www.w3.org\/2003\/05\/soap-envelope">/);
   assert.ok(xmlEnvelope.includes(`<nfeDadosMsg xmlns="${WSDL.NFeAutorizacao4}">`), 'corpo é nfeDadosMsg');
   assert.ok(xmlEnvelope.includes('<enviNFe'), 'contém o enviNFe');
   assert.equal(soapAction, WSDL.NFeAutorizacao4);
@@ -50,7 +50,7 @@ test('classificarStatus mapeia os principais cStat', () => {
 
 // ── Parse do retorno de autorização ─────────────────────────
 const RET_AUTORIZADA =
-  '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body>' +
+  '<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"><soap:Body>' +
   '<nfeResultMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4">' +
   '<retEnviNFe versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">' +
   '<tpAmb>2</tpAmb><cStat>104</cStat><xMotivo>Lote processado</xMotivo>' +
@@ -93,7 +93,7 @@ test('parseRetornoStatusServico detecta serviço online (cStat 107)', () => {
 // ── Fault ───────────────────────────────────────────────────
 test('parseFault detecta soap:Fault', () => {
   const xml =
-    '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body>' +
+    '<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"><soap:Body>' +
     '<soap:Fault><faultcode>soap:Server</faultcode><faultstring>Erro interno</faultstring></soap:Fault>' +
     '</soap:Body></soap:Envelope>';
   const f = parseFault(xml);

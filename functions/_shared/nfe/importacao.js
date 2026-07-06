@@ -88,7 +88,7 @@ async function baixarDistribuicao({
   });
   const { xmlEnvelope, soapAction } = envelopeDistribuicao(distDFeInt);
   const resp = await chamarSoap({
-    url, xmlEnvelope, material, soapAction,
+    url, xmlEnvelope, material, soapAction, soap12: true,
     truststoreEstrito, anexarCadeiaCliente: false,
     caExtra: AN_CA_EXTRA, incluirRaizesPadrao: true, // AN usa CA SERPRO + (fallback) raízes públicas
     env, httpsModule,
@@ -172,7 +172,7 @@ async function manifestarDestinatario({
   const { xmlEnvelope, soapAction } = envelopeEvento(montarEnvEvento(eventoAssinado, { idLote: '1' }));
 
   const resp = await chamarSoap({
-    url, xmlEnvelope, material, soapAction,
+    url, xmlEnvelope, material, soapAction, soap12: true,
     truststoreEstrito, anexarCadeiaCliente: false,
     caExtra: AN_CA_EXTRA, incluirRaizesPadrao: true, // RecepcaoEvento do AN usa Let's Encrypt
     env, httpsModule,
