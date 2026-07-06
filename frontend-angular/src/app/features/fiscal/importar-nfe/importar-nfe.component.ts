@@ -7,7 +7,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '@core/auth/auth.service';
 import { AppwriteService } from '@core/services/appwrite.service';
 import { FiscalService, RetornoDistribuicao, RetornoSefaz } from '../fiscal.service';
-import { NotaView, mapearDocumentoWorker, montarLinhas, resumoSync, resumoSyncWorker } from './importar-nfe.mapper';
+import { NotaView, dentroDoPeriodo, mapearDocumentoWorker, montarLinhas, resumoSync, resumoSyncWorker } from './importar-nfe.mapper';
 import { CertInfo, ResultadoSync, SefazImportService } from './sefaz-import.service';
 
 /** Documento da coleção `empresas` (campos reais reaproveitados do cadastro existente). */
@@ -238,6 +238,15 @@ interface HistoricoSync {
                 <option value="resNFe">Resumo de NF-e</option>
               </select>
             </div>
+            <div style="min-width:150px">
+              <label class="text-label block mb-1">Período</label>
+              <select class="bear-input bear-input--sm" [ngModel]="filtroPeriodo()" (ngModelChange)="filtroPeriodo.set($event)">
+                <option [ngValue]="0">Todo o período</option>
+                <option [ngValue]="1">Último mês</option>
+                <option [ngValue]="2">Últimos 2 meses</option>
+                <option [ngValue]="3">Últimos 3 meses</option>
+              </select>
+            </div>
             <button class="bear-btn bear-btn--outline bear-btn--sm" (click)="atualizarLista()"
                     matTooltip="Recarregar contexto" aria-label="Recarregar">
               <span class="material-symbols-rounded text-base">refresh</span>
@@ -374,13 +383,17 @@ export class ImportarNfeComponent implements OnInit {
 
   busca = signal('');
   filtroTipo = signal('');
+  /** Janela de emissão em meses (0 = todo o período; 1/2/3 = últimos N meses). */
+  filtroPeriodo = signal(0);
 
   notasFiltradas = computed(() => {
     const q = this.busca().toLowerCase().trim();
     const tp = this.filtroTipo();
+    const meses = this.filtroPeriodo();
     return this.notas().filter(n =>
       (!q || `${n.numero} ${n.emitente} ${n.chave}`.toLowerCase().includes(q)) &&
-      (!tp || n.tipoRaw === tp));
+      (!tp || n.tipoRaw === tp) &&
+      dentroDoPeriodo(n.emissao, meses));
   });
 
   ngOnInit(): void {

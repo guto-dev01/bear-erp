@@ -134,6 +134,21 @@ export function mapearDocumentoWorker(d: DocumentoSefazView): NotaView {
   };
 }
 
+/**
+ * Filtro de período da tela: true se a emissão cai nos últimos `meses` meses
+ * (contados de `agora`). `meses = 0` desliga o filtro (aceita tudo, inclusive
+ * nota sem data); com filtro ativo, nota sem data ou com data inválida sai.
+ */
+export function dentroDoPeriodo(emissao: string | null, meses: number, agora: Date = new Date()): boolean {
+  if (!meses) return true;
+  if (!emissao) return false;
+  const d = new Date(emissao);
+  if (isNaN(d.getTime())) return false;
+  const limite = new Date(agora);
+  limite.setMonth(limite.getMonth() - meses);
+  return d >= limite;
+}
+
 /** Mensagem-resumo de uma sincronização feita pelo worker (o worker não escritura). */
 export function resumoSyncWorker(res: ResultadoSyncView): string {
   if (!res.ok) return res.erro || 'Falha na sincronização.';
