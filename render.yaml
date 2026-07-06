@@ -1,0 +1,25 @@
+# Blueprint do Render — hospeda o worker SEFAZ (fiscal_sefaz, FastAPI) como Web Service.
+#
+# Deploy: Render Dashboard → New → Blueprint → apontar para este repositório.
+# URL resultante: https://bear-fiscal-sefaz.onrender.com (padrão <nome>.onrender.com) —
+# é a URL configurada em frontend-angular/src/environments/environment.prod.ts
+# (sefazWorkerUrl). Se o nome do serviço mudar, ajustar lá também.
+#
+# CORS: localhost/LAN :4200 (ng serve) já é aceito pelo próprio api.py; se o
+# frontend for hospedado, listar a(s) origem(ns) em CORS_ORIGINS (vírgula).
+#
+# Atenção (plano free): o serviço hiberna após ~15 min ocioso; a primeira
+# requisição seguinte leva ~50 s (cold start). O /health serve de keep-alive.
+services:
+  - type: web
+    name: bear-fiscal-sefaz
+    runtime: python
+    plan: free
+    buildCommand: pip install -r fiscal_sefaz/requirements.txt
+    startCommand: uvicorn fiscal_sefaz.api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.6
+      - key: CORS_ORIGINS
+        value: "" # origens extras do frontend hospedado, separadas por vírgula

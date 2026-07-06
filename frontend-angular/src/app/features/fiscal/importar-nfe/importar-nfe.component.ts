@@ -7,7 +7,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '@core/auth/auth.service';
 import { AppwriteService } from '@core/services/appwrite.service';
 import { FiscalService, RetornoDistribuicao, RetornoSefaz } from '../fiscal.service';
-import { NotaView, montarLinhas, resumoSync } from './importar-nfe.mapper';
+import { NotaView, mapearDocumentoWorker, montarLinhas, resumoSync, resumoSyncWorker } from './importar-nfe.mapper';
+import { CertInfo, ResultadoSync, SefazImportService } from './sefaz-import.service';
 
 /** Documento da coleção `empresas` (campos reais reaproveitados do cadastro existente). */
 interface EmpresaDoc {
@@ -175,6 +176,39 @@ interface HistoricoSync {
                 </p>
               }
             </div>
+
+            <!-- Alternativa sem cofre: A1 avulso enviado ao worker fiscal_sefaz (local ou Render). -->
+            <div class="mt-3 p-3 rounded-lg" style="background:var(--surface-2)">
+              <p class="text-label mb-2 flex items-center gap-1.5">
+                <span class="material-symbols-rounded text-base">key</span>
+                Certificado avulso (.pfx) — worker SEFAZ
+              </p>
+              <div class="flex flex-wrap items-center gap-2">
+                <label class="bear-btn bear-btn--outline bear-btn--sm" style="cursor:pointer">
+                  <span class="material-symbols-rounded text-base mr-1">attach_file</span>
+                  {{ certFileName() || 'Escolher .pfx / .p12' }}
+                  <input type="file" accept=".pfx,.p12" hidden (change)="onCertFile($event)">
+                </label>
+                <input class="bear-input bear-input--sm" style="max-width:180px" type="password"
+                       placeholder="Senha do A1" autocomplete="off"
+                       [ngModel]="certSenha()" (ngModelChange)="certSenha.set($event)">
+                <button class="bear-btn bear-btn--tinted bear-btn--sm" (click)="testarCertificadoAvulso()"
+                        [disabled]="testandoAvulso()">
+                  {{ testandoAvulso() ? 'Validando…' : 'Testar certificado' }}
+                </button>
+              </div>
+              @if (certTeste(); as t) {
+                <p class="text-caption mt-2" [ngClass]="t.ok ? 'ink-success' : 'ink-error'">
+                  {{ t.ok
+                      ? 'Válido até ' + ((t.valid_until | date:'dd/MM/yyyy') || '—') + ' · CNPJ ' + (t.certificate_cnpj || '—')
+                      : (t.erro || 'Falha na validação.') }}
+                </p>
+              }
+              <p class="text-caption ink-secondary mt-2">
+                Com um .pfx selecionado, "Sincronizar agora" consulta a SEFAZ pelo worker
+                ({{ workerBase }}) em vez do cofre. Arquivo e senha só trafegam na requisição — nada fica salvo.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -306,9 +340,12 @@ export class ImportarNfeComponent implements OnInit {
   private auth = inject(AuthService);
   private appwrite = inject(AppwriteService);
   private fiscal = inject(FiscalService);
+  private sefaz = inject(SefazImportService);
   private snack = inject(MatSnackBar);
 
   readonly empresaId = computed(() => this.auth.empresaId());
+  /** URL do worker fiscal_sefaz (environment.sefazWorkerUrl) — exibida como dica na tela. */
+  readonly workerBase = this.sefaz.base;
 
   empresa = signal<EmpresaDoc | null>(null);
   certificado = signal<CertDoc | null>(null);
@@ -316,6 +353,15 @@ export class ImportarNfeComponent implements OnInit {
   carregandoCert = signal(false);
   sincronizando = signal(false);
   testando = signal(false);
+
+  // Certificado A1 avulso (fluxo do worker; alternativa ao cofre).
+  certFile: File | null = null;
+  certFileName = signal('');
+  certSenha = signal('');
+  certTeste = signal<CertInfo | null>(null);
+  testandoAvulso = signal(false);
+  /** NSU de partida da próxima consulta paginada pelo worker. */
+  ultNsuWorker = signal('0');
 
   ambiente = signal<Ambiente>('homologacao');
 
@@ -376,17 +422,96 @@ export class ImportarNfeComponent implements OnInit {
     });
   }
 
+  // ── Certificado A1 avulso → worker fiscal_sefaz (local ou Render) ─────────
+
+  onCertFile(ev: Event): void {
+    const f = (ev.target as HTMLInputElement).files?.[0] ?? null;
+    this.certFile = f;
+    this.certFileName.set(f?.name ?? '');
+    this.certTeste.set(null);
+    this.ultNsuWorker.set('0'); // certificado novo → paginação recomeça do zero
+  }
+
+  /** Valida o .pfx/.p12 no worker (não envia nada à SEFAZ). */
+  testarCertificadoAvulso(): void {
+    if (!this.certFile || !this.certSenha()) {
+      this.snack.open('Selecione o arquivo .pfx/.p12 e informe a senha.', 'Fechar', { duration: 4000, panelClass: 'warning-snackbar' });
+      return;
+    }
+    this.testandoAvulso.set(true);
+    const cnpj = (this.empresa()?.cnpj || '').replace(/\D/g, '');
+    this.sefaz.testarCertificado(this.certFile, this.certSenha(), cnpj || undefined).subscribe({
+      next: (info) => {
+        this.testandoAvulso.set(false);
+        this.certTeste.set(info);
+        this.snack.open(info.ok ? 'Certificado válido.' : (info.erro || 'Falha na validação.'),
+          'Fechar', { duration: 5000, panelClass: info.ok ? 'success-snackbar' : 'error-snackbar' });
+      },
+      error: (e) => { this.testandoAvulso.set(false); this.erroWorker(e); },
+    });
+  }
+
   /**
-   * Captura via Distribuição DF-e (Function + A1 do cofre). O loop de NSU e a
-   * escrituração em `notas_fiscais` acontecem no FiscalService; aqui só exibimos.
+   * Captura via Distribuição DF-e. Caminho canônico: Function + A1 do cofre
+   * (loop de NSU e escrituração no FiscalService). Com um A1 avulso fornecido
+   * no painel, a consulta vai pelo worker fiscal_sefaz (exibição apenas).
    */
   sincronizar(): void {
     if (!this.empresaId() || this.sincronizando()) return;
+    if (this.certFile && this.certSenha()) { this.sincronizarPeloWorker(); return; }
     this.sincronizando.set(true);
     this.fiscal.baixarNotasDistribuicao(this.ambiente()).subscribe(ret => {
       this.sincronizando.set(false);
       this.aplicarResultado(ret);
     });
+  }
+
+  private sincronizarPeloWorker(): void {
+    const cnpj = (this.empresa()?.cnpj || '').replace(/\D/g, '');
+    const uf = (this.empresa()?.uf || this.empresa()?.estado || '').toUpperCase();
+    if (!cnpj) { this.snack.open('A empresa selecionada não tem CNPJ cadastrado.', 'Fechar', { duration: 5000, panelClass: 'error-snackbar' }); return; }
+    if (!uf) { this.snack.open('Informe a UF no cadastro da empresa.', 'Fechar', { duration: 5000, panelClass: 'warning-snackbar' }); return; }
+    this.sincronizando.set(true);
+    this.sefaz.sincronizar({
+      pfx: this.certFile!, senha: this.certSenha(), cnpj, uf,
+      ambiente: this.ambiente(), ultNsu: this.ultNsuWorker(), cnpjEmpresa: cnpj,
+    }).subscribe({
+      next: (res) => { this.sincronizando.set(false); this.aplicarResultadoWorker(res); },
+      error: (e) => { this.sincronizando.set(false); this.erroWorker(e); },
+    });
+  }
+
+  private aplicarResultadoWorker(res: ResultadoSync): void {
+    // Espelha no painel "última sincronização" com o shape do fluxo do cofre
+    // (0 escrituradas é fiel: o worker só consulta, não escritura).
+    this.lastResumo.set({ ok: res.ok, erro: res.erro, totalDocs: res.documentos?.length ?? 0, ultNSU: res.ult_nsu, maxNSU: res.max_nsu });
+    if (!res.ok) {
+      this.snack.open(res.erro || 'Falha na sincronização.', 'Fechar', { duration: 6000, panelClass: 'error-snackbar' });
+      return;
+    }
+    this.notas.set((res.documentos ?? []).map(mapearDocumentoWorker));
+    if (res.ult_nsu) this.ultNsuWorker.set(res.ult_nsu);
+    this.historico.update(h => [{
+      id: `${h.length + 1}-${res.ult_nsu ?? ''}`,
+      quando: new Date().toLocaleString('pt-BR'),
+      ultNsu: res.ult_nsu ?? '—',
+      maxNsu: res.max_nsu ?? '—',
+      docs: res.documentos?.length ?? 0,
+      motivo: resumoSyncWorker(res),
+    }, ...h]);
+    this.snack.open(resumoSyncWorker(res), 'Fechar',
+      { duration: 6000, panelClass: res.consumo_indevido ? 'warning-snackbar' : 'info-snackbar' });
+  }
+
+  private erroWorker(e: any): void {
+    const detalhe = e?.error?.erro || e?.error?.detalhe;
+    if (detalhe) {
+      this.snack.open(detalhe, 'Fechar', { duration: 8000, panelClass: 'error-snackbar' });
+      return;
+    }
+    this.snack.open(
+      `Worker SEFAZ não respondeu em ${this.workerBase}. No Render (plano free) a primeira chamada pode levar ~50 s (hibernação) — tente de novo; se for local, verifique se o serviço está rodando.`,
+      'Fechar', { duration: 10000, panelClass: 'error-snackbar' });
   }
 
   private aplicarResultado(ret: RetornoDistribuicao): void {

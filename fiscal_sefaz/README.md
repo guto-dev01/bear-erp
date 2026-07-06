@@ -79,6 +79,26 @@ res = consultar_distribuicao(
 novo_estado = avancar_apos_persistir(estado, res)
 ```
 
+## API HTTP (api.py) e deploy no Render
+
+O `api.py` expõe o módulo ao frontend (`/health`, `/sefaz/testar-certificado`,
+`/sefaz/sincronizar`). Local:
+
+```bash
+uvicorn fiscal_sefaz.api:app --host 127.0.0.1 --port 8770
+```
+
+Hospedado no **Render**: o blueprint [`render.yaml`](../render.yaml) na raiz do
+repo cria o serviço `bear-fiscal-sefaz` (Dashboard → New → Blueprint). O Angular
+lê a URL de `environment.sefazWorkerUrl` (dev: `localhost:8770`; prod: a URL do
+Render).
+
+- **CORS**: `localhost`/LAN `:4200` sempre liberados; frontend hospedado entra
+  pela env `CORS_ORIGINS` (origens separadas por vírgula).
+- **Plano free**: o serviço hiberna após ~15 min ocioso e a primeira requisição
+  leva ~50 s. O `healthCheckPath: /health` já está configurado.
+- O worker continua **stateless**: pfx/senha só em memória, por requisição.
+
 ## Segurança (garantida pelo módulo)
 
 - Senha e material do certificado **só em memória**; PEM temporário para o mTLS
@@ -111,7 +131,7 @@ está preparada para esses plugues.
 ## Testes
 
 ```bash
-python -m pytest fiscal_sefaz/tests -q     # 31 passed
+python -m pytest fiscal_sefaz/tests -q     # 33 passed
 ```
 Os testes são 100% offline: geram docZip/SOAP sintéticos e um A1 auto-assinado
 com o CNPJ no SAN ICP-Brasil. **Nenhum certificado real é versionado.**

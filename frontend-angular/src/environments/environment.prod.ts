@@ -3,6 +3,9 @@ export const environment = {
   apiUrl: '/api/v1',
   appName: 'Bear ERP',
   version: '1.0.0',
+  // Worker SEFAZ (fiscal_sefaz) hospedado no Render — serviço bear-fiscal-sefaz
+  // do render.yaml (raiz do repo). Plano free hiberna: 1ª chamada pode levar ~50 s.
+  sefazWorkerUrl: 'https://bear-fiscal-sefaz.onrender.com',
   appwrite: {
     endpoint: 'https://cloud.appwrite.io/v1',
     projectId: '69b52c570036d92459ce',

@@ -1,4 +1,7 @@
-import { mapearNota, montarLinhas, resumoSync, RetornoDistribuicaoView } from './importar-nfe.mapper';
+import {
+  mapearDocumentoWorker, mapearNota, montarLinhas, resumoSync, resumoSyncWorker,
+  DocumentoSefazView, RetornoDistribuicaoView,
+} from './importar-nfe.mapper';
 import { NotaImportada } from '../engine/importador-xml-nfe';
 
 /** Fábrica de NotaImportada com defaults mínimos (campos não usados zerados). */
@@ -109,5 +112,68 @@ describe('resumoSync', () => {
   it('sucesso sem nada novo → só o essencial (sem partes zeradas opcionais)', () => {
     const msg = resumoSync({ ok: true, totalDocs: 0, escrituradas: 0, duplicadas: 0, resumos: [] });
     expect(msg).toBe('0 documento(s) · 0 escriturada(s)');
+  });
+});
+
+// ── Fluxo do worker fiscal_sefaz (A1 avulso — local ou Render) ───────────────
+
+/** Fábrica de documento do worker com defaults mínimos. */
+function docWorker(sobrescreve: Partial<DocumentoSefazView> = {}): DocumentoSefazView {
+  return {
+    nsu: '000000000000015',
+    document_type: 'procNFe',
+    access_key: '35260112345678000199550010000001231000001234',
+    cnpj_emitente: '12345678000199',
+    dados: { nNF: '123', serie: '1', xNome: 'Fornecedor Exemplo LTDA', dhEmi: '2026-06-15T10:00:00-03:00', vNF: '1180.00' },
+    ...sobrescreve,
+  };
+}
+
+describe('mapearDocumentoWorker', () => {
+  it('procNFe → NF-e com cabeçalho completo e status de XML completo', () => {
+    const v = mapearDocumentoWorker(docWorker());
+    expect(v.tipoRaw).toBe('procNFe');
+    expect(v.tipo).toBe('NF-e');
+    expect(v.status).toBe('XML completo');
+    expect(v.numero).toBe('123');
+    expect(v.emitente).toBe('Fornecedor Exemplo LTDA');
+    expect(v.valor).toBe(1180);
+    expect(v.emissao).toBe('2026-06-15T10:00:00-03:00');
+  });
+
+  it('resNFe → resumo aguardando XML completo', () => {
+    const v = mapearDocumentoWorker(docWorker({ document_type: 'resNFe' }));
+    expect(v.tipo).toBe('Resumo NF-e');
+    expect(v.status).toBe('Aguardando XML completo');
+  });
+
+  it('eventos (procEventoNFe/resEvento) também viram linhas', () => {
+    expect(mapearDocumentoWorker(docWorker({ document_type: 'procEventoNFe' })).tipo).toBe('Evento');
+    expect(mapearDocumentoWorker(docWorker({ document_type: 'resEvento' })).status).toBe('Resumo encontrado');
+  });
+
+  it('dados ausentes não quebram: traço/nulos e emitente cai para o CNPJ', () => {
+    const v = mapearDocumentoWorker(docWorker({ dados: undefined, access_key: undefined }));
+    expect(v.chave).toBe('');
+    expect(v.numero).toBe('—');
+    expect(v.emitente).toBe('12345678000199');
+    expect(v.emissao).toBeNull();
+    expect(v.valor).toBeNull();
+  });
+});
+
+describe('resumoSyncWorker', () => {
+  it('erro → repassa a mensagem', () => {
+    expect(resumoSyncWorker({ ok: false, erro: 'Senha do certificado incorreta.' }))
+      .toBe('Senha do certificado incorreta.');
+  });
+
+  it('sucesso → cStat, motivo e contagem de documentos', () => {
+    const msg = resumoSyncWorker({ ok: true, cstat: 138, motivo: 'Documento(s) localizado(s)', documentos: [docWorker(), docWorker()] });
+    expect(msg).toBe('cStat 138 · Documento(s) localizado(s) · 2 documento(s)');
+  });
+
+  it('sucesso sem cStat/motivo → só a contagem (sem separadores órfãos)', () => {
+    expect(resumoSyncWorker({ ok: true })).toBe('0 documento(s)');
   });
 });

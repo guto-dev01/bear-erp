@@ -72,3 +72,15 @@ def codigo_uf(uf: str) -> int:
     if cod is None:
         raise ValueError(f"UF não configurada: {uf!r}")
     return cod
+
+
+def origens_cors(valor: str | None) -> list[str]:
+    """Parseia a env CORS_ORIGINS (origens separadas por vírgula) em lista limpa.
+
+    Usada quando o worker roda hospedado (ex.: Render) e o frontend está em outra
+    origem além do localhost:4200 de desenvolvimento (este já é liberado por
+    regex em api.py). Barra final é removida porque o header Origin nunca a tem.
+    """
+    if not valor:
+        return []
+    return [o.strip().rstrip("/") for o in valor.split(",") if o.strip()]
