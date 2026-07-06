@@ -15,7 +15,8 @@ export interface NotaView {
   emissao: string | null;
   valor: number | null;
   tipo: string;
-  tipoRaw: 'procNFe' | 'resNFe';
+  /** 'procNFe' | 'resNFe' no fluxo do cofre; o worker também traz eventos ('procEventoNFe'/'resEvento'). */
+  tipoRaw: string;
   status: string;
 }
 
@@ -79,5 +80,67 @@ export function resumoSync(ret: RetornoDistribuicaoView): string {
   if (ret.duplicadas) partes.push(`${ret.duplicadas} já existente(s)`);
   const pendentes = ret.resumos?.length ?? 0;
   if (pendentes) partes.push(`${pendentes} resumo(s) aguardando manifestação`);
+  return partes.join(' · ');
+}
+
+// ── Fluxo alternativo: worker fiscal_sefaz (A1 avulso, local ou Render) ──────
+
+/**
+ * Subconjunto estrutural de `DocumentoSefaz`/`ResultadoSync` (sefaz-import.service)
+ * que a tela consome — replicado aqui para o mapper não arrastar o service
+ * (HttpClient/environment) no teste em node.
+ */
+export interface DocumentoSefazView {
+  nsu: string;
+  document_type: string;
+  access_key?: string;
+  cnpj_emitente?: string;
+  dados?: Record<string, any>;
+}
+
+export interface ResultadoSyncView {
+  ok: boolean;
+  cstat?: number;
+  motivo?: string;
+  ult_nsu?: string;
+  max_nsu?: string;
+  consumo_indevido?: boolean;
+  documentos?: DocumentoSefazView[];
+  erro?: string;
+}
+
+const TIPO_WORKER: Record<string, string> = {
+  procNFe: 'NF-e', resNFe: 'Resumo NF-e', procEventoNFe: 'Evento', resEvento: 'Resumo evento',
+};
+const STATUS_WORKER: Record<string, string> = {
+  procNFe: 'XML completo', resNFe: 'Aguardando XML completo',
+  procEventoNFe: 'Operação confirmada', resEvento: 'Resumo encontrado',
+};
+
+/** Converte um documento devolvido pelo worker em linha da tabela. */
+export function mapearDocumentoWorker(d: DocumentoSefazView): NotaView {
+  const dd = d.dados || {};
+  return {
+    chave: d.access_key || '',
+    numero: dd['nNF'] || '—',
+    serie: dd['serie'] || '',
+    emitente: dd['xNome'] || d.cnpj_emitente || '—',
+    cnpjEmitente: d.cnpj_emitente || '',
+    emissao: dd['dhEmi'] || dd['dhEvento'] || null,
+    valor: dd['vNF'] != null ? Number(dd['vNF']) : null,
+    tipo: TIPO_WORKER[d.document_type] || d.document_type,
+    tipoRaw: d.document_type,
+    status: STATUS_WORKER[d.document_type] || 'Desconhecida',
+  };
+}
+
+/** Mensagem-resumo de uma sincronização feita pelo worker (o worker não escritura). */
+export function resumoSyncWorker(res: ResultadoSyncView): string {
+  if (!res.ok) return res.erro || 'Falha na sincronização.';
+  const partes = [
+    res.cstat != null ? `cStat ${res.cstat}` : '',
+    res.motivo || '',
+    `${res.documentos?.length ?? 0} documento(s)`,
+  ].filter(Boolean);
   return partes.join(' · ');
 }

@@ -12,20 +12,26 @@ Segurança:
   * pfx e senha trafegam apenas nesta requisição, ficam só em memória e NUNCA
     são logados nem persistidos aqui;
   * respostas usam somente dicts "públicos" (sem senha/chave);
-  * CORS liberado apenas para o app local (localhost/LAN :4200).
+  * CORS: app local (localhost/LAN :4200) sempre liberado; origens extras
+    (frontend hospedado) via env CORS_ORIGINS, separadas por vírgula.
 
-Rodar:
+Rodar local:
   uvicorn fiscal_sefaz.api:app --host 127.0.0.1 --port 8770
+
+Rodar hospedado (Render — ver render.yaml na raiz do repo):
+  uvicorn fiscal_sefaz.api:app --host 0.0.0.0 --port $PORT
 """
 
 from __future__ import annotations
+
+import os
 
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from . import certificado
-from .config import Ambiente
+from .config import Ambiente, origens_cors
 from .distribuicao import consultar_distribuicao
 from .errors import SefazError
 
@@ -33,6 +39,7 @@ app = FastAPI(title="Bear ERP — Worker SEFAZ (NFeDistribuicaoDFe)", version="0
 
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=origens_cors(os.environ.get("CORS_ORIGINS")),
     allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+):4200",
     allow_methods=["*"],
     allow_headers=["*"],

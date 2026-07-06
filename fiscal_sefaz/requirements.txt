@@ -3,5 +3,10 @@ requests>=2.31
 lxml>=5.0
 cryptography>=42.0
 
+# API HTTP (api.py) — o build do Render instala a partir deste arquivo
+fastapi>=0.111
+uvicorn>=0.30
+python-multipart>=0.0.9
+
 # Testes (opcional)
 pytest>=8.0

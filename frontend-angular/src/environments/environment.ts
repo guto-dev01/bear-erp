@@ -3,6 +3,9 @@ export const environment = {
   apiUrl: '/api/v1',
   appName: 'Bear ERP',
   version: '1.0.0',
+  // Worker SEFAZ (fiscal_sefaz/api.py, FastAPI): valida A1 avulso (.pfx) e consulta
+  // a Distribuição DF-e. Em dev roda local; em produção fica no Render (render.yaml).
+  sefazWorkerUrl: 'http://localhost:8770',
   appwrite: {
     endpoint: 'https://cloud.appwrite.io/v1',
     projectId: '69b52c570036d92459ce',
