@@ -106,3 +106,27 @@ test('statusServico faz o "ping" e detecta serviço online', async () => {
   assert.ok(captura.body.includes('<xServ>STATUS</xServ>'), 'enviou consStatServ');
   assert.equal(captura.options.hostname, 'homologacao.nfe.fazenda.sp.gov.br');
 });
+
+test('sefaz-ca.pem fecha a cadeia numa raiz autoassinada (ICP-Brasil v10)', () => {
+  // O OpenSSL/Node não aceita âncora parcial: a cadeia do servidor da SEFAZ
+  // (folha → AC SOLUTI SSL EV G4) precisa FECHAR numa raiz autoassinada do
+  // truststore. Só a intermediária no bundle → "unable to get issuer certificate".
+  const { X509Certificate } = require('node:crypto');
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const pem = fs.readFileSync(
+    path.join(__dirname, '..', '..', 'nfe-transmissao', 'certs', 'sefaz-ca.pem'), 'utf8');
+  const blocos = pem.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g) || [];
+  const certs = blocos.map((b) => new X509Certificate(b));
+  assert.ok(certs.length >= 2, `bundle tem intermediária + raiz (recebido ${certs.length})`);
+
+  const raiz = certs.find((c) => c.subject === c.issuer);
+  assert.ok(raiz, 'bundle contém uma raiz autoassinada');
+  assert.ok(raiz.verify(raiz.publicKey), 'raiz é de fato autoassinada (assinatura própria confere)');
+  assert.match(raiz.subject, /Autoridade Certificadora Raiz Brasileira v10/);
+  assert.ok(new Date(raiz.validTo) > new Date(), 'raiz dentro da validade');
+
+  const intermediaria = certs.find((c) => c !== raiz);
+  assert.ok(intermediaria.verify(raiz.publicKey), 'intermediária é emitida pela raiz do bundle');
+  assert.match(intermediaria.subject, /AC SOLUTI SSL EV G4/);
+});
