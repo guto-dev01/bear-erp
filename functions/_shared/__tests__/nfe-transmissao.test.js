@@ -12,7 +12,7 @@ const NFE = `<?xml version="1.0"?><NFe xmlns="http://www.portalfiscal.inf.br/nfe
   `<infNFe Id="NFe${CHAVE}" versao="4.00"><ide><cUF>35</cUF><nNF>1001</nNF></ide></infNFe></NFe>`;
 
 const RET_AUTORIZADA =
-  '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body>' +
+  '<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"><soap:Body>' +
   '<retEnviNFe versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">' +
   '<tpAmb>2</tpAmb><cStat>104</cStat><xMotivo>Lote processado</xMotivo>' +
   '<protNFe><infProt><nProt>135260000012345</nProt>' +
@@ -20,7 +20,7 @@ const RET_AUTORIZADA =
   '</infProt></protNFe></retEnviNFe></soap:Body></soap:Envelope>';
 
 const RET_STATUS_ONLINE =
-  '<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body>' +
+  '<soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"><soap:Body>' +
   '<retConsStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">' +
   '<tpAmb>2</tpAmb><cStat>107</cStat><xMotivo>Servico em Operacao</xMotivo></retConsStatServ>' +
   '</soap:Body></soap:Envelope>';
@@ -105,6 +105,15 @@ test('statusServico faz o "ping" e detecta serviço online', async () => {
   assert.equal(r.cStat, 107);
   assert.ok(captura.body.includes('<xServ>STATUS</xServ>'), 'enviou consStatServ');
   assert.equal(captura.options.hostname, 'homologacao.nfe.fazenda.sp.gov.br');
+
+  // SOAP 1.2 (a SEFAZ rejeita 1.1 com "Possible SOAP version mismatch"):
+  // envelope 2003/05, Content-Type application/soap+xml com action embutido
+  // e SEM header SOAPAction.
+  assert.ok(captura.body.includes('xmlns:soap="http://www.w3.org/2003/05/soap-envelope"'), 'envelope SOAP 1.2');
+  const ct = captura.options.headers['Content-Type'];
+  assert.match(ct, /^application\/soap\+xml/, 'Content-Type do SOAP 1.2');
+  assert.ok(ct.includes('action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4"'), 'action embutido no Content-Type');
+  assert.equal(captura.options.headers.SOAPAction, undefined, 'SOAP 1.2 não usa header SOAPAction');
 });
 
 test('sefaz-ca.pem fecha a cadeia numa raiz autoassinada (ICP-Brasil v10)', () => {
