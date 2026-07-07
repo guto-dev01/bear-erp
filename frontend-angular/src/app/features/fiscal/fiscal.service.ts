@@ -17,7 +17,7 @@ import {
   ResultadoSimples,
 } from './engine/apuracao-federal';
 import { ItemImportado, NotaImportada, parsearDocumento } from './engine/importador-xml-nfe';
-import { agregarRetornos, NotaPersistidaView } from './importar-nfe/importar-nfe.mapper';
+import { agregarRetornos, chaveCursorNsu, NotaPersistidaView } from './importar-nfe/importar-nfe.mapper';
 import { EmitenteNFe, gerarXmlNFe, ItemNFe, NotaNFe } from './engine/nfe-xml';
 import { montarGuia } from './engine/guias';
 import { calendarioObrigacoes, descricaoObrigacao } from './engine/obrigacoes';
@@ -459,17 +459,14 @@ export class FiscalService {
     );
   }
 
-  /** Chave do localStorage que guarda o último NSU processado por empresa. */
-  private chaveUltNSU(): string { return `nfe_ultnsu_${this.empresaId}`; }
-
-  /** Lê o último NSU processado (0 se nunca buscou ou sem localStorage). */
-  private lerUltNSU(): string {
-    try { return localStorage.getItem(this.chaveUltNSU()) || '0'; } catch { return '0'; }
+  /** Lê o último NSU processado da empresa NO ambiente (0 se nunca buscou). */
+  private lerUltNSU(ambiente: string): string {
+    try { return localStorage.getItem(chaveCursorNsu(this.empresaId, ambiente)) || '0'; } catch { return '0'; }
   }
 
-  private salvarUltNSU(nsu?: string): void {
+  private salvarUltNSU(ambiente: string, nsu?: string): void {
     if (!nsu) return;
-    try { localStorage.setItem(this.chaveUltNSU(), nsu); } catch { /* sem storage */ }
+    try { localStorage.setItem(chaveCursorNsu(this.empresaId, ambiente), nsu); } catch { /* sem storage */ }
   }
 
   /**
@@ -503,7 +500,7 @@ export class FiscalService {
   baixarNotasDistribuicao(
     ambiente: 'homologacao' | 'producao' = 'homologacao',
   ): Observable<RetornoDistribuicao> {
-    const ultNSU = this.lerUltNSU();
+    const ultNSU = this.lerUltNSU(ambiente);
     return this.empresaDoc().pipe(
       switchMap(empresa => {
         const uf = String(empresa?.uf ?? '').toUpperCase();
@@ -514,7 +511,7 @@ export class FiscalService {
         ).pipe(
           switchMap(ret => {
             if (!ret?.ok) return of<RetornoDistribuicao>({ ok: false, erro: ret?.erro || 'Falha na Distribuição DF-e.' });
-            this.salvarUltNSU(ret.ultNSU); // avança o cursor mesmo se nada novo (evita cStat 656)
+            this.salvarUltNSU(ambiente, ret.ultNSU); // avança o cursor mesmo se nada novo (evita cStat 656)
             const docs = ret.documentos ?? [];
             const notas = docs
               .map(d => parsearDocumento(d.xml, d.nsu))

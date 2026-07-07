@@ -1,6 +1,6 @@
 import {
-  agregarRetornos, dentroDoIntervalo, dentroDoPeriodo, mapearDocumentoWorker, mapearNota,
-  mapearNotaPersistida, mesclarLinhas, montarLinhas, resumoSync, resumoSyncWorker,
+  agregarRetornos, chaveCursorNsu, dentroDoIntervalo, dentroDoPeriodo, mapearDocumentoWorker,
+  mapearNota, mapearNotaPersistida, mesclarLinhas, montarLinhas, resumoSync, resumoSyncWorker,
   DocumentoSefazView, RetornoDistribuicaoView,
 } from './importar-nfe.mapper';
 import { NotaImportada } from '../engine/importador-xml-nfe';
@@ -310,5 +310,19 @@ describe('agregarRetornos (paginação por NSU da Distribuição)', () => {
 
   it('lista vazia → falha explícita', () => {
     expect(agregarRetornos([]).ok).toBe(false);
+  });
+});
+
+describe('chaveCursorNsu (cursor NSU por empresa E ambiente)', () => {
+  it('homologação e produção têm cursores INDEPENDENTES para a mesma empresa', () => {
+    const hom = chaveCursorNsu('emp1', 'homologacao');
+    const prod = chaveCursorNsu('emp1', 'producao');
+    expect(hom).toBe('nfe_ultnsu_emp1_homologacao');
+    expect(prod).toBe('nfe_ultnsu_emp1_producao');
+    expect(hom === prod).toBe(false);
+  });
+
+  it('empresas diferentes não compartilham cursor', () => {
+    expect(chaveCursorNsu('emp1', 'producao') === chaveCursorNsu('emp2', 'producao')).toBe(false);
   });
 });
