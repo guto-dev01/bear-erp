@@ -209,6 +209,16 @@ export function mesclarLinhas(daSessao: NotaView[], persistidas: NotaView[]): No
 }
 
 /**
+ * Chave do cursor NSU no localStorage — POR empresa E POR ambiente. O NSU é uma
+ * sequência independente em homologação e em produção: um cursor compartilhado
+ * fazia a troca de ambiente enviar um NSU sem sentido à SEFAZ (rejeição ou
+ * documentos silenciosamente pulados → "0 notas").
+ */
+export function chaveCursorNsu(empresaId: string, ambiente: string): string {
+  return `nfe_ultnsu_${empresaId}_${ambiente}`;
+}
+
+/**
  * Agrega os retornos parciais dos lotes da Distribuição DF-e (a SEFAZ pagina
  * por NSU em lotes de até 50 docs). Falhou um lote → ok:false com o erro,
  * preservando o que os lotes anteriores já trouxeram.
