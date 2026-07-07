@@ -7,7 +7,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuthService } from '@core/auth/auth.service';
 import { AppwriteService } from '@core/services/appwrite.service';
 import { FiscalService, RetornoDistribuicao, RetornoSefaz } from '../fiscal.service';
-import { NotaView, dentroDoPeriodo, mapearDocumentoWorker, montarLinhas, resumoSync, resumoSyncWorker } from './importar-nfe.mapper';
+import {
+  NotaView, dentroDoIntervalo, dentroDoPeriodo, mapearDocumentoWorker, mapearNotaPersistida,
+  mesclarLinhas, montarLinhas, resumoSync, resumoSyncWorker,
+} from './importar-nfe.mapper';
 import { CertInfo, ResultadoSync, SefazImportService } from './sefaz-import.service';
 
 /** Documento da coleção `empresas` (campos reais reaproveitados do cadastro existente). */
@@ -78,7 +81,7 @@ interface HistoricoSync {
           <button class="bear-btn bear-btn--primary bear-btn--sm" (click)="sincronizar()"
                   [disabled]="!empresaId() || sincronizando()">
             <span class="material-symbols-rounded text-base mr-1" [class.animate-spin]="sincronizando()">sync</span>
-            {{ sincronizando() ? 'Sincronizando…' : 'Sincronizar agora' }}
+            {{ sincronizando() ? 'Puxando notas…' : 'Puxar notas da empresa' }}
           </button>
         </div>
       </header>
@@ -247,6 +250,16 @@ interface HistoricoSync {
                 <option [ngValue]="3">Últimos 3 meses</option>
               </select>
             </div>
+            <div>
+              <label class="text-label block mb-1">De</label>
+              <input class="bear-input bear-input--sm" type="date"
+                     [ngModel]="filtroDe()" (ngModelChange)="filtroDe.set($event)">
+            </div>
+            <div>
+              <label class="text-label block mb-1">Até</label>
+              <input class="bear-input bear-input--sm" type="date"
+                     [ngModel]="filtroAte()" (ngModelChange)="filtroAte.set($event)">
+            </div>
             <button class="bear-btn bear-btn--outline bear-btn--sm" (click)="atualizarLista()"
                     matTooltip="Recarregar contexto" aria-label="Recarregar">
               <span class="material-symbols-rounded text-base">refresh</span>
@@ -268,9 +281,11 @@ interface HistoricoSync {
               <div class="empty-state__icon"><span class="material-symbols-rounded">inbox</span></div>
               <p class="empty-state__title">Nenhuma nota carregada</p>
               <p class="empty-state__description">
-                Clique em <strong>Sincronizar agora</strong> para consultar a SEFAZ (Distribuição DF-e) usando o
-                certificado A1 do cofre. As NF-e completas são escrituradas em Notas Fiscais (entrada); os resumos
-                ficam aguardando manifestação para liberar o XML completo.
+                Clique em <strong>Puxar notas da empresa</strong> para consultar a SEFAZ (Distribuição DF-e) usando o
+                certificado A1 do cofre — todos os lotes disponíveis são baixados (a SEFAZ disponibiliza os documentos
+                dos últimos ~90 dias). As NF-e completas são escrituradas em Notas Fiscais (entrada) e ficam nesta
+                tabela entre sessões; os resumos aguardam manifestação para liberar o XML completo. Use
+                <strong>De/Até</strong> para filtrar por data de emissão.
               </p>
             </div>
           } @else {
@@ -314,7 +329,7 @@ interface HistoricoSync {
             <div class="empty-state">
               <div class="empty-state__icon"><span class="material-symbols-rounded">manage_history</span></div>
               <p class="empty-state__title">Nenhuma sincronização registrada</p>
-              <p class="empty-state__description">As sincronizações desta sessão (NSU, documentos, resultado) aparecerão aqui após o primeiro "Sincronizar agora".</p>
+              <p class="empty-state__description">As sincronizações desta sessão (NSU, documentos, resultado) aparecerão aqui após o primeiro "Puxar notas da empresa".</p>
             </div>
           } @else {
             <div class="table-scroll">
@@ -377,7 +392,10 @@ export class ImportarNfeComponent implements OnInit {
   // Teste de conexão com a SEFAZ (A1 do cofre, operação 'status' da Function).
   statusSefaz = signal<RetornoSefaz | null>(null);
 
+  /** Linhas da sincronização atual (lotes puxados agora). */
   notas = signal<NotaView[]>([]);
+  /** Notas de entrada já escrituradas em `notas_fiscais` (sessões anteriores). */
+  notasPersistidas = signal<NotaView[]>([]);
   historico = signal<HistoricoSync[]>([]);
   lastResumo = signal<RetornoDistribuicao | null>(null);
 
@@ -385,15 +403,21 @@ export class ImportarNfeComponent implements OnInit {
   filtroTipo = signal('');
   /** Janela de emissão em meses (0 = todo o período; 1/2/3 = últimos N meses). */
   filtroPeriodo = signal(0);
+  /** Calendário De/Até ('YYYY-MM-DD' dos inputs type=date; vazio = sem corte). */
+  filtroDe = signal('');
+  filtroAte = signal('');
 
   notasFiltradas = computed(() => {
     const q = this.busca().toLowerCase().trim();
     const tp = this.filtroTipo();
     const meses = this.filtroPeriodo();
-    return this.notas().filter(n =>
+    const de = this.filtroDe();
+    const ate = this.filtroAte();
+    return mesclarLinhas(this.notas(), this.notasPersistidas()).filter(n =>
       (!q || `${n.numero} ${n.emitente} ${n.chave}`.toLowerCase().includes(q)) &&
       (!tp || n.tipoRaw === tp) &&
-      dentroDoPeriodo(n.emissao, meses));
+      dentroDoPeriodo(n.emissao, meses) &&
+      dentroDoIntervalo(n.emissao, de, ate));
   });
 
   ngOnInit(): void {
@@ -406,6 +430,15 @@ export class ImportarNfeComponent implements OnInit {
     this.appwrite.getDocument<EmpresaDoc>('empresas', empresaId).subscribe({
       next: (e) => { this.empresa.set(e); this.carregandoEmpresa.set(false); this.carregarCertificado(empresaId); },
       error: () => { this.empresa.set(null); this.carregandoEmpresa.set(false); },
+    });
+    this.carregarNotasEscrituradas();
+  }
+
+  /** Preenche a tabela com as entradas já escrituradas (histórico entre sessões). */
+  private carregarNotasEscrituradas(): void {
+    this.fiscal.listNfesEntrada().subscribe({
+      next: (docs) => this.notasPersistidas.set(docs.map(mapearNotaPersistida)),
+      error: () => this.notasPersistidas.set([]),
     });
   }
 
@@ -465,17 +498,19 @@ export class ImportarNfeComponent implements OnInit {
   }
 
   /**
-   * Captura via Distribuição DF-e. Caminho canônico: Function + A1 do cofre
-   * (loop de NSU e escrituração no FiscalService). Com um A1 avulso fornecido
-   * no painel, a consulta vai pelo worker fiscal_sefaz (exibição apenas).
+   * Puxa as notas da empresa via Distribuição DF-e. Caminho canônico: Function
+   * + A1 do cofre, TODOS os lotes disponíveis (paginação por NSU no
+   * FiscalService, com escrituração). Com um A1 avulso fornecido no painel,
+   * a consulta vai pelo worker fiscal_sefaz (exibição apenas).
    */
   sincronizar(): void {
     if (!this.empresaId() || this.sincronizando()) return;
     if (this.certFile && this.certSenha()) { this.sincronizarPeloWorker(); return; }
     this.sincronizando.set(true);
-    this.fiscal.baixarNotasDistribuicao(this.ambiente()).subscribe(ret => {
+    this.fiscal.baixarTodasNotasDistribuicao(this.ambiente()).subscribe(ret => {
       this.sincronizando.set(false);
       this.aplicarResultado(ret);
+      this.carregarNotasEscrituradas(); // reflete as recém-escrituradas na tabela
     });
   }
 
@@ -530,6 +565,8 @@ export class ImportarNfeComponent implements OnInit {
   private aplicarResultado(ret: RetornoDistribuicao): void {
     this.lastResumo.set(ret);
     if (!ret.ok) {
+      // Falha no meio da paginação: mostra o que os lotes anteriores trouxeram.
+      if (ret.notas?.length || ret.resumos?.length) this.notas.set(montarLinhas({ ...ret, ok: true }));
       this.snack.open(ret.erro || 'Falha na sincronização.', 'Fechar', { duration: 6000, panelClass: 'error-snackbar' });
       return;
     }

@@ -1,5 +1,6 @@
 import {
-  dentroDoPeriodo, mapearDocumentoWorker, mapearNota, montarLinhas, resumoSync, resumoSyncWorker,
+  agregarRetornos, dentroDoIntervalo, dentroDoPeriodo, mapearDocumentoWorker, mapearNota,
+  mapearNotaPersistida, mesclarLinhas, montarLinhas, resumoSync, resumoSyncWorker,
   DocumentoSefazView, RetornoDistribuicaoView,
 } from './importar-nfe.mapper';
 import { NotaImportada } from '../engine/importador-xml-nfe';
@@ -208,5 +209,106 @@ describe('dentroDoPeriodo (filtro 1/2/3 meses da tela)', () => {
   it('com filtro ativo, nota sem data ou com data inválida sai', () => {
     expect(dentroDoPeriodo(null, 1, AGORA)).toBe(false);
     expect(dentroDoPeriodo('não-é-data', 1, AGORA)).toBe(false);
+  });
+});
+
+describe('dentroDoIntervalo (calendário De/Até da tela)', () => {
+  const EMISSAO = '2026-07-06T12:00:00-03:00';
+
+  it('sem De nem Até aceita tudo, inclusive nota sem data', () => {
+    expect(dentroDoIntervalo(EMISSAO, '', '')).toBe(true);
+    expect(dentroDoIntervalo(null, '', '')).toBe(true);
+  });
+
+  it('intervalo fechado: dentro entra, antes/depois saem', () => {
+    expect(dentroDoIntervalo(EMISSAO, '2026-07-01', '2026-07-31')).toBe(true);
+    expect(dentroDoIntervalo(EMISSAO, '2026-07-07', '2026-07-31')).toBe(false);
+    expect(dentroDoIntervalo(EMISSAO, '2026-06-01', '2026-07-05')).toBe(false);
+  });
+
+  it('inclusivo nas duas pontas (dia da emissão como De ou Até entra)', () => {
+    expect(dentroDoIntervalo(EMISSAO, '2026-07-06', '')).toBe(true);
+    expect(dentroDoIntervalo(EMISSAO, '', '2026-07-06')).toBe(true);
+  });
+
+  it('só uma ponta preenchida também filtra', () => {
+    expect(dentroDoIntervalo(EMISSAO, '2026-08-01', '')).toBe(false);
+    expect(dentroDoIntervalo(EMISSAO, '', '2026-06-30')).toBe(false);
+  });
+
+  it('com o filtro ativo, nota sem data ou com data inválida sai', () => {
+    expect(dentroDoIntervalo(null, '2026-07-01', '')).toBe(false);
+    expect(dentroDoIntervalo('não-é-data', '', '2026-07-31')).toBe(false);
+  });
+});
+
+describe('mapearNotaPersistida', () => {
+  it('nota escriturada vira linha com status Escriturada', () => {
+    const v = mapearNotaPersistida({
+      numero: 123, serie: '1', chaveAcesso: 'C'.repeat(44), dataEmissao: '2026-06-15T10:00:00-03:00',
+      emitenteCnpj: '12345678000199', emitenteNome: 'Fornecedor Exemplo LTDA', valorTotal: 1180,
+    });
+    expect(v.status).toBe('Escriturada');
+    expect(v.tipoRaw).toBe('procNFe');
+    expect(v.numero).toBe('123');
+    expect(v.valor).toBe(1180);
+  });
+
+  it('campos ausentes não quebram', () => {
+    const v = mapearNotaPersistida({});
+    expect(v.numero).toBe('—');
+    expect(v.emitente).toBe('—');
+    expect(v.emissao).toBeNull();
+    expect(v.valor).toBeNull();
+  });
+});
+
+describe('mesclarLinhas', () => {
+  const linha = (chave: string, status: string) =>
+    ({ ...mapearNotaPersistida({ chaveAcesso: chave }), status });
+
+  it('sessão vence a persistida de mesma chave; persistidas sem par entram ao final', () => {
+    const daSessao = [linha('A'.repeat(44), 'XML completo')];
+    const persistidas = [linha('A'.repeat(44), 'Escriturada'), linha('B'.repeat(44), 'Escriturada')];
+    const m = mesclarLinhas(daSessao, persistidas);
+    expect(m.length).toBe(2);
+    expect(m[0].status).toBe('XML completo');
+    expect(m[1].chave).toBe('B'.repeat(44));
+  });
+
+  it('sem sessão → só as persistidas; sem persistidas → só a sessão', () => {
+    expect(mesclarLinhas([], [linha('B'.repeat(44), 'Escriturada')]).length).toBe(1);
+    expect(mesclarLinhas([linha('A'.repeat(44), 'XML completo')], []).length).toBe(1);
+  });
+});
+
+describe('agregarRetornos (paginação por NSU da Distribuição)', () => {
+  it('soma contadores, concatena notas/resumos e fica com o último NSU', () => {
+    const r = agregarRetornos([
+      { ok: true, escrituradas: 2, duplicadas: 0, totalDocs: 3, notas: [nota()], resumos: [], ultNSU: '50', maxNSU: '120' },
+      { ok: true, escrituradas: 1, duplicadas: 1, totalDocs: 2, notas: [nota()], resumos: [nota({ detalhamento: 'resumo' })], ultNSU: '120', maxNSU: '120' },
+    ]);
+    expect(r.ok).toBe(true);
+    expect(r.escrituradas).toBe(3);
+    expect(r.duplicadas).toBe(1);
+    expect(r.totalDocs).toBe(5);
+    expect(r.notas!.length).toBe(2);
+    expect(r.resumos!.length).toBe(1);
+    expect(r.ultNSU).toBe('120');
+  });
+
+  it('lote com falha → ok:false com o erro, preservando o que veio antes', () => {
+    const r = agregarRetornos([
+      { ok: true, escrituradas: 2, totalDocs: 2, notas: [nota(), nota()], ultNSU: '50', maxNSU: '120' },
+      { ok: false, erro: 'cStat 656: consumo indevido' },
+    ]);
+    expect(r.ok).toBe(false);
+    expect(r.erro).toBe('cStat 656: consumo indevido');
+    expect(r.notas!.length).toBe(2);
+    expect(r.escrituradas).toBe(2);
+  });
+
+  it('lista vazia → falha explícita', () => {
+    expect(agregarRetornos([]).ok).toBe(false);
   });
 });
