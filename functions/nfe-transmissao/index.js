@@ -66,9 +66,12 @@ module.exports = async ({ req, res, log, error }) => {
       dbId,
     });
 
-    // Em homologação não exigimos a cadeia Sectigo instalada (truststore estrito
-    // é regra do eSocial 2026); produção permanece estrita.
-    const truststoreEstrito = ambiente === 'producao';
+    // NUNCA estrito na NF-e: o modo estrito valida a cadeia SECTIGO, exigência
+    // do eSocial 2026 — irrelevante para a SEFAZ, cuja confiança é ICP-Brasil/
+    // SERPRO (sefaz-ca.pem via NODE_EXTRA_CA_CERTS + an-ca.pem + raízes públicas).
+    // Com estrito em produção, o gate derrubava toda operação NF-e com "Trust
+    // store Sectigo incompleto" antes de sequer tentar o handshake com a SEFAZ.
+    const truststoreEstrito = false;
 
     if (operacao === 'status') {
       const r = await statusServico({ cofre, empresaId, uf, ambiente, truststoreEstrito });
