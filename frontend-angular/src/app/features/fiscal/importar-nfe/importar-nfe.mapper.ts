@@ -149,6 +149,90 @@ export function dentroDoPeriodo(emissao: string | null, meses: number, agora: Da
   return d >= limite;
 }
 
+/**
+ * Filtro do calendário De/Até (inputs type=date, 'YYYY-MM-DD'): true se a
+ * emissão cai no intervalo, inclusivo nas duas pontas, interpretado no fuso
+ * LOCAL (De = 00:00, Até = 23:59:59.999). Sem nenhuma ponta preenchida aceita
+ * tudo; com o filtro ativo, nota sem data ou com data inválida sai.
+ */
+export function dentroDoIntervalo(emissao: string | null, de: string, ate: string): boolean {
+  if (!de && !ate) return true;
+  if (!emissao) return false;
+  const d = new Date(emissao);
+  if (isNaN(d.getTime())) return false;
+  if (de) {
+    const [a, m, dia] = de.split('-').map(Number);
+    if (d < new Date(a, m - 1, dia)) return false;
+  }
+  if (ate) {
+    const [a, m, dia] = ate.split('-').map(Number);
+    if (d > new Date(a, m - 1, dia, 23, 59, 59, 999)) return false;
+  }
+  return true;
+}
+
+/** Subconjunto estrutural do doc persistido em `notas_fiscais` (fiscal.service). */
+export interface NotaPersistidaView {
+  numero?: number;
+  serie?: string;
+  chaveAcesso?: string;
+  dataEmissao?: string;
+  emitenteCnpj?: string;
+  emitenteNome?: string;
+  valorTotal?: number;
+}
+
+/** Converte uma nota de entrada já escriturada (coleção `notas_fiscais`) em linha da tabela. */
+export function mapearNotaPersistida(d: NotaPersistidaView): NotaView {
+  return {
+    chave: d.chaveAcesso || '',
+    numero: d.numero ? String(d.numero) : '—',
+    serie: d.serie || '',
+    emitente: d.emitenteNome || d.emitenteCnpj || '—',
+    cnpjEmitente: d.emitenteCnpj || '',
+    emissao: d.dataEmissao || null,
+    valor: typeof d.valorTotal === 'number' ? d.valorTotal : null,
+    tipo: 'NF-e',
+    tipoRaw: 'procNFe',
+    status: 'Escriturada',
+  };
+}
+
+/**
+ * União sem duplicar da tabela: linhas da sincronização atual (status mais
+ * fresco) vencem as persistidas de mesma chave; persistidas sem par entram
+ * ao final (histórico de sessões anteriores).
+ */
+export function mesclarLinhas(daSessao: NotaView[], persistidas: NotaView[]): NotaView[] {
+  const chaves = new Set(daSessao.map(n => n.chave).filter(Boolean));
+  return [...daSessao, ...persistidas.filter(p => !p.chave || !chaves.has(p.chave))];
+}
+
+/**
+ * Agrega os retornos parciais dos lotes da Distribuição DF-e (a SEFAZ pagina
+ * por NSU em lotes de até 50 docs). Falhou um lote → ok:false com o erro,
+ * preservando o que os lotes anteriores já trouxeram.
+ */
+export function agregarRetornos(parciais: RetornoDistribuicaoView[]): RetornoDistribuicaoView {
+  if (!parciais.length) return { ok: false, erro: 'Nenhum lote consultado.' };
+  const falha = parciais.find(p => !p.ok);
+  const oks = parciais.filter(p => p.ok);
+  const soma = (f: (p: RetornoDistribuicaoView) => number | undefined) =>
+    oks.reduce((t, p) => t + (f(p) ?? 0), 0);
+  const ultimo = oks[oks.length - 1];
+  return {
+    ok: !falha,
+    erro: falha?.erro,
+    escrituradas: soma(p => p.escrituradas),
+    duplicadas: soma(p => p.duplicadas),
+    notas: oks.flatMap(p => p.notas ?? []),
+    resumos: oks.flatMap(p => p.resumos ?? []),
+    totalDocs: soma(p => p.totalDocs),
+    ultNSU: ultimo?.ultNSU,
+    maxNSU: ultimo?.maxNSU,
+  };
+}
+
 /** Mensagem-resumo de uma sincronização feita pelo worker (o worker não escritura). */
 export function resumoSyncWorker(res: ResultadoSyncView): string {
   if (!res.ok) return res.erro || 'Falha na sincronização.';

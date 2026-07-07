@@ -17,6 +17,7 @@ import {
   ResultadoSimples,
 } from './engine/apuracao-federal';
 import { ItemImportado, NotaImportada, parsearDocumento } from './engine/importador-xml-nfe';
+import { agregarRetornos, NotaPersistidaView } from './importar-nfe/importar-nfe.mapper';
 import { EmitenteNFe, gerarXmlNFe, ItemNFe, NotaNFe } from './engine/nfe-xml';
 import { montarGuia } from './engine/guias';
 import { calendarioObrigacoes, descricaoObrigacao } from './engine/obrigacoes';
@@ -542,6 +543,44 @@ export class FiscalService {
         );
       }),
     );
+  }
+
+  /**
+   * Puxa TODOS os lotes disponíveis na Distribuição DF-e (a SEFAZ pagina por
+   * NSU em lotes de até 50 docs), agregando os resultados. Para quando
+   * `ultNSU == maxNSU`, em erro, ou no teto de segurança de `maxLotes`
+   * (20 lotes ≈ 1000 docs por clique). O cursor NSU persiste entre chamadas
+   * (localStorage), então um novo clique continua de onde parou.
+   */
+  baixarTodasNotasDistribuicao(
+    ambiente: 'homologacao' | 'producao' = 'homologacao',
+    maxLotes = 20,
+  ): Observable<RetornoDistribuicao> {
+    const parciais: RetornoDistribuicao[] = [];
+    const passo = (): Observable<RetornoDistribuicao> =>
+      this.baixarNotasDistribuicao(ambiente).pipe(
+        switchMap(ret => {
+          parciais.push(ret);
+          const fim = !ret.ok
+            || !ret.ultNSU || !ret.maxNSU
+            || Number(ret.ultNSU) >= Number(ret.maxNSU)
+            || parciais.length >= maxLotes;
+          return fim ? of(agregarRetornos(parciais) as RetornoDistribuicao) : passo();
+        }),
+      );
+    return passo();
+  }
+
+  /**
+   * Notas de ENTRADA já escrituradas em `notas_fiscais` (alimenta a tabela da
+   * tela Importar NF-e entre sessões). Últimas 100 por criação (limite da
+   * consulta base do tenant).
+   */
+  listNfesEntrada(): Observable<NotaPersistidaView[]> {
+    return this.appwrite.listDocuments<NotaFiscalDoc>(NOTAS, this.baseQueries([
+      this.Q.equal('tipo', 'NFE'),
+      this.Q.equal('tipoOperacao', 'ENTRADA'),
+    ]));
   }
 
   /**
