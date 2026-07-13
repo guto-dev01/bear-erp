@@ -470,6 +470,16 @@ export class FiscalService {
   }
 
   /**
+   * Zera o cursor NSU (localStorage) da empresa NO ambiente: força a próxima
+   * Distribuição DF-e a varrer desde o NSU 0, re-consultando tudo o que a SEFAZ
+   * ainda disponibiliza (~90 dias). Usado pelo "Puxar desde o início" quando o
+   * cursor já bateu no maxNSU e as consultas voltam "nada novo".
+   */
+  resetarCursorNsu(ambiente: 'homologacao' | 'producao'): void {
+    try { localStorage.removeItem(chaveCursorNsu(this.empresaId, ambiente)); } catch { /* sem storage */ }
+  }
+
+  /**
    * Conjunto das `chaveAcesso` que JÁ existem em `notas_fiscais` (para dedup).
    * Consulta em lotes de 100 (limite do operador IN do Appwrite).
    */
@@ -552,7 +562,9 @@ export class FiscalService {
   baixarTodasNotasDistribuicao(
     ambiente: 'homologacao' | 'producao' = 'homologacao',
     maxLotes = 20,
+    desdeInicio = false,
   ): Observable<RetornoDistribuicao> {
+    if (desdeInicio) this.resetarCursorNsu(ambiente); // re-varre desde o NSU 0
     const parciais: RetornoDistribuicao[] = [];
     const passo = (): Observable<RetornoDistribuicao> =>
       this.baixarNotasDistribuicao(ambiente).pipe(

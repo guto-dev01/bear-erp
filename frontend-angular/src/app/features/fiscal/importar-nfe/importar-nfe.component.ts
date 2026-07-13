@@ -8,8 +8,8 @@ import { AuthService } from '@core/auth/auth.service';
 import { AppwriteService } from '@core/services/appwrite.service';
 import { FiscalService, RetornoDistribuicao, RetornoSefaz } from '../fiscal.service';
 import {
-  NotaView, dentroDoIntervalo, dentroDoPeriodo, mapearDocumentoWorker, mapearNotaPersistida,
-  mesclarLinhas, montarLinhas, resumoSync, resumoSyncWorker,
+  NotaView, ambienteInicial, chaveAmbientePreferido, dentroDoIntervalo, dentroDoPeriodo,
+  mapearDocumentoWorker, mapearNotaPersistida, mesclarLinhas, montarLinhas, resumoSync, resumoSyncWorker,
 } from './importar-nfe.mapper';
 import { CertInfo, ResultadoSync, SefazImportService } from './sefaz-import.service';
 
@@ -78,6 +78,11 @@ interface HistoricoSync {
           <a class="bear-btn bear-btn--outline bear-btn--sm" routerLink="/certificados">
             <span class="material-symbols-rounded text-base mr-1">verified</span> Configurar certificado
           </a>
+          <button class="bear-btn bear-btn--outline bear-btn--sm" (click)="sincronizar(true)"
+                  [disabled]="!empresaId() || sincronizando()"
+                  matTooltip="Ignora o cursor e re-consulta a SEFAZ desde o NSU 0 (últimos ~90 dias). Use se já puxou antes e não vem 'nada novo'.">
+            <span class="material-symbols-rounded text-base mr-1">restart_alt</span> Desde o início
+          </button>
           <button class="bear-btn bear-btn--primary bear-btn--sm" (click)="sincronizar()"
                   [disabled]="!empresaId() || sincronizando()">
             <span class="material-symbols-rounded text-base mr-1" [class.animate-spin]="sincronizando()">sync</span>
@@ -123,10 +128,16 @@ interface HistoricoSync {
                   <dd>
                     <div class="ios-segmented mt-1" role="group" aria-label="Ambiente SEFAZ">
                       <button class="ios-segmented__item" [class.ios-segmented__item--active]="ambiente() === 'homologacao'"
-                              (click)="ambiente.set('homologacao')">Homologação</button>
+                              (click)="setAmbiente('homologacao')">Homologação</button>
                       <button class="ios-segmented__item" [class.ios-segmented__item--active]="ambiente() === 'producao'"
-                              (click)="ambiente.set('producao')">Produção</button>
+                              (click)="setAmbiente('producao')">Produção</button>
                     </div>
+                    @if (ambiente() === 'homologacao') {
+                      <p class="text-caption ink-warning mt-1.5 flex items-start gap-1">
+                        <span class="material-symbols-rounded text-base">info</span>
+                        Homologação é ambiente de teste e não devolve notas reais. Para puxar as NF-e da empresa, use <strong>Produção</strong>.
+                      </p>
+                    }
                   </dd>
                 </div>
                 <div>
@@ -387,7 +398,10 @@ export class ImportarNfeComponent implements OnInit {
   /** NSU de partida da próxima consulta paginada pelo worker. */
   ultNsuWorker = signal('0');
 
-  ambiente = signal<Ambiente>('homologacao');
+  // Produção por padrão: a Distribuição DF-e de homologação é sandbox e não
+  // devolve notas reais (causa nº 1 de "as notas não vêm"). ngOnInit sobrepõe
+  // com a última escolha salva da empresa, se houver.
+  ambiente = signal<Ambiente>('producao');
 
   // Teste de conexão com a SEFAZ (A1 do cofre, operação 'status' da Function).
   statusSefaz = signal<RetornoSefaz | null>(null);
@@ -422,7 +436,24 @@ export class ImportarNfeComponent implements OnInit {
 
   ngOnInit(): void {
     const id = this.empresaId();
-    if (id) this.carregarContexto(id);
+    if (id) {
+      this.ambiente.set(this.lerAmbientePreferido(id));
+      this.carregarContexto(id);
+    }
+  }
+
+  /** Última escolha de ambiente da empresa (produção se nunca escolheu). */
+  private lerAmbientePreferido(id: string): Ambiente {
+    try { return ambienteInicial(localStorage.getItem(chaveAmbientePreferido(id))); }
+    catch { return 'producao'; }
+  }
+
+  /** Troca o ambiente e memoriza a escolha por empresa. */
+  setAmbiente(a: Ambiente): void {
+    this.ambiente.set(a);
+    const id = this.empresaId();
+    if (!id) return;
+    try { localStorage.setItem(chaveAmbientePreferido(id), a); } catch { /* sem storage */ }
   }
 
   private carregarContexto(empresaId: string): void {
@@ -503,11 +534,11 @@ export class ImportarNfeComponent implements OnInit {
    * FiscalService, com escrituração). Com um A1 avulso fornecido no painel,
    * a consulta vai pelo worker fiscal_sefaz (exibição apenas).
    */
-  sincronizar(): void {
+  sincronizar(desdeInicio = false): void {
     if (!this.empresaId() || this.sincronizando()) return;
     if (this.certFile && this.certSenha()) { this.sincronizarPeloWorker(); return; }
     this.sincronizando.set(true);
-    this.fiscal.baixarTodasNotasDistribuicao(this.ambiente()).subscribe(ret => {
+    this.fiscal.baixarTodasNotasDistribuicao(this.ambiente(), 20, desdeInicio).subscribe(ret => {
       this.sincronizando.set(false);
       this.aplicarResultado(ret);
       this.carregarNotasEscrituradas(); // reflete as recém-escrituradas na tabela

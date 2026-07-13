@@ -1,7 +1,7 @@
 import {
-  agregarRetornos, chaveCursorNsu, dentroDoIntervalo, dentroDoPeriodo, mapearDocumentoWorker,
-  mapearNota, mapearNotaPersistida, mesclarLinhas, montarLinhas, resumoSync, resumoSyncWorker,
-  DocumentoSefazView, RetornoDistribuicaoView,
+  agregarRetornos, ambienteInicial, chaveAmbientePreferido, chaveCursorNsu, dentroDoIntervalo,
+  dentroDoPeriodo, mapearDocumentoWorker, mapearNota, mapearNotaPersistida, mesclarLinhas,
+  montarLinhas, resumoSync, resumoSyncWorker, DocumentoSefazView, RetornoDistribuicaoView,
 } from './importar-nfe.mapper';
 import { NotaImportada } from '../engine/importador-xml-nfe';
 
@@ -324,5 +324,29 @@ describe('chaveCursorNsu (cursor NSU por empresa E ambiente)', () => {
 
   it('empresas diferentes não compartilham cursor', () => {
     expect(chaveCursorNsu('emp1', 'producao') === chaveCursorNsu('emp2', 'producao')).toBe(false);
+  });
+});
+
+describe('ambienteInicial (produção por padrão — homologação não tem notas reais)', () => {
+  it('sem preferência salva (null) → produção', () => {
+    expect(ambienteInicial(null)).toBe('producao');
+  });
+
+  it('valor inválido/legado no storage → produção', () => {
+    expect(ambienteInicial('')).toBe('producao');
+    expect(ambienteInicial('sandbox')).toBe('producao');
+  });
+
+  it('preferência salva válida tem prioridade (respeita a última escolha)', () => {
+    expect(ambienteInicial('homologacao')).toBe('homologacao');
+    expect(ambienteInicial('producao')).toBe('producao');
+  });
+});
+
+describe('chaveAmbientePreferido (preferência de ambiente por empresa)', () => {
+  it('chaveia por empresa e não colide com o cursor NSU', () => {
+    expect(chaveAmbientePreferido('emp1')).toBe('nfe_ambiente_emp1');
+    expect(chaveAmbientePreferido('emp1') === chaveAmbientePreferido('emp2')).toBe(false);
+    expect(chaveAmbientePreferido('emp1') === chaveCursorNsu('emp1', 'producao')).toBe(false);
   });
 });

@@ -218,6 +218,24 @@ export function chaveCursorNsu(empresaId: string, ambiente: string): string {
   return `nfe_ultnsu_${empresaId}_${ambiente}`;
 }
 
+export type AmbienteSefaz = 'homologacao' | 'producao';
+
+/** Chave da preferência de ambiente da tela Importar NF-e (por empresa). */
+export function chaveAmbientePreferido(empresaId: string): string {
+  return `nfe_ambiente_${empresaId}`;
+}
+
+/**
+ * Ambiente inicial da tela: **produção por padrão**. A Distribuição DF-e de
+ * homologação é uma sandbox e devolve "nenhum documento localizado" (cStat 137) —
+ * as NF-e emitidas de verdade contra o CNPJ só existem em produção. Homologação
+ * como default era a causa nº 1 de "as notas não vêm". Uma preferência salva
+ * válida (o último ambiente escolhido) tem prioridade.
+ */
+export function ambienteInicial(salvo: string | null): AmbienteSefaz {
+  return salvo === 'homologacao' || salvo === 'producao' ? salvo : 'producao';
+}
+
 /**
  * Agrega os retornos parciais dos lotes da Distribuição DF-e (a SEFAZ pagina
  * por NSU em lotes de até 50 docs). Falhou um lote → ok:false com o erro,
