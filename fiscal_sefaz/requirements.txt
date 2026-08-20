@@ -10,3 +10,4 @@ python-multipart>=0.0.9
 
 # Testes (opcional)
 pytest>=8.0
+httpx>=0.27          # exigido pelo fastapi.testclient.TestClient (tests/test_api.py)
