@@ -99,18 +99,44 @@ async function baixarDistribuicao({
 }
 
 /**
- * Loop completo: consulta por NSU até esgotar (ultNSU >= maxNSU) ou bater
- * `maxIteracoes`. Persista o `ultNSU` devolvido e reuse na próxima execução.
- * @returns {Promise<{ documentos, ultNSU, maxNSU, cStat, xMotivo }>}
+ * Loop completo: consulta por NSU até esgotar (ultNSU >= maxNSU), bater
+ * `maxIteracoes` ou estourar `orcamentoMs`. Persista o `ultNSU` devolvido e
+ * reuse na próxima execução.
+ *
+ * O ORÇAMENTO DE TEMPO existe porque a execução síncrona de uma Appwrite
+ * Function é cortada em 30s, e cada volta deste laço é um handshake mTLS + SOAP
+ * com a SEFAZ (1–3s). Com o default anterior (50 iterações, sem olhar o
+ * relógio), uma empresa com movimento real estourava o limite e a execução
+ * inteira se perdia ("Synchronous function execution timed out"). Em
+ * homologação o problema não aparecia: sem documentos, a 1ª resposta já
+ * encerrava o laço.
+ *
+ * Devolver resultado PARCIAL é seguro: o cliente persiste o `ultNSU` devolvido
+ * e a próxima chamada continua de onde parou.
+ *
+ * `agora` é injetável para os testes controlarem o relógio.
+ * @returns {Promise<{ documentos, ultNSU, maxNSU, cStat, xMotivo, parcial }>}
  */
-async function baixarNovos({ maxIteracoes = 50, ultNSU = '0', ...p }) {
+async function baixarNovos({
+  maxIteracoes = 8,
+  orcamentoMs = 20000,
+  agora = Date.now,
+  ultNSU = '0',
+  ...p
+}) {
   const documentos = [];
+  const inicio = agora();
   let ult = String(ultNSU);
   let maxNSU = '0';
   let cStat = null;
   let xMotivo = '';
+  let parcial = false;
 
   for (let i = 0; i < maxIteracoes; i++) {
+    // Nunca corta antes da 1ª volta: uma execução sem progresso nenhum só faria
+    // o cliente repetir a consulta, aproximando o consumo indevido (cStat 656).
+    if (i > 0 && agora() - inicio >= orcamentoMs) { parcial = true; break; }
+
     const r = await baixarDistribuicao({ ...p, ultNSU: ult });
     cStat = r.cStat;
     xMotivo = r.xMotivo;
@@ -126,10 +152,11 @@ async function baixarNovos({ maxIteracoes = 50, ultNSU = '0', ...p }) {
     documentos.push(...r.documentos);
     if (r.ultNSU) ult = r.ultNSU;
     if (r.cStat === CSTAT_SEM_DOCUMENTOS || !r.temMais) break;
+    if (i === maxIteracoes - 1) parcial = true; // saiu pelo teto, com lote pendente
   }
 
-  log.info('Distribuição DF-e concluída', { empresaId: p.empresaId, baixados: documentos.length, ultNSU: ult, maxNSU });
-  return { documentos, ultNSU: ult, maxNSU, cStat, xMotivo };
+  log.info('Distribuição DF-e concluída', { empresaId: p.empresaId, baixados: documentos.length, ultNSU: ult, maxNSU, parcial });
+  return { documentos, ultNSU: ult, maxNSU, cStat, xMotivo, parcial };
 }
 
 /**
