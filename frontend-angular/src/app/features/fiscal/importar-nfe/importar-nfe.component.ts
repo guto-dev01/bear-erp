@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -10,6 +10,7 @@ import { FiscalService, RetornoDistribuicao, RetornoSefaz } from '../fiscal.serv
 import {
   NotaView, dentroDoIntervalo, dentroDoPeriodo, mapearDocumentoWorker, mapearNotaPersistida,
   mesclarLinhas, montarLinhas, resumoSync, resumoSyncWorker,
+  chaveBloqueio656, ehConsumoIndevido, rotuloEspera656, segundosRestantes656,
 } from './importar-nfe.mapper';
 import { CertInfo, ResultadoSync, SefazImportService } from './sefaz-import.service';
 
@@ -79,9 +80,12 @@ interface HistoricoSync {
             <span class="material-symbols-rounded text-base mr-1">verified</span> Configurar certificado
           </a>
           <button class="bear-btn bear-btn--primary bear-btn--sm" (click)="sincronizar()"
-                  [disabled]="!empresaId() || sincronizando()">
-            <span class="material-symbols-rounded text-base mr-1" [class.animate-spin]="sincronizando()">sync</span>
-            {{ sincronizando() ? 'Puxando notas…' : 'Puxar notas da empresa' }}
+                  [disabled]="!empresaId() || sincronizando() || bloqueado()"
+                  [matTooltip]="bloqueado() ? 'A SEFAZ respondeu consumo indevido (cStat 656). Novas consultas só após o intervalo.' : ''">
+            <span class="material-symbols-rounded text-base mr-1" [class.animate-spin]="sincronizando()">{{ bloqueado() ? 'hourglass_top' : 'sync' }}</span>
+            @if (sincronizando()) { Puxando notas… }
+            @else if (bloqueado()) { Aguarde {{ rotuloBloqueio() }} (SEFAZ) }
+            @else { Puxar notas da empresa }
           </button>
         </div>
       </header>
@@ -123,9 +127,9 @@ interface HistoricoSync {
                   <dd>
                     <div class="ios-segmented mt-1" role="group" aria-label="Ambiente SEFAZ">
                       <button class="ios-segmented__item" [class.ios-segmented__item--active]="ambiente() === 'homologacao'"
-                              (click)="ambiente.set('homologacao')">Homologação</button>
+                              (click)="trocarAmbiente('homologacao')">Homologação</button>
                       <button class="ios-segmented__item" [class.ios-segmented__item--active]="ambiente() === 'producao'"
-                              (click)="ambiente.set('producao')">Produção</button>
+                              (click)="trocarAmbiente('producao')">Produção</button>
                     </div>
                   </dd>
                 </div>
@@ -360,7 +364,7 @@ interface HistoricoSync {
     </div>
   `,
 })
-export class ImportarNfeComponent implements OnInit {
+export class ImportarNfeComponent implements OnInit, OnDestroy {
   private auth = inject(AuthService);
   private appwrite = inject(AppwriteService);
   private fiscal = inject(FiscalService);
@@ -388,6 +392,17 @@ export class ImportarNfeComponent implements OnInit {
   ultNsuWorker = signal('0');
 
   ambiente = signal<Ambiente>('homologacao');
+
+  // ── Bloqueio por consumo indevido (cStat 656) ──────────────────────────────
+  // A SEFAZ recusa consultas repetidas sem documentos novos e responde 656. Antes,
+  // o botão reabilitava logo apos a falha e um novo clique batia na SEFAZ durante o
+  // bloqueio, arriscando reiniciar a contagem de ~1h. O carimbo fica no localStorage
+  // por empresa+ambiente (mesma convenção do cursor NSU), sobrevivendo ao reload.
+  /** Instante (ms) em que o 656 foi recebido; null quando não há bloqueio. */
+  bloqueioInicio = signal<number | null>(null);
+  /** Relógio que faz a contagem regressiva avançar na tela. */
+  private agoraMs = signal<number>(Date.now());
+  private tickTimer?: ReturnType<typeof setInterval>;
 
   // Teste de conexão com a SEFAZ (A1 do cofre, operação 'status' da Function).
   statusSefaz = signal<RetornoSefaz | null>(null);
@@ -423,6 +438,70 @@ export class ImportarNfeComponent implements OnInit {
   ngOnInit(): void {
     const id = this.empresaId();
     if (id) this.carregarContexto(id);
+    this.carregarBloqueio();
+  }
+
+  ngOnDestroy(): void {
+    this.pararTick();
+  }
+
+  // ── Bloqueio 656 ───────────────────────────────────────────────────────────
+
+  /** Segundos que faltam para a SEFAZ liberar novas consultas (0 = liberado). */
+  segundosBloqueio(): number {
+    return segundosRestantes656(this.bloqueioInicio(), this.agoraMs());
+  }
+
+  bloqueado(): boolean {
+    return this.segundosBloqueio() > 0;
+  }
+
+  rotuloBloqueio(): string {
+    return rotuloEspera656(this.segundosBloqueio());
+  }
+
+  /** Troca de ambiente relê o bloqueio: homologação e produção são contados à parte. */
+  trocarAmbiente(a: Ambiente): void {
+    this.ambiente.set(a);
+    this.carregarBloqueio();
+  }
+
+  /** Relê o carimbo do bloqueio para a empresa/ambiente atuais. */
+  private carregarBloqueio(): void {
+    const id = this.empresaId();
+    if (!id) { this.bloqueioInicio.set(null); this.pararTick(); return; }
+    let carimbo: number | null = null;
+    try {
+      const bruto = localStorage.getItem(chaveBloqueio656(id, this.ambiente()));
+      carimbo = bruto ? Number(bruto) : null;
+    } catch { /* sem storage */ }
+    this.bloqueioInicio.set(carimbo);
+    this.agoraMs.set(Date.now());
+    if (this.bloqueado()) this.iniciarTick(); else this.pararTick();
+  }
+
+  /** Registra o 656 recebido agora, travando o botão pela duração do backoff. */
+  private registrarBloqueio(): void {
+    const id = this.empresaId();
+    const agora = Date.now();
+    if (id) {
+      try { localStorage.setItem(chaveBloqueio656(id, this.ambiente()), String(agora)); } catch { /* sem storage */ }
+    }
+    this.bloqueioInicio.set(agora);
+    this.agoraMs.set(agora);
+    this.iniciarTick();
+  }
+
+  private iniciarTick(): void {
+    if (this.tickTimer) return;
+    this.tickTimer = setInterval(() => {
+      this.agoraMs.set(Date.now());
+      if (!this.bloqueado()) this.pararTick();
+    }, 1000);
+  }
+
+  private pararTick(): void {
+    if (this.tickTimer) { clearInterval(this.tickTimer); this.tickTimer = undefined; }
   }
 
   private carregarContexto(empresaId: string): void {
@@ -505,6 +584,12 @@ export class ImportarNfeComponent implements OnInit {
    */
   sincronizar(): void {
     if (!this.empresaId() || this.sincronizando()) return;
+    if (this.bloqueado()) {
+      this.snack.open(
+        `SEFAZ bloqueada por consumo indevido (cStat 656). Aguarde ${this.rotuloBloqueio()} antes de consultar de novo.`,
+        'Fechar', { duration: 6000, panelClass: 'warning-snackbar' });
+      return;
+    }
     if (this.certFile && this.certSenha()) { this.sincronizarPeloWorker(); return; }
     this.sincronizando.set(true);
     this.fiscal.baixarTodasNotasDistribuicao(this.ambiente()).subscribe(ret => {
@@ -533,6 +618,7 @@ export class ImportarNfeComponent implements OnInit {
     // Espelha no painel "última sincronização" com o shape do fluxo do cofre
     // (0 escrituradas é fiel: o worker só consulta, não escritura).
     this.lastResumo.set({ ok: res.ok, erro: res.erro, totalDocs: res.documentos?.length ?? 0, ultNSU: res.ult_nsu, maxNSU: res.max_nsu });
+    if (ehConsumoIndevido(res)) this.registrarBloqueio();
     if (!res.ok) {
       this.snack.open(res.erro || 'Falha na sincronização.', 'Fechar', { duration: 6000, panelClass: 'error-snackbar' });
       return;
@@ -564,6 +650,7 @@ export class ImportarNfeComponent implements OnInit {
 
   private aplicarResultado(ret: RetornoDistribuicao): void {
     this.lastResumo.set(ret);
+    if (ehConsumoIndevido(ret)) this.registrarBloqueio();
     if (!ret.ok) {
       // Falha no meio da paginação: mostra o que os lotes anteriores trouxeram.
       if (ret.notas?.length || ret.resumos?.length) this.notas.set(montarLinhas({ ...ret, ok: true }));
