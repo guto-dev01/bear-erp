@@ -1,16 +1,44 @@
-# Blueprint do Render — hospeda o worker SEFAZ (fiscal_sefaz, FastAPI) como Web Service.
+# Blueprint do Render — dois serviços:
+#   1. bear-erp-frontend  — SPA Angular (static site)
+#   2. bear-fiscal-sefaz  — worker SEFAZ (fiscal_sefaz, FastAPI)
 #
 # Deploy: Render Dashboard → New → Blueprint → apontar para este repositório.
-# URL resultante: https://bear-fiscal-sefaz.onrender.com (padrão <nome>.onrender.com) —
-# é a URL configurada em frontend-angular/src/environments/environment.prod.ts
-# (sefazWorkerUrl). Se o nome do serviço mudar, ajustar lá também.
+# Ao ACRESCENTAR um serviço a um blueprint já existente, o Render só cria o novo
+# após um sync do blueprint no dashboard (Blueprints → este repo → Sync).
 #
-# CORS: localhost/LAN :4200 (ng serve) já é aceito pelo próprio api.py; se o
-# frontend for hospedado, listar a(s) origem(ns) em CORS_ORIGINS (vírgula).
+# URLs padrão: https://<nome>.onrender.com. A do worker está gravada em
+# frontend-angular/src/environments/environment.prod.ts (sefazWorkerUrl); se o
+# nome do serviço mudar, ajustar lá também.
+#
+# CORS: localhost/LAN :4200 (ng serve) já é aceito pelo próprio api.py; a origem
+# do frontend hospedado vai em CORS_ORIGINS (várias, separadas por vírgula).
 #
 # Atenção (plano free): o serviço hiberna após ~15 min ocioso; a primeira
 # requisição seguinte leva ~50 s (cold start). O /health serve de keep-alive.
 services:
+  # ── Frontend Angular (SPA estática) ─────────────────────────────────────────
+  # Build no diretório frontend-angular; publica dist/bear-erp/browser.
+  # --legacy-peer-deps espelha infra/docker/Dockerfile.frontend (é o que builda).
+  # A rota de rewrite é obrigatória: sem ela, recarregar em /fiscal/importar-nfe
+  # devolve 404 (o Angular resolve as rotas no cliente, a partir do index.html).
+  #
+  # ATENÇÃO — o login NÃO funciona só com este deploy: o Appwrite Cloud recusa
+  # requisições de origens não registradas. É preciso adicionar o hostname deste
+  # serviço como Web Platform no console do Appwrite (projeto 69b52c570036d92459ce).
+  - type: web
+    name: bear-erp-frontend
+    runtime: static
+    buildCommand: cd frontend-angular && npm ci --legacy-peer-deps && npm run build -- --configuration=production
+    staticPublishPath: ./frontend-angular/dist/bear-erp/browser
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+
+  # ── Worker SEFAZ (FastAPI) ──────────────────────────────────────────────────
   - type: web
     name: bear-fiscal-sefaz
     runtime: python
@@ -22,4 +50,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.12.6
       - key: CORS_ORIGINS
-        value: "" # origens extras do frontend hospedado, separadas por vírgula
+        # Origem do serviço bear-erp-frontend acima. Sem isto, a tela "Importar
+        # NF-e" quebra em preflight CORS (o regex do api.py só libera localhost:4200).
+        # Se o Render atribuir outro hostname (nome já em uso), ajustar aqui.
+        value: "https://bear-erp-frontend.onrender.com"
