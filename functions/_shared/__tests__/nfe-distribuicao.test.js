@@ -186,6 +186,83 @@ test('baixarNovos aborta em consumo indevido (cStat 656)', async () => {
   );
 });
 
+// ── orçamento de tempo (limite de 30s da execução síncrona do Appwrite) ──────
+// Cada volta do laço é mTLS + SOAP com a SEFAZ (1–3s). Sem relógio, uma empresa
+// com movimento real estourava os 30s e a execução inteira se perdia.
+
+/** Relógio falso: avança `passoMs` a cada leitura. */
+function relogioFalso(passoMs) {
+  let t = 1_000_000;
+  return () => { const atual = t; t += passoMs; return atual; };
+}
+
+/** Sempre responde "ainda há mais" — obriga o laço a ser cortado por algum teto. */
+const SEMPRE_TEM_MAIS = retDist({
+  cStat: 138, ultNSU: '000000000000001', maxNSU: '000000000000999',
+  docs: [{ nsu: '000000000000001', schema: 'resNFe_v1.01.xsd', b64: gz(resumo(1)) }],
+});
+
+test('baixarNovos corta pelo orçamento de tempo e devolve parcial com o ultNSU alcançado', async () => {
+  const capturas = [];
+  const r = await baixarNovos({
+    cofre: cofreTeste(), empresaId: 'emp-1', uf: 'SP', truststoreEstrito: false,
+    httpsModule: fakeHttpsSeq([SEMPRE_TEM_MAIS], capturas),
+    maxIteracoes: 50,          // teto alto de propósito: quem deve cortar é o relógio
+    orcamentoMs: 10_000,
+    agora: relogioFalso(4_000), // ~4s por volta
+  });
+
+  assert.equal(r.parcial, true, 'sinalizou que o lote não terminou');
+  assert.ok(capturas.length < 50, 'não rodou as 50 iterações');
+  assert.ok(capturas.length >= 2, 'fez mais de uma volta antes de cortar');
+  assert.equal(r.ultNSU, '000000000000001', 'devolveu o cursor alcançado, para a próxima chamada continuar');
+  assert.ok(r.documentos.length >= 1, 'preservou o que já havia baixado');
+});
+
+test('baixarNovos sempre faz a 1ª consulta, mesmo com o orçamento zerado', async () => {
+  const capturas = [];
+  const r = await baixarNovos({
+    cofre: cofreTeste(), empresaId: 'emp-1', uf: 'SP', truststoreEstrito: false,
+    httpsModule: fakeHttpsSeq([SEMPRE_TEM_MAIS], capturas),
+    orcamentoMs: 0,
+    agora: relogioFalso(1_000),
+  });
+  // Voltar de mãos vazias faria o cliente repetir a consulta e aproximar o 656.
+  assert.equal(capturas.length, 1, 'executou exatamente uma consulta');
+  assert.equal(r.documentos.length, 1, 'trouxe o lote da 1ª volta');
+  assert.equal(r.parcial, true);
+});
+
+test('baixarNovos respeita maxIteracoes quando o tempo não é o limite', async () => {
+  const capturas = [];
+  const r = await baixarNovos({
+    cofre: cofreTeste(), empresaId: 'emp-1', uf: 'SP', truststoreEstrito: false,
+    httpsModule: fakeHttpsSeq([SEMPRE_TEM_MAIS], capturas),
+    maxIteracoes: 3,
+    orcamentoMs: 10_000_000,   // orçamento enorme: quem corta é o teto de iterações
+    agora: relogioFalso(1),
+  });
+  assert.equal(capturas.length, 3, 'parou exatamente no teto de iterações');
+  assert.equal(r.parcial, true, 'saiu pelo teto com lote pendente → parcial');
+});
+
+test('baixarNovos não marca parcial quando esgota o lote de verdade', async () => {
+  const capturas = [];
+  const respostas = [
+    retDist({ cStat: 138, ultNSU: '000000000000001', maxNSU: '000000000000002',
+      docs: [{ nsu: '000000000000001', schema: 'resNFe_v1.01.xsd', b64: gz(resumo(1)) }] }),
+    retDist({ cStat: 138, ultNSU: '000000000000002', maxNSU: '000000000000002',
+      docs: [{ nsu: '000000000000002', schema: 'resNFe_v1.01.xsd', b64: gz(resumo(2)) }] }),
+  ];
+  const r = await baixarNovos({
+    cofre: cofreTeste(), empresaId: 'emp-1', uf: 'SP', truststoreEstrito: false,
+    httpsModule: fakeHttpsSeq(respostas, capturas),
+    agora: relogioFalso(1),
+  });
+  assert.equal(r.parcial, false, 'chegou ao fim: nada pendente');
+  assert.equal(r.documentos.length, 2);
+});
+
 test('manifestarDestinatario assina, envia ao RecepcaoEvento do AN e interpreta registro', async () => {
   const capturas = [];
   const r = await manifestarDestinatario({
