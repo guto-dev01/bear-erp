@@ -1,6 +1,7 @@
 import {
   agregarRetornos, chaveCursorNsu, dentroDoIntervalo, dentroDoPeriodo, mapearDocumentoWorker,
   mapearNota, mapearNotaPersistida, mesclarLinhas, montarLinhas, resumoSync, resumoSyncWorker,
+  BLOQUEIO_656_SEG, chaveBloqueio656, ehConsumoIndevido, rotuloEspera656, segundosRestantes656,
   DocumentoSefazView, RetornoDistribuicaoView,
 } from './importar-nfe.mapper';
 import { NotaImportada } from '../engine/importador-xml-nfe';
@@ -324,5 +325,94 @@ describe('chaveCursorNsu (cursor NSU por empresa E ambiente)', () => {
 
   it('empresas diferentes não compartilham cursor', () => {
     expect(chaveCursorNsu('emp1', 'producao') === chaveCursorNsu('emp2', 'producao')).toBe(false);
+  });
+});
+
+// ── Bloqueio por consumo indevido (cStat 656) ────────────────────────────────
+// A SEFAZ recusa consultas repetidas da Distribuição DF-e sem documentos novos.
+// O backoff existia só em fiscal_sefaz/nsu.py, que grava numa coleção
+// (fiscal_sync_states) nunca provisionada — ou seja, não valia no caminho real.
+// Estes casos cobrem a decisão pura que agora trava o botão na tela.
+
+describe('chaveBloqueio656 (bloqueio por empresa E ambiente)', () => {
+  it('separa homologação de produção', () => {
+    expect(chaveBloqueio656('emp1', 'homologacao')).not.toBe(chaveBloqueio656('emp1', 'producao'));
+  });
+
+  it('separa empresas distintas no mesmo ambiente', () => {
+    expect(chaveBloqueio656('emp1', 'producao')).not.toBe(chaveBloqueio656('emp2', 'producao'));
+  });
+
+  it('não colide com a chave do cursor NSU', () => {
+    expect(chaveBloqueio656('emp1', 'producao')).not.toBe(chaveCursorNsu('emp1', 'producao'));
+  });
+});
+
+describe('ehConsumoIndevido (reconhece os dois caminhos de sync)', () => {
+  it('reconhece a mensagem do caminho do cofre', () => {
+    expect(ehConsumoIndevido({ erro: 'Consumo indevido (cStat 656): aguarde ~1h entre consultas sem documentos novos.' })).toBe(true);
+  });
+
+  it('reconhece a flag do caminho do worker', () => {
+    expect(ehConsumoIndevido({ consumo_indevido: true })).toBe(true);
+  });
+
+  it('não confunde outras falhas da SEFAZ', () => {
+    expect(ehConsumoIndevido({ erro: 'Distribuição DF-e falhou: 108 Serviço paralisado momentaneamente' })).toBe(false);
+    expect(ehConsumoIndevido({ erro: 'Rejeição 656000 código inexistente' })).toBe(false);
+  });
+
+  it('tolera ausência de erro e fonte nula', () => {
+    expect(ehConsumoIndevido({})).toBe(false);
+    expect(ehConsumoIndevido(null)).toBe(false);
+    expect(ehConsumoIndevido(undefined)).toBe(false);
+  });
+});
+
+describe('segundosRestantes656', () => {
+  const inicio = 1_000_000_000_000;
+
+  it('devolve a duração cheia no instante do bloqueio', () => {
+    expect(segundosRestantes656(inicio, inicio)).toBe(BLOQUEIO_656_SEG);
+  });
+
+  it('decresce conforme o tempo passa', () => {
+    expect(segundosRestantes656(inicio, inicio + 60_000)).toBe(BLOQUEIO_656_SEG - 60);
+  });
+
+  it('zera exatamente ao completar a duração e depois dela', () => {
+    expect(segundosRestantes656(inicio, inicio + BLOQUEIO_656_SEG * 1000)).toBe(0);
+    expect(segundosRestantes656(inicio, inicio + BLOQUEIO_656_SEG * 1000 + 5_000)).toBe(0);
+  });
+
+  it('sem bloqueio registrado devolve 0', () => {
+    expect(segundosRestantes656(null, inicio)).toBe(0);
+    expect(segundosRestantes656(undefined, inicio)).toBe(0);
+    expect(segundosRestantes656(NaN, inicio)).toBe(0);
+  });
+
+  it('não trava para sempre se o relógio andou para trás', () => {
+    // carimbo no futuro: liberar é melhor que prender — a SEFAZ responde 656 de novo
+    expect(segundosRestantes656(inicio + 600_000, inicio)).toBe(0);
+  });
+
+  it('aceita duração customizada', () => {
+    expect(segundosRestantes656(inicio, inicio + 10_000, 30)).toBe(20);
+  });
+});
+
+describe('rotuloEspera656', () => {
+  it('mostra segundos abaixo de 1 minuto', () => {
+    expect(rotuloEspera656(45)).toBe('45s');
+  });
+
+  it('arredonda minutos para cima, para nunca prometer menos espera que a real', () => {
+    expect(rotuloEspera656(61)).toBe('2min');
+    expect(rotuloEspera656(3600)).toBe('60min');
+  });
+
+  it('devolve vazio sem bloqueio', () => {
+    expect(rotuloEspera656(0)).toBe('');
+    expect(rotuloEspera656(-5)).toBe('');
   });
 });

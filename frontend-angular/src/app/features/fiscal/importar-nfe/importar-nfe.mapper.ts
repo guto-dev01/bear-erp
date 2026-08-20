@@ -219,6 +219,59 @@ export function chaveCursorNsu(empresaId: string, ambiente: string): string {
 }
 
 /**
+ * Duração do bloqueio da SEFAZ por consumo indevido (cStat 656): ~1h por CNPJ.
+ * A Distribuição DF-e recusa consultas repetidas quando não há documentos novos.
+ */
+export const BLOQUEIO_656_SEG = 3600;
+
+/**
+ * Chave do bloqueio 656 no localStorage — POR empresa E POR ambiente, pelo mesmo
+ * motivo do cursor NSU: a SEFAZ contabiliza o consumo separadamente em homologação
+ * e em produção, então um bloqueio num ambiente não deve travar o outro.
+ */
+export function chaveBloqueio656(empresaId: string, ambiente: string): string {
+  return `nfe_bloqueio656_${empresaId}_${ambiente}`;
+}
+
+/**
+ * Reconhece o consumo indevido nos DOIS caminhos de sincronização: o do cofre
+ * (Appwrite Function) devolve a mensagem contendo "656"; o do worker devolve a
+ * flag `consumo_indevido`. Sem reconhecer, o botão reabilita e o próximo clique
+ * bate na SEFAZ durante o bloqueio, arriscando reiniciar a contagem de 1h.
+ */
+export function ehConsumoIndevido(fonte: { erro?: string; consumo_indevido?: boolean } | null | undefined): boolean {
+  if (!fonte) return false;
+  if (fonte.consumo_indevido) return true;
+  return /\b656\b/.test(fonte.erro ?? '');
+}
+
+/**
+ * Segundos restantes do bloqueio; 0 quando não há bloqueio ativo.
+ *
+ * `inicioMs` no futuro (relógio do usuário ajustado para trás) devolve 0 de
+ * propósito: prender o botão indefinidamente seria pior que deixar tentar — a
+ * SEFAZ apenas responde 656 de novo e o carimbo é regravado.
+ */
+export function segundosRestantes656(
+  inicioMs: number | null | undefined,
+  agoraMs: number,
+  duracaoSeg: number = BLOQUEIO_656_SEG,
+): number {
+  if (!inicioMs || !Number.isFinite(inicioMs)) return 0;
+  const decorrido = Math.floor((agoraMs - inicioMs) / 1000);
+  if (decorrido < 0) return 0;
+  const restante = duracaoSeg - decorrido;
+  return restante > 0 ? restante : 0;
+}
+
+/** Rótulo curto do tempo restante para o botão ("59min", "45s"). */
+export function rotuloEspera656(segundos: number): string {
+  if (segundos <= 0) return '';
+  if (segundos < 60) return `${segundos}s`;
+  return `${Math.ceil(segundos / 60)}min`;
+}
+
+/**
  * Agrega os retornos parciais dos lotes da Distribuição DF-e (a SEFAZ pagina
  * por NSU em lotes de até 50 docs). Falhou um lote → ok:false com o erro,
  * preservando o que os lotes anteriores já trouxeram.
