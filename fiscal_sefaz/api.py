@@ -4,6 +4,7 @@
 o navegador NÃO faz SOAP — ele chama este serviço, que executa a consulta real.
 
 Endpoints:
+  GET  /                           (descoberta do serviço)
   GET  /health
   POST /sefaz/testar-certificado   (multipart: pfx, senha, [cnpj_empresa])
   POST /sefaz/sincronizar          (multipart: pfx, senha, cnpj, uf, ambiente, ult_nsu)
@@ -44,6 +45,26 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/")
+def raiz():
+    """Descoberta do serviço.
+
+    Existe para que a URL pública (ex.: https://bear-fiscal-sefaz.onrender.com)
+    responda algo útil em vez do 404 padrão do FastAPI: a raiz não tinha rota,
+    o que dava a falsa impressão de serviço fora do ar.
+    """
+    return {
+        "servico": "fiscal_sefaz",
+        "versao": app.version,
+        "docs": "/docs",
+        "endpoints": [
+            "/health",
+            "/sefaz/testar-certificado",
+            "/sefaz/sincronizar",
+        ],
+    }
 
 
 @app.get("/health")
