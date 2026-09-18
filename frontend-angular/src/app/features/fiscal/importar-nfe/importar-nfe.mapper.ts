@@ -7,6 +7,8 @@ import { NotaImportada } from '../engine/importador-xml-nfe';
 
 /** Linha exibida na tabela de documentos. */
 export interface NotaView {
+  xml?: string;
+  nsu?: string;
   chave: string;
   numero: string;
   serie: string;
@@ -49,6 +51,8 @@ const SITUACAO_RESUMO: Record<string, string> = {
 export function mapearNota(n: NotaImportada): NotaView {
   const resumo = n.detalhamento === 'resumo';
   return {
+    xml: n.xmlOriginal,
+    nsu: n.nsu,
     chave: n.chaveAcesso || '',
     numero: n.numero ? String(n.numero) : '—',
     serie: n.serie || '',
@@ -91,6 +95,7 @@ export function resumoSync(ret: RetornoDistribuicaoView): string {
  * (HttpClient/environment) no teste em node.
  */
 export interface DocumentoSefazView {
+  xml?: string;
   nsu: string;
   document_type: string;
   access_key?: string;
@@ -121,6 +126,8 @@ const STATUS_WORKER: Record<string, string> = {
 export function mapearDocumentoWorker(d: DocumentoSefazView): NotaView {
   const dd = d.dados || {};
   return {
+    xml: d.xml,
+    nsu: d.nsu,
     chave: d.access_key || '',
     numero: dd['nNF'] || '—',
     serie: dd['serie'] || '',

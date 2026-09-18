@@ -12,6 +12,7 @@ import {
   mesclarLinhas, montarLinhas, resumoSync, resumoSyncWorker,
   chaveBloqueio656, ehConsumoIndevido, rotuloEspera656, segundosRestantes656,
 } from './importar-nfe.mapper';
+import { importarNfeXml, NotaImportada } from '../engine/importador-xml-nfe';
 import { CertInfo, ResultadoSync, SefazImportService } from './sefaz-import.service';
 
 /** Documento da coleção `empresas` (campos reais reaproveitados do cadastro existente). */
@@ -296,19 +297,19 @@ interface HistoricoSync {
             <div class="table-scroll">
               <table class="w-full">
                 <thead><tr>
-                  <th class="text-label" style="padding:.75rem 1rem;text-align:left;width:40px"></th>
+
                   <th class="text-label" style="padding:.75rem 1rem;text-align:left">Número</th>
                   <th class="text-label" style="padding:.75rem 1rem;text-align:left">Emitente</th>
                   <th class="text-label" style="padding:.75rem 1rem;text-align:left">Chave</th>
                   <th class="text-label" style="padding:.75rem 1rem;text-align:left">Emissão</th>
                   <th class="text-label" style="padding:.75rem 1rem;text-align:right">Valor</th>
                   <th class="text-label" style="padding:.75rem 1rem;text-align:left">Tipo</th>
-                  <th class="text-label" style="padding:.75rem 1rem;text-align:left">Status</th>
+                  <th class="text-label" style="padding:.75rem 1rem;text-align:left">Status</th><th>Ações</th>
                 </tr></thead>
                 <tbody>
-                  @for (n of notasFiltradas(); track n.chave) {
+                  @for (n of notasFiltradas(); track $index) {
                     <tr style="border-top:1px solid var(--separator)">
-                      <td style="padding:.75rem 1rem"><input type="checkbox"></td>
+
                       <td style="padding:.75rem 1rem" class="tabular">{{ n.numero }}</td>
                       <td style="padding:.75rem 1rem">{{ n.emitente }}</td>
                       <td style="padding:.75rem 1rem"><span class="text-mono text-caption">{{ n.chave || '—' }}</span></td>
@@ -316,6 +317,10 @@ interface HistoricoSync {
                       <td style="padding:.75rem 1rem;text-align:right" class="tabular">{{ n.valor != null ? (n.valor | currency:'BRL') : '—' }}</td>
                       <td style="padding:.75rem 1rem">{{ n.tipo }}</td>
                       <td style="padding:.75rem 1rem"><span class="badge badge--neutral">{{ n.status }}</span></td>
+                      <td style="padding:.75rem 1rem;white-space:nowrap">
+                        <button class="bear-btn bear-btn--outline bear-btn--sm" (click)="visualizar(n)">Visualizar</button>
+                        <button class="bear-btn bear-btn--ghost bear-btn--sm" (click)="baixarXml(n)" [disabled]="!n.xml">Baixar XML</button>
+                      </td>
                     </tr>
                   }
                 </tbody>
@@ -323,6 +328,39 @@ interface HistoricoSync {
             </div>
           }
         </div>
+
+        @if (notaSelecionada(); as n) {
+          <section class="bear-card p-4 mb-4" aria-label="Visualização do documento" tabindex="-1" id="documento-preview">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h2 class="text-heading-sm">{{ n.tipo }} · {{ n.numero }} · Série {{ n.serie || '—' }}</h2>
+              <button class="bear-btn bear-btn--outline" (click)="baixarXml(n)" [disabled]="!n.xml">Baixar XML</button>
+              <button class="bear-btn bear-btn--ghost" (click)="notaSelecionada.set(null)">Fechar</button>
+            </div>
+            <p><strong>Emitente:</strong> {{ n.emitente }} · {{ n.cnpjEmitente }}</p>
+            <p><strong>Emissão:</strong> {{ (n.emissao | date:'dd/MM/yyyy') || '—' }}</p>
+            <p><strong>Valor:</strong> {{ n.valor != null ? (n.valor | currency:'BRL') : '—' }}</p>
+            <p style="overflow-wrap:anywhere"><strong>Chave:</strong> {{ n.chave || '—' }}</p>
+            <p><strong>Situação:</strong> {{ n.status }}</p>
+            @if (n.tipoRaw === 'resNFe') {
+              <p class="text-caption mt-2">Este documento é um resumo. O download contém apenas o resumo recebido, não o XML completo da nota.</p>
+            }
+            @if (detalheNota(); as d) {
+              <p class="mt-2"><strong>Destinatário:</strong> {{ d.destinatarioNome }} · {{ d.destinatarioCpfCnpj }}</p>
+              <p><strong>Natureza da operação:</strong> {{ d.naturezaOperacao }}</p>
+              <div class="table-scroll mt-2"><table class="w-full">
+                <thead><tr><th>Produto</th><th>NCM</th><th>CFOP</th><th>Quantidade</th><th>Valor unitário</th><th>Total</th></tr></thead>
+                <tbody>@for (item of d.itens; track $index) {
+                  <tr><td>{{ item.descricao }}</td><td>{{ item.ncm }}</td><td>{{ item.cfop }}</td><td>{{ item.quantidade }} {{ item.unidade }}</td><td>{{ item.valorUnitario | currency:'BRL' }}</td><td>{{ item.valorProdutos | currency:'BRL' }}</td></tr>
+                }</tbody>
+              </table></div>
+            }
+            @if (n.xml) {
+              <details class="mt-4"><summary>Ver XML original</summary><pre style="max-height:360px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere">{{ n.xml }}</pre></details>
+            } @else {
+              <p class="text-caption mt-2">O XML não foi disponibilizado nesta consulta.</p>
+            }
+          </section>
+        }
 
         <!-- Histórico de sincronizações -->
         <div class="bear-card">
@@ -411,6 +449,34 @@ export class ImportarNfeComponent implements OnInit, OnDestroy {
   notas = signal<NotaView[]>([]);
   /** Notas de entrada já escrituradas em `notas_fiscais` (sessões anteriores). */
   notasPersistidas = signal<NotaView[]>([]);
+  notaSelecionada = signal<NotaView | null>(null);
+  detalheNota = signal<NotaImportada | null>(null);
+
+  visualizar(nota: NotaView): void {
+    this.notaSelecionada.set(nota);
+    this.detalheNota.set(null);
+    if (nota.xml && nota.tipoRaw === 'procNFe') {
+      try { this.detalheNota.set(importarNfeXml(nota.xml)); }
+      catch { this.snack.open('Não foi possível ler os itens. O XML original continua disponível.', 'Fechar', { duration: 5000 }); }
+    }
+    setTimeout(() => {
+      const painel = document.getElementById('documento-preview');
+      painel?.focus();
+      painel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  baixarXml(nota: NotaView): void {
+    if (!nota.xml) return;
+    const url = URL.createObjectURL(new Blob([nota.xml], { type: 'application/xml;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${nota.tipoRaw}-${nota.chave || nota.nsu || 'documento'}.xml`.replace(/[^a-zA-Z0-9._-]/g, '_');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
   historico = signal<HistoricoSync[]>([]);
   lastResumo = signal<RetornoDistribuicao | null>(null);
 

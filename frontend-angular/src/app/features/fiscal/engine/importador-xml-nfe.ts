@@ -119,6 +119,7 @@ export interface ItemImportado {
 }
 
 export interface NotaImportada {
+  xmlOriginal?: string;
   chaveAcesso: string;
   modelo: string;
   numero: number;
@@ -227,6 +228,7 @@ export function importarNfeXml(xml: string): NotaImportada {
   const itens = childrenAll(infNFe, 'det').map(mapItem);
 
   return {
+    xmlOriginal: xml,
     chaveAcesso: chave,
     modelo: txt(ide, 'mod') || '55',
     numero: n(ide, 'nNF'),
@@ -266,6 +268,7 @@ export function importarResumoNfe(xml: string, nsu = ''): NotaImportada {
   if (!r || r.tag !== 'resNFe') throw new Error('XML não contém resNFe.');
   const cnpjCpf = txt(r, 'CNPJ') || txt(r, 'CPF');
   return {
+    xmlOriginal: xml,
     chaveAcesso: txt(r, 'chNFe'),
     modelo: '55',
     numero: 0,

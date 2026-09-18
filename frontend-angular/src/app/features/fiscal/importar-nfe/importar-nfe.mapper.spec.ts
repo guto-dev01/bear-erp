@@ -416,3 +416,22 @@ describe('rotuloEspera656', () => {
     expect(rotuloEspera656(-5)).toBe('');
   });
 });
+
+describe('XML original para download', () => {
+  it('preserva o XML completo e o resumo recebidos pelo cofre', () => {
+    const xml = '<resNFe><xNome>Empresa &amp; Cia</xNome></resNFe>';
+    const linhas = montarLinhas({ ok: true, notas: [nota({ xmlOriginal: xml })], resumos: [nota({ detalhamento: 'resumo', xmlOriginal: xml })] });
+    expect(linhas.map(n => n.xml)).toEqual([xml, xml]);
+  });
+
+  it('preserva XML e NSU de eventos do worker, mesmo sem chave', () => {
+    const xml = '<resEvento><descEvento>Ciência</descEvento></resEvento>';
+    const linha = mapearDocumentoWorker(docWorker({ document_type: 'resEvento', access_key: undefined, xml }));
+    expect(linha.xml).toBe(xml);
+    expect(linha.nsu).toBe('000000000000015');
+  });
+
+  it('não inventa XML quando o serviço não o fornece', () => {
+    expect(mapearDocumentoWorker(docWorker()).xml).toBeUndefined();
+  });
+});

@@ -116,5 +116,5 @@ async def sincronizar(
         "ok": True,
         **resultado.resumo(),
         "motivo": resultado.motivo,
-        "documentos": [d.to_public_dict() for d in resultado.documentos],
+        "documentos": [{**d.to_public_dict(), "xml": d.xml.decode("utf-8-sig")} for d in resultado.documentos],
     }

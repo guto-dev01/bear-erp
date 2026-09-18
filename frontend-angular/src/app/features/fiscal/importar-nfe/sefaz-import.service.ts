@@ -30,6 +30,7 @@ export interface CertInfo {
 }
 
 export interface DocumentoSefaz {
+  xml?: string;
   nsu: string;
   schema_name: string;
   document_type: string;
