@@ -242,6 +242,8 @@ export interface RetornoSefaz {
   url?: string;
   /** status do serviço (operacao: 'status'). */
   online?: boolean;
+  /** manifestação (operacao: 'manifestar'): cStat em [135,136,573] — ver _shared/nfe/respostas.js. */
+  registrado?: boolean;
 }
 
 /** Documento cru devolvido pela Distribuição DF-e (Function, operacao 'distribuir'). */
