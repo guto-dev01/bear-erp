@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { concatMap, from, map, tap, toArray } from 'rxjs';
 import { AuthService } from '@core/auth/auth.service';
 import { AppwriteService } from '@core/services/appwrite.service';
 import { FiscalService, RetornoDistribuicao, RetornoSefaz } from '../fiscal.service';
@@ -12,6 +13,11 @@ import {
   mesclarLinhas, montarLinhas, resumoSync, resumoSyncWorker,
   chaveBloqueio656, ehConsumoIndevido, rotuloEspera656, segundosRestantes656,
 } from './importar-nfe.mapper';
+import {
+  EVENTOS_MANIFESTACAO, LOTE_MAX_CIENCIA, ResultadoManifestacao, TpEventoManifestacao,
+  aplicarManifestacao, chavesParaCiencia, eventoPor, interpretarRetorno,
+  pendentesDeCiencia, podeManifestar, resumoLote, validarJustificativa,
+} from './manifestacao';
 import { importarNfeXml, NotaImportada } from '../engine/importador-xml-nfe';
 import { CertInfo, ResultadoSync, SefazImportService } from './sefaz-import.service';
 
@@ -276,7 +282,21 @@ interface HistoricoSync {
         <div class="bear-card mb-4">
           <div class="flex items-center justify-between px-5 py-4" style="border-bottom:1px solid var(--separator)">
             <p class="text-heading-sm">Notas encontradas</p>
-            <span class="text-caption">{{ notasFiltradas().length }} documento(s)</span>
+            <div class="flex items-center gap-3">
+              @if (pendentesCiencia().length) {
+                <button class="bear-btn bear-btn--primary bear-btn--sm"
+                        (click)="darCienciaEmLote()"
+                        [disabled]="manifestando() || !certificado()"
+                        [matTooltip]="certificado()
+                          ? 'Registra a Ciência da Operação na SEFAZ — é o que libera o XML completo (itens, NCM/CFOP, impostos)'
+                          : 'Exige o certificado A1 da empresa no cofre'">
+                  {{ manifestando()
+                     ? 'Manifestando ' + progressoLote() + '…'
+                     : 'Dar ciência em ' + totalLoteCiencia() + ' resumo(s)' }}
+                </button>
+              }
+              <span class="text-caption">{{ notasFiltradas().length }} documento(s)</span>
+            </div>
           </div>
 
           @if (sincronizando()) {
@@ -320,6 +340,11 @@ interface HistoricoSync {
                       <td style="padding:.75rem 1rem;white-space:nowrap">
                         <button class="bear-btn bear-btn--outline bear-btn--sm" (click)="visualizar(n)">Visualizar</button>
                         <button class="bear-btn bear-btn--ghost bear-btn--sm" (click)="baixarXml(n)" [disabled]="!n.xml">Baixar XML</button>
+                        @if (n.tipoRaw === 'resNFe' && !n.manifestada) {
+                          <button class="bear-btn bear-btn--ghost bear-btn--sm"
+                                  (click)="darCiencia(n)"
+                                  [disabled]="manifestando() || !certificado()">Dar ciência</button>
+                        }
                       </td>
                     </tr>
                   }
@@ -353,6 +378,40 @@ interface HistoricoSync {
                   <tr><td>{{ item.descricao }}</td><td>{{ item.ncm }}</td><td>{{ item.cfop }}</td><td>{{ item.quantidade }} {{ item.unidade }}</td><td>{{ item.valorUnitario | currency:'BRL' }}</td><td>{{ item.valorProdutos | currency:'BRL' }}</td></tr>
                 }</tbody>
               </table></div>
+            }
+            @if (podeManifestar(n)) {
+              <div class="mt-4 pt-4" style="border-top:1px solid var(--separator)">
+                <p class="text-label mb-2">Manifestação do destinatário</p>
+                <div class="flex flex-wrap items-end gap-3">
+                  <div class="flex-1" style="min-width:240px">
+                    <label class="text-label block mb-1">Evento</label>
+                    <select class="bear-input bear-input--sm w-full"
+                            [ngModel]="tpEvento()" (ngModelChange)="tpEvento.set($event)">
+                      @for (e of eventos; track e.tpEvento) {
+                        <option [ngValue]="e.tpEvento">{{ e.rotulo }}</option>
+                      }
+                    </select>
+                  </div>
+                  <button class="bear-btn bear-btn--primary"
+                          (click)="manifestarSelecionada(n)"
+                          [disabled]="manifestando() || !certificado()">
+                    {{ manifestando() ? 'Enviando…' : 'Enviar evento' }}
+                  </button>
+                </div>
+                <p class="text-caption mt-2">{{ eventoAtual().descricao }}</p>
+                @if (eventoAtual().exigeJustificativa) {
+                  <label class="block mt-3">
+                    <span class="text-label block mb-1">Justificativa (15 a 255 caracteres)</span>
+                    <textarea class="bear-input w-full" rows="2"
+                              [ngModel]="justificativa()" (ngModelChange)="justificativa.set($event)"></textarea>
+                  </label>
+                }
+                @if (!certificado()) {
+                  <p class="text-caption mt-2">
+                    A manifestação usa o A1 do cofre — cadastre o certificado da empresa em Certificados.
+                  </p>
+                }
+              </div>
             }
             @if (n.xml) {
               <details class="mt-4"><summary>Ver XML original</summary><pre style="max-height:360px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere">{{ n.xml }}</pre></details>
@@ -463,6 +522,90 @@ export class ImportarNfeComponent implements OnInit, OnDestroy {
       const painel = document.getElementById('documento-preview');
       painel?.focus();
       painel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  // ── Manifestação do Destinatário ──────────────────────────────────────────
+  // Sem ela a SEFAZ só entrega o RESUMO (resNFe): sem itens, NCM/CFOP,
+  // destinatário ou impostos. A Ciência (210210) é o que libera o procNFe.
+
+  readonly eventos = EVENTOS_MANIFESTACAO;
+  tpEvento = signal<TpEventoManifestacao>('210210');
+  justificativa = signal('');
+  manifestando = signal(false);
+  /** Eventos já enviados no lote em curso (alimenta o rótulo do botão). */
+  private feitasNoLote = signal(0);
+
+  eventoAtual = computed(() => eventoPor(this.tpEvento()));
+  pendentesCiencia = computed(() => pendentesDeCiencia(this.notas()));
+
+  /** Exposto ao template (função pura do módulo de manifestação). */
+  podeManifestar = podeManifestar;
+
+  totalLoteCiencia(): number {
+    return Math.min(this.pendentesCiencia().length, LOTE_MAX_CIENCIA);
+  }
+
+  progressoLote(): string {
+    return `${this.feitasNoLote()}/${this.totalLoteCiencia()}`;
+  }
+
+  /** Ciência numa linha só (botão da tabela). */
+  darCiencia(nota: NotaView): void {
+    this.enviarEventos([nota.chave], '210210', '');
+  }
+
+  /** Evento escolhido no painel (com justificativa quando 210240). */
+  manifestarSelecionada(nota: NotaView): void {
+    const tp = this.tpEvento();
+    const erro = validarJustificativa(tp, this.justificativa());
+    if (erro) {
+      this.snack.open(erro, 'Fechar', { duration: 5000, panelClass: 'warning-snackbar' });
+      return;
+    }
+    this.enviarEventos([nota.chave], tp, this.justificativa().trim());
+  }
+
+  /** Ciência em todos os resumos pendentes, sequencial e com teto. */
+  darCienciaEmLote(): void {
+    const chaves = chavesParaCiencia(this.notas());
+    if (!chaves.length) return;
+    this.enviarEventos(chaves, '210210', '');
+  }
+
+  /**
+   * Envia os eventos UM A UM (`concatMap`): cada manifestação é uma execução da
+   * Function com handshake mTLS de 1–3 s. Em paralelo estouraria o corte de 30 s
+   * da Appwrite e a SEFAZ recusa rajada.
+   *
+   * Não re-sincroniza sozinho de propósito: a SEFAZ leva alguns minutos para
+   * publicar o XML completo, e uma consulta sem documentos novos alimenta o
+   * consumo indevido (cStat 656) — 1 h de bloqueio por CNPJ.
+   */
+  private enviarEventos(chaves: string[], tp: TpEventoManifestacao, xJust: string): void {
+    if (this.manifestando() || !chaves.length) return;
+    this.manifestando.set(true);
+    this.feitasNoLote.set(0);
+    from(chaves).pipe(
+      concatMap(chave => this.fiscal.manifestarNota(chave, tp, xJust, this.ambiente()).pipe(
+        map(r => interpretarRetorno(chave, r)),
+        tap(res => {
+          this.feitasNoLote.update(n => n + 1);
+          this.notas.update(linhas => aplicarManifestacao(linhas, res, tp));
+          // Mantém o painel aberto em sincronia com a linha recém-atualizada.
+          if (this.notaSelecionada()?.chave === res.chave) {
+            this.notaSelecionada.set(this.notas().find(n => n.chave === res.chave) ?? null);
+          }
+        }),
+      )),
+      toArray(),
+    ).subscribe((res: ResultadoManifestacao[]) => {
+      this.manifestando.set(false);
+      const houveOk = res.some(r => r.ok);
+      const msg = res.length === 1
+        ? `${res[0].ok ? 'Evento registrado' : 'Falhou'} · ${res[0].mensagem}`
+        : resumoLote(res, tp);
+      this.snack.open(msg, 'Fechar', { duration: 9000, panelClass: houveOk ? 'success-snackbar' : 'error-snackbar' });
     });
   }
 

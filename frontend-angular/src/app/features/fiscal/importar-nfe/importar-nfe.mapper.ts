@@ -20,6 +20,10 @@ export interface NotaView {
   /** 'procNFe' | 'resNFe' no fluxo do cofre; o worker também traz eventos ('procEventoNFe'/'resEvento'). */
   tipoRaw: string;
   status: string;
+  /** cSitNFe do resumo: 1 autorizada, 2 cancelada, 3 denegada. Decide o lote de Ciência. */
+  situacao?: string;
+  /** Manifestada nesta sessão: trava o lote e troca o status da linha. */
+  manifestada?: boolean;
 }
 
 /**
@@ -53,6 +57,7 @@ export function mapearNota(n: NotaImportada): NotaView {
   return {
     xml: n.xmlOriginal,
     nsu: n.nsu,
+    situacao: n.situacao,
     chave: n.chaveAcesso || '',
     numero: n.numero ? String(n.numero) : '—',
     serie: n.serie || '',
@@ -128,6 +133,7 @@ export function mapearDocumentoWorker(d: DocumentoSefazView): NotaView {
   return {
     xml: d.xml,
     nsu: d.nsu,
+    situacao: dd['cSitNFe'],
     chave: d.access_key || '',
     numero: dd['nNF'] || '—',
     serie: dd['serie'] || '',
