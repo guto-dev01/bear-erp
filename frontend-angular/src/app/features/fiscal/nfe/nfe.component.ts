@@ -13,6 +13,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialogModule } from '@angular/material/dialog';
 import { FiscalService, RetornoSefaz, RetornoDistribuicao } from '../fiscal.service';
 import { importarNfeXml, NotaImportada } from '../engine/importador-xml-nfe';
+import { nomeArquivoXml } from './xml-origem';
 import { forkJoin } from 'rxjs';
 
 @Component({
@@ -127,12 +128,15 @@ import { forkJoin } from 'rxjs';
         </div>
       }
 
-      <!-- Pré-visualização do XML gerado no navegador (não assinado) -->
+      <!-- XML da nota: original do emitente (entrada) ou gerado no navegador (saída) -->
       @if (preview(); as p) {
         <div class="bear-card" style="margin-bottom:1rem;">
           <div class="p-4">
             <div class="flex items-center justify-between" style="margin-bottom:.5rem;">
-              <h3 class="text-heading">XML da NF-e #{{ p.numero }} — gerado no navegador (não assinado)</h3>
+              <h3 class="text-heading">
+                XML da NF-e #{{ p.numero }} —
+                {{ p.original ? 'original do emitente (autorizado)' : 'gerado no navegador (não assinado)' }}
+              </h3>
               <button class="bear-btn bear-btn--ghost" (click)="preview.set(null)" matTooltip="Fechar">
                 <span class="material-symbols-rounded">close</span>
               </button>
@@ -142,7 +146,11 @@ import { forkJoin } from 'rxjs';
             </p>
             <pre style="max-height:340px; overflow:auto; background:var(--surface-2,#f5f5f7); padding:.75rem; border-radius:8px; font-size:.72rem; white-space:pre-wrap; word-break:break-all; margin:0;">{{ p.xml }}</pre>
             <p class="text-label" style="margin-top:.5rem; opacity:.7;">
-              Assinatura A1 e transmissão são server-side (Function <code>nfe-transmissao</code>). Use “Autorizar” na linha para enviar à SEFAZ.
+              @if (p.original) {
+                Documento recebido da SEFAZ, exibido como veio — emitente, valores e chave são os do fornecedor.
+              } @else {
+                Assinatura A1 e transmissão são server-side (Function <code>nfe-transmissao</code>). Use “Autorizar” na linha para enviar à SEFAZ.
+              }
             </p>
           </div>
         </div>
@@ -310,6 +318,13 @@ import { forkJoin } from 'rxjs';
                   <button class="bear-btn bear-btn--ghost" (click)="verXml(nfe)" matTooltip="Ver XML / chave">
                     <span class="material-symbols-rounded" style="font-size:18px;">visibility</span>
                   </button>
+                  @if (nfe.tipoOperacao === 'ENTRADA') {
+                    <button class="bear-btn bear-btn--ghost" (click)="buscarXmlSefaz(nfe)"
+                            [disabled]="!!buscandoXml()"
+                            matTooltip="Buscar na SEFAZ o XML original do fornecedor (exige Ciência da Operação)">
+                      <span class="material-symbols-rounded" style="font-size:18px;">cloud_download</span>
+                    </button>
+                  }
                   <button class="bear-btn bear-btn--ghost" (click)="baixarXml(nfe)" matTooltip="Baixar XML">
                     <span class="material-symbols-rounded" style="font-size:18px;">code</span>
                   </button>
@@ -455,7 +470,9 @@ export class NfeComponent implements OnInit {
   ambiente = signal<'homologacao' | 'producao'>('homologacao');
   transmitindo = signal(false);
   sefazResultado = signal<RetornoSefaz | null>(null);
-  preview = signal<{ numero: unknown; chave: string; xml: string } | null>(null);
+  preview = signal<{ numero: unknown; chave: string; xml: string; original: boolean } | null>(null);
+  /** Id da nota cujo XML está sendo buscado na SEFAZ (trava o botão da linha). */
+  buscandoXml = signal<string | null>(null);
 
   // Importação de XML de NF-e
   importPreview = signal<NotaImportada[]>([]);
@@ -658,10 +675,16 @@ export class NfeComponent implements OnInit {
     });
   }
 
+  /**
+   * Mostra o XML da nota. Entrada = XML ORIGINAL do fornecedor guardado na
+   * escrituração; saída = XML gerado pelo motor. Entrada sem XML guardado é
+   * erro explícito — regenerar traria o emitente e a chave errados.
+   */
   verXml(nfe: any) {
-    this.fiscalService.gerarXmlNotaFiscal(nfe.id).subscribe({
-      next: ({ chave, xml }) => this.preview.set({ numero: nfe.numero, chave, xml }),
-      error: err => this.snackBar.open(err.error?.message || 'Erro ao gerar XML', 'Fechar', { duration: 5000 }),
+    this.fiscalService.obterXmlNotaFiscal(nfe.id).subscribe({
+      next: ({ chave, xml, original }) => this.preview.set({ numero: nfe.numero, chave, xml, original }),
+      error: err => this.snackBar.open(
+        err?.message || err?.error?.message || 'Erro ao obter o XML', 'Fechar', { duration: 8000 }),
     });
   }
 
@@ -701,20 +724,49 @@ export class NfeComponent implements OnInit {
   }
 
   baixarXml(nfe: any) {
-    // Gera o XML (não assinado) localmente. A assinatura A1 + transmissão à SEFAZ
-    // exigem integração externa (Appwrite Function com o A1 do cofre).
-    this.fiscalService.gerarXmlNotaFiscal(nfe.id).subscribe({
-      next: ({ chave, xml }) => {
+    this.fiscalService.obterXmlNotaFiscal(nfe.id).subscribe({
+      next: ({ chave, xml, original }) => {
         const blob = new Blob([xml], { type: 'application/xml;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `NFe-${chave}.xml`;
+        a.download = nomeArquivoXml(chave, nfe.numero);
         a.click();
         URL.revokeObjectURL(url);
-        this.snackBar.open('XML gerado (não assinado). A assinatura A1 + envio à SEFAZ exigem integração externa.', 'Fechar', { duration: 5000 });
+        this.snackBar.open(
+          original
+            ? 'XML original do emitente (documento autorizado, como recebido da SEFAZ).'
+            : 'XML gerado no navegador (NÃO assinado). A assinatura A1 + envio à SEFAZ rodam na Function nfe-transmissao.',
+          'Fechar', { duration: 5000 });
       },
-      error: err => this.snackBar.open(err.error?.message || 'Erro ao gerar XML', 'Fechar', { duration: 5000 })
+      error: err => this.snackBar.open(
+        err?.message || err?.error?.message || 'Erro ao obter o XML', 'Fechar', { duration: 8000 }),
+    });
+  }
+
+  /**
+   * Recupera na SEFAZ o XML completo de uma nota de entrada escriturada sem ele
+   * (Distribuição DF-e por chave) e completa a escrituração — inclusive os itens,
+   * se faltarem. Exige Ciência da Operação já registrada para aquela chave.
+   */
+  buscarXmlSefaz(nfe: any) {
+    if (this.buscandoXml()) return;
+    this.buscandoXml.set(nfe.id);
+    this.fiscalService.completarNotaPelaSefaz(nfe.id, this.ambiente()).subscribe({
+      next: r => {
+        this.buscandoXml.set(null);
+        if (!r.ok) {
+          this.snackBar.open(r.erro || 'Não foi possível recuperar o XML.', 'Fechar', { duration: 8000 });
+          return;
+        }
+        const itens = r.itensCriados ? ` e ${r.itensCriados} item(ns) escriturado(s)` : '';
+        this.snackBar.open(`XML original recuperado${itens}.`, 'OK', { duration: 5000 });
+        this.loadNfes();
+      },
+      error: err => {
+        this.buscandoXml.set(null);
+        this.snackBar.open(err?.message || 'Falha ao consultar a SEFAZ.', 'Fechar', { duration: 6000 });
+      },
     });
   }
 

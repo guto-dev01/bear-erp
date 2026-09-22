@@ -337,6 +337,11 @@ const collections = [
       { key: 'protocolo', type: 'string', size: 50, required: false },
       { key: 'dataAutorizacao', type: 'string', size: 30, required: false },
       { key: 'justificativa', type: 'string', size: 255, required: false },
+      // XML ORIGINAL do documento de TERCEIRO (procNFe da Distribuicao DF-e ou
+      // arquivo importado). Guardar e obrigatorio: sem ele, "Ver XML" so pode
+      // REGENERAR a nota pelo motor de emissao -- e regenerar troca o emitente
+      // pela empresa logada e RECALCULA a chave de acesso com o CNPJ errado.
+      { key: 'xmlOriginal', type: 'string', size: 1000000, required: false },
       { key: 'xmlStorageId', type: 'string', size: 50, required: false },
       { key: 'status', type: 'string', size: 20, required: true },
       { key: 'empresaId', type: 'string', size: 50, required: true },

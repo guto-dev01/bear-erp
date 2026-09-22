@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, of, forkJoin } from 'rxjs';
+import { Observable, of, forkJoin, throwError } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
 import { AppwriteService } from '@core/services/appwrite.service';
 import { AuthService } from '@core/auth/auth.service';
@@ -19,6 +19,7 @@ import {
 import { ItemImportado, NotaImportada, parsearDocumento } from './engine/importador-xml-nfe';
 import { agregarRetornos, chaveCursorNsu, NotaPersistidaView } from './importar-nfe/importar-nfe.mapper';
 import { EmitenteNFe, gerarXmlNFe, ItemNFe, NotaNFe } from './engine/nfe-xml';
+import { resolverOrigemXml } from './nfe/xml-origem';
 import { montarGuia } from './engine/guias';
 import { calendarioObrigacoes, descricaoObrigacao } from './engine/obrigacoes';
 import {
@@ -80,6 +81,8 @@ interface NotaFiscalDoc {
   valorDesconto?: number;
   naturezaOperacao?: string;
   cfop?: string;
+  /** XML autorizado do documento de TERCEIRO (entrada). Ver `nfe/xml-origem.ts`. */
+  xmlOriginal?: string;
   status: string;
   empresaId: string;
   tenantId: string;
@@ -346,8 +349,29 @@ export class FiscalService {
     };
   }
 
+  /**
+   * Colunas que a LISTA de NF-e precisa. Existe para NÃO trazer `xmlOriginal`
+   * (o XML inteiro de cada nota de entrada): sem o recorte, listar 100 notas
+   * baixaria alguns MB de XML que a tabela nem exibe. O XML é carregado sob
+   * demanda em `obterXmlNotaFiscal`, uma nota por vez.
+   */
+  private static readonly CAMPOS_LISTA_NFE = [
+    '$id', '$createdAt', 'tipo', 'numero', 'serie', 'chaveAcesso', 'dataEmissao', 'modelo',
+    'tipoOperacao', 'emitenteCnpj', 'emitenteNome', 'destinatarioNome', 'destinatarioCpfCnpj',
+    'valorTotal', 'naturezaOperacao', 'status',
+  ];
+
   listNfes(page = 0, size = 20): Observable<Page<Record<string, unknown>>> {
-    return this.appwrite.listDocuments<NotaFiscalDoc>(NOTAS, this.baseQueries([this.Q.equal('tipo', 'NFE')])).pipe(
+    const comRecorte = this.baseQueries([
+      this.Q.equal('tipo', 'NFE'),
+      this.Q.select(FiscalService.CAMPOS_LISTA_NFE),
+    ]);
+    const semRecorte = this.baseQueries([this.Q.equal('tipo', 'NFE')]);
+    return this.appwrite.listDocuments<NotaFiscalDoc>(NOTAS, comRecorte).pipe(
+      // O recorte é otimização, não requisito: se o servidor recusar o select
+      // (atributo ainda não provisionado, versão do Appwrite), a lista tem de
+      // continuar carregando — só mais pesada.
+      catchError(() => this.appwrite.listDocuments<NotaFiscalDoc>(NOTAS, semRecorte)),
       map(docs => this.paginate(docs.map(d => this.mapNfe(d)), page, size)),
     );
   }
@@ -776,10 +800,10 @@ export class FiscalService {
       ufEmitente: nota.ufEmitente,
       ufDestino: nota.ufDestino,
       contribuinteIcms: nota.contribuinteIcms,
-      emitenteCnpj: nota.emitenteCnpj,
-      emitenteNome: nota.emitenteNome,
-      destinatarioNome: nota.destinatarioNome,
-      destinatarioCpfCnpj: nota.destinatarioCpfCnpj,
+      emitenteCnpj: this.cortar(nota.emitenteCnpj, 20),
+      emitenteNome: this.cortar(nota.emitenteNome, 255),
+      destinatarioNome: this.cortar(nota.destinatarioNome, 255),
+      destinatarioCpfCnpj: this.cortar(nota.destinatarioCpfCnpj, 20),
       valorTotal: nota.valorTotal,
       valorProdutos: nota.valorProdutos,
       valorICMS: nota.valorICMS,
@@ -789,11 +813,27 @@ export class FiscalService {
       valorCOFINS: nota.valorCOFINS,
       valorFrete: nota.valorFrete,
       valorDesconto: nota.valorDesconto,
-      naturezaOperacao: nota.naturezaOperacao,
+      naturezaOperacao: this.cortar(nota.naturezaOperacao, 100),
+      // O XML de terceiro É o documento fiscal: sem guardá-lo, a tela só poderia
+      // REGENERAR a nota pelo motor de emissão — trocando o emitente pela empresa
+      // logada e recalculando a chave de acesso. Ver `nfe/xml-origem.ts`.
+      xmlOriginal: nota.xmlOriginal,
       status: 'AUTORIZADA', // XML importado já é documento autorizado → entra na apuração
       empresaId: this.empresaId,
       tenantId: this.tenantId,
     };
+  }
+
+  /**
+   * Corta uma string no limite do atributo Appwrite. O XML de terceiro vem do
+   * ERP do fornecedor e não respeita os tamanhos desta base: um campo maior que
+   * a coluna faz o `createDocument` do item falhar e, pelo `forkJoin`, derruba a
+   * escrituração inteira dos itens — a nota fica com cabeçalho e ZERO itens
+   * (valores zerados na apuração e no SPED). Cortar é a perda menor.
+   */
+  private cortar(valor: string | undefined, max: number): string | undefined {
+    if (valor == null) return valor;
+    return valor.length > max ? valor.slice(0, max) : valor;
   }
 
   /** Monta um item (`itens_nota_fiscal`) a partir de um {@link ItemImportado}. */
@@ -801,12 +841,13 @@ export class FiscalService {
     return {
       notaId,
       numeroItem: it.numeroItem || numeroItem,
-      codigo: it.codigo,
-      descricao: it.descricao,
-      ncm: it.ncm,
-      cest: it.cest,
-      cfop: it.cfop,
-      unidade: it.unidade,
+      // Limites de scripts/appwrite-setup.js → itens_nota_fiscal.
+      codigo: this.cortar(it.codigo, 60),
+      descricao: this.cortar(it.descricao, 255),
+      ncm: this.cortar(it.ncm, 10),
+      cest: this.cortar(it.cest, 10),
+      cfop: this.cortar(it.cfop, 5),
+      unidade: this.cortar(it.unidade, 10),
       quantidade: it.quantidade,
       valorUnitario: it.valorUnitario,
       valorProdutos: it.valorProdutos,
@@ -814,9 +855,9 @@ export class FiscalService {
       frete: it.frete,
       seguro: it.seguro,
       outras: it.outras,
-      origem: it.origem,
-      cstIcms: it.cstIcms,
-      csosn: it.csosn,
+      origem: this.cortar(it.origem, 1),
+      cstIcms: this.cortar(it.cstIcms, 3),
+      csosn: this.cortar(it.csosn, 3),
       baseIcms: it.baseIcms,
       aliqIcms: it.aliqIcms,
       valorIcms: it.valorIcms,
@@ -1576,6 +1617,111 @@ export class FiscalService {
         };
         return gerarXmlNFe(notaNFe);
       }),
+    );
+  }
+
+  /**
+   * XML de uma nota persistida, pela ORIGEM certa:
+   *  - documento de terceiro (entrada) → o XML ORIGINAL guardado na escrituração,
+   *    servido verbatim (emitente e chave de acesso reais);
+   *  - emissão própria (saída) → gerado pelo motor, não assinado.
+   *
+   * Terceiro sem XML guardado é ERRO, não fallback: regenerar produziria um
+   * arquivo com o `<emit>` da empresa logada e uma chave de acesso recalculada
+   * com o CNPJ errado. Ver `nfe/xml-origem.ts`.
+   */
+  obterXmlNotaFiscal(notaId: string): Observable<{ chave: string; xml: string; original: boolean }> {
+    return forkJoin({
+      nota: this.appwrite.getDocument<NotaFiscalDoc>(NOTAS, notaId),
+      empresa: this.empresaDoc(),
+    }).pipe(
+      switchMap(({ nota, empresa }) => {
+        const origem = resolverOrigemXml(nota, empresa?.cnpj ?? '');
+        if (origem.fonte === 'original') {
+          return of({ chave: origem.chave || nota.chaveAcesso || '', xml: origem.xml, original: true });
+        }
+        if (origem.fonte === 'indisponivel') return throwError(() => new Error(origem.motivo));
+        return this.gerarXmlNotaFiscal(notaId).pipe(map(r => ({ ...r, original: false })));
+      }),
+    );
+  }
+
+  /**
+   * Recupera na SEFAZ o XML completo de uma nota de entrada já escriturada
+   * (Distribuição DF-e por chave, `consChNFe`) e COMPLETA a escrituração:
+   * grava o `xmlOriginal`, reconcilia o cabeçalho com o documento autorizado e
+   * cria os itens se a nota estiver sem nenhum.
+   *
+   * Existe porque a escrituração antiga descartava o XML e porque o cursor NSU
+   * já passou — reSincronizar não traz o documento de volta. A SEFAZ só entrega
+   * o XML completo a quem já registrou a Ciência da Operação (210210); sem
+   * manifestação, devolve apenas o resumo (tratado aqui como erro explícito).
+   */
+  completarNotaPelaSefaz(
+    notaId: string,
+    ambiente: 'homologacao' | 'producao' = 'homologacao',
+  ): Observable<{ ok: boolean; erro?: string; itensCriados?: number }> {
+    return forkJoin({
+      nota: this.appwrite.getDocument<NotaFiscalDoc>(NOTAS, notaId),
+      empresa: this.empresaDoc(),
+    }).pipe(
+      switchMap(({ nota, empresa }) => {
+        const chave = (nota.chaveAcesso ?? '').replace(/\D/g, '');
+        if (chave.length !== 44) return of({ ok: false, erro: 'Nota sem chave de acesso de 44 dígitos.' });
+        const uf = String(empresa?.uf ?? '').toUpperCase();
+        if (!uf) return of({ ok: false, erro: 'UF do emitente ausente no cadastro da empresa.' });
+
+        return this.appwrite.executeFunction<{ ok: boolean; erro?: string; xMotivo?: string; documentos?: DocDistribuicao[] }>(
+          environment.appwrite.functions.nfeDistribuicao,
+          { empresaId: this.empresaId, uf, ambiente, operacao: 'consultarChave', chave },
+        ).pipe(
+          switchMap(ret => {
+            if (!ret?.ok) return of({ ok: false, erro: ret?.erro || 'Falha na consulta à SEFAZ.' });
+            const completa = (ret.documentos ?? [])
+              .map(d => parsearDocumento(d.xml, d.nsu))
+              .find(x => x?.detalhamento === 'completo');
+            if (!completa) {
+              return of({
+                ok: false,
+                erro: ret.xMotivo
+                  ? `A SEFAZ não devolveu o XML completo (${ret.xMotivo}). Registre a Ciência da Operação e tente de novo.`
+                  : 'A SEFAZ devolveu apenas o resumo. Registre a Ciência da Operação (210210) e tente de novo.',
+              });
+            }
+            return this.reconciliarNotaImportada(notaId, completa);
+          }),
+          catchError(err => of({ ok: false, erro: this.erroFunction(err) })),
+        );
+      }),
+    );
+  }
+
+  /**
+   * Regrava o cabeçalho de uma nota já escriturada a partir do XML autorizado e
+   * cria os itens SE ela não tiver nenhum. Nunca duplica item: nota que já tem
+   * itens só ganha o `xmlOriginal` e os campos do cabeçalho.
+   */
+  private reconciliarNotaImportada(
+    notaId: string,
+    nota: NotaImportada,
+  ): Observable<{ ok: boolean; erro?: string; itensCriados?: number }> {
+    const cabecalho = this.buildNotaImportadaPayload(nota, 'ENTRADA');
+    // Campos que o update NÃO deve tocar: dono do documento (já correto) e
+    // `status` — um cancelamento registrado depois não pode voltar a AUTORIZADA
+    // só porque recuperamos o XML de autorização.
+    delete cabecalho['empresaId'];
+    delete cabecalho['tenantId'];
+    delete cabecalho['status'];
+    return this.appwrite.updateDocument<NotaFiscalDoc>(NOTAS, notaId, cabecalho).pipe(
+      switchMap(() => this.listarItens(notaId)),
+      switchMap(existentes => {
+        if (existentes.length || !nota.itens.length) return of(0);
+        const docs = nota.itens.map((it, i) => this.buildItemImportadoPayload(notaId, it, i + 1));
+        return forkJoin(docs.map(d => this.appwrite.createDocument<ItemNotaFiscalDoc>(ITENS, d as unknown as Record<string, unknown>)))
+          .pipe(map(criados => criados.length));
+      }),
+      map(itensCriados => ({ ok: true, itensCriados })),
+      catchError(err => of({ ok: false, erro: this.erroFunction(err) })),
     );
   }
 
