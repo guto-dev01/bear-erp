@@ -5,7 +5,7 @@ const fs = require('fs');
 const { Client, Databases, Storage } = require('node-appwrite');
 const { AppwriteStorageVault } = require('../_shared/cofre/appwrite-storage-vault');
 const { transmitirNfe, statusServico } = require('../_shared/nfe/transmissao');
-const { baixarNovos, manifestarDestinatario } = require('../_shared/nfe/importacao');
+const { baixarDistribuicao, baixarNovos, manifestarDestinatario } = require('../_shared/nfe/importacao');
 const { criarLogger } = require('../_shared/log/logger');
 
 // CA do servidor da SEFAZ (ICP-Brasil / AC SOLUTI) empacotada com a função em
@@ -32,6 +32,10 @@ if (!process.env.NODE_EXTRA_CA_CERTS) {
  *   - 'status': "ping" do serviço (valida A1 + mTLS sem mandar nota).
  *   - 'distribuir': baixa NF-e de ENTRADA via Distribuição DF-e (loop de NSU);
  *     opcional ultNSU (padrão 0) e cnpjCpf (padrão: o do certificado).
+ *   - 'consultarChave': baixa UM documento pela chave (consChNFe), para
+ *     recuperar o XML de uma nota já escriturada. A SEFAZ só entrega o procNFe
+ *     completo a quem já registrou a Ciência da Operação; sem isso devolve o
+ *     resumo. Exige chave.
  *   - 'manifestar': Manifestação do Destinatário; exige chave e tpEvento
  *     (210200/210210/210220/210240); xJust obrigatório na 210240.
  *
@@ -83,6 +87,15 @@ module.exports = async ({ req, res, log, error }) => {
       const r = await baixarNovos({ cofre, empresaId, uf, cnpjCpf, ultNSU: ultNSU ?? '0', ambiente, truststoreEstrito });
       logger.info('Distribuição DF-e', { empresaId, uf, baixados: r.documentos.length, ultNSU: r.ultNSU });
       return res.json({ ok: true, ...r });
+    }
+
+    if (operacao === 'consultarChave') {
+      if (!chave) return res.json({ ok: false, erro: 'chave é obrigatória para consultarChave' }, 400);
+      // Consulta pontual: NÃO mexe no cursor NSU do cliente (consChNFe é um
+      // caminho independente do laço distNSU e não consome a sequência).
+      const r = await baixarDistribuicao({ cofre, empresaId, uf, cnpjCpf, chNFe: chave, ambiente, truststoreEstrito });
+      logger.info('Consulta DF-e por chave', { empresaId, chave, cStat: r.cStat, docs: r.documentos.length });
+      return res.json({ ok: true, cStat: r.cStat, xMotivo: r.xMotivo, documentos: r.documentos });
     }
 
     if (operacao === 'manifestar') {
